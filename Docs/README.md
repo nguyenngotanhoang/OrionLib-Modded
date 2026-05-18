@@ -13,6 +13,7 @@ local Window = OrionLib:CreateWindow({
     Title = "Demo UI",
     Theme = "Dark",
     Icon = "sparkles",
+    SidebarCompact = true,
     KeySystem = {
         Enabled = true,
         Keys = {"MY-KEY"},
@@ -22,7 +23,7 @@ local Window = OrionLib:CreateWindow({
 })
 
 local Main = Window:Tab({ Title = "Main", Icon = "home" })
-local IconTab = Window:Tab({ Title = "Fast", Icon = "zap", IconOnly = true })
+local IconTab = Window:Tab({ Title = "Fast", Icon = "zap" })
 
 Main:HighlightButton({
     Title = "Run Action",

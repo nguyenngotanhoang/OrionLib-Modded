@@ -298,6 +298,20 @@ local function getMaxSize()
 	return Vector2.new(cam.ViewportSize.X * 0.9, cam.ViewportSize.Y * 0.9)
 end
 
+local function isMobileDevice()
+    return UserInputService.TouchEnabled or table.find({Enum.Platform.IOS, Enum.Platform.Android}, UserInputService:GetPlatform()) ~= nil
+end
+
+local function mobileScaleSize(size: UDim2)
+    if not isMobileDevice() then
+        return size
+    end
+    local maxSize = getMaxSize()
+    local width = math.clamp(size.X.Offset, OrionLib.SizeMin.X, maxSize.X)
+    local height = math.clamp(size.Y.Offset, OrionLib.SizeMin.Y, maxSize.Y)
+    return UDim2.fromOffset(width, height)
+end
+
 local function AddConnection(Signal, Function)
         if (not OrionLib:IsRunning()) or getgenv().Destroy then
                 return
@@ -319,30 +333,52 @@ end)
 
 function MakeDraggable(gui: GuiObject, DragFrame: GuiObject, Callback: () -> ()?)
     local dragging = false
-    local dragInput, dragStart, startPos
+    local dragStart, startPos, activeInput
 
     local function update(input)
-        local delta = input.Position - dragStart -- Thay mousePos bằng dragStart
+        if not dragging or not dragStart or not startPos then return end
+        local delta = input.Position - dragStart
         gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        local screen = workspace.CurrentCamera.ViewportSize
+        local pos = gui.AbsolutePosition
+        local size = gui.AbsoluteSize
+        gui.Position = UDim2.fromOffset(math.clamp(pos.X, 0, math.max(0, screen.X - size.X)), math.clamp(pos.Y, 0, math.max(0, screen.Y - size.Y)))
+        if Callback then
+            OrionLib:SafeScript(Callback)
+        end
     end
 
     AddConnection(DragFrame.InputBegan, function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
+            activeInput = input
             dragStart = input.Position
             startPos = gui.Position
+            AddConnection(input.Changed, function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    activeInput = nil
+                end
+            end)
+        end
+    end)
+
+    AddConnection(DragFrame.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            activeInput = input
         end
     end)
 
     AddConnection(UserInputService.InputChanged, function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and (input == activeInput or input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             update(input)
         end
     end)
 
     AddConnection(UserInputService.InputEnded, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input == activeInput or input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
+            activeInput = nil
         end
     end)
 end
@@ -374,10 +410,11 @@ function MakeResizable(gui: GuiObject, DragFrame: GuiObject, Callback: () -> ()?
         if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             getgenv().DraggingSize = true
             local delta = input.Position - startMouse
-            local newX = math.clamp(startSize.X.Offset - delta.X, OrionLib.SizeMin.X, math.huge)
-            local newY = math.clamp(startSize.Y.Offset + delta.Y, OrionLib.SizeMin.Y, math.huge)
+            local maxSize = getMaxSize()
+            local newX = math.clamp(startSize.X.Offset + delta.X, OrionLib.SizeMin.X, maxSize.X)
+            local newY = math.clamp(startSize.Y.Offset + delta.Y, OrionLib.SizeMin.Y, maxSize.Y)
             gui.Size = UDim2.new(0, newX, 0, newY)
-            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + (startSize.X.Offset - newX), startPos.Y.Scale, startPos.Y.Offset)
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset, startPos.Y.Scale, startPos.Y.Offset)
             if Callback then
                 OrionLib:SafeScript(Callback)
             end
@@ -1537,6 +1574,7 @@ end
 function OrionLib:MakeWindow(WindowConfig)
         local FirstTab = true
         local Minimized = false
+        local MinimizedKey = false
         local Loaded = false
         local UIHidden = false
 
@@ -1554,8 +1592,13 @@ function OrionLib:MakeWindow(WindowConfig)
         WindowConfig.Icon = ResolveIcon(WindowConfig.Icon or "rbxassetid://14229447778")
         WindowConfig.Theme = WindowConfig.Theme or "Default"
         WindowConfig.IntroIcon = ResolveIcon(WindowConfig.IntroIcon or WindowConfig.Icon or "rbxassetid://14229447778")
-        WindowConfig.Size = WindowConfig.Size or UDim2.fromOffset(615, 344)
+        WindowConfig.Size = mobileScaleSize(WindowConfig.Size or UDim2.fromOffset(615, 344))
+        WindowConfig.SidebarCompact = WindowConfig.SidebarCompact or WindowConfig.IconOnly or WindowConfig.CompactSidebar or false
+        WindowConfig.SidebarWidth = WindowConfig.SidebarCompact and 58 or (WindowConfig.SidebarWidth or 150)
         WindowConfig.SearchBar = WindowConfig.SearchBar or (WindowConfig.HideSearchBar and nil or WindowConfig.Search)
+        if WindowConfig.SidebarCompact and type(WindowConfig.SearchBar) == "table" then
+                WindowConfig.SearchBar.Tabs = false
+        end
         WindowConfig.LinkVideo = WindowConfig.LinkVideo or WindowConfig.Video or nil
         WindowConfig.Image = WindowConfig.Image or WindowConfig.Background or nil
         WindowConfig.KeySystem = WindowConfig.KeySystem or WindowConfig.Key or WindowConfig.KeyAuth or nil
@@ -1571,12 +1614,12 @@ function OrionLib:MakeWindow(WindowConfig)
             if not keyPassed then return nil end
         end
 
-        Window = {Size = WindowConfig.Size}
+        Window = {Size = WindowConfig.Size, SidebarCompact = WindowConfig.SidebarCompact, SidebarWidth = WindowConfig.SidebarWidth}
 
         local TabHolder = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 4),
                 WindowConfig.SearchBar and WindowConfig.SearchBar.Tabs == true and {
-                        Size = UDim2.new(1, 0, 1, -90),
-                        Position = UDim2.new(0, 0, 0, 40),
+                        Size = UDim2.new(1, 0, 1, WindowConfig.SidebarCompact and -50 or -90),
+                        Position = UDim2.new(0, 0, 0, WindowConfig.SidebarCompact and 0 or 40),
                 } or {
                         Size = UDim2.new(1, 0, 1, -50)
                 }),
@@ -1615,13 +1658,18 @@ function OrionLib:MakeWindow(WindowConfig)
                 }), "Text")
         })
 
-        local DragPoint = SetProps(MakeElement("TFrame"), {
-                Size = UDim2.new(1, 0, 0, 50)
+        local DragPoint = SetProps(MakeElement("Button"), {
+                Size = UDim2.new(1, -96, 0, 50),
+                Position = UDim2.new(0, 0, 0, 0),
+                BackgroundTransparency = 1,
+                AutoButtonColor = false,
+                Active = true,
+                ZIndex = 2
         })
 
 		local hasLinkVideo = typeof(WindowConfig.LinkVideo) == "string"
         local WindowStuff = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 10), {
-                Size = UDim2.new(0, 150, 1, -50),
+                Size = UDim2.new(0, WindowConfig.SidebarWidth, 1, -50),
                 Position = UDim2.new(0, 0, 0, 50),
                 BackgroundTransparency = hasLinkVideo and 1 or 0
         }), {
@@ -1642,7 +1690,8 @@ function OrionLib:MakeWindow(WindowConfig)
                 TabHolder,
                 SetChildren(SetProps(MakeElement("TFrame"), {
                         Size = UDim2.new(1, 0, 0, 50),
-                        Position = UDim2.new(0, 0, 1, -50)
+                        Position = UDim2.new(0, 0, 1, -50),
+                        Visible = not WindowConfig.SidebarCompact
                 }), {
                         OrionLib:AddThemeObject(SetProps(MakeElement("Frame"), {
                                 Size = UDim2.new(1, 0, 0, 1)
@@ -1749,9 +1798,12 @@ function OrionLib:MakeWindow(WindowConfig)
 		local SizeDrag = SetChildren(SetProps(MakeElement("Button"), {
 		    Name = "SizeDragging",
 		    AnchorPoint = Vector2.new(1, 1),
-		    Position = UDim2.new(1, -5, 1, -5),
-		    Size = UDim2.new(0, 20, 0, 20),
-		    BackgroundTransparency = 1,
+		    Position = UDim2.new(1, -6, 1, -6),
+		    Size = UDim2.new(0, isMobileDevice() and 34 or 24, 0, isMobileDevice() and 34 or 24),
+		    BackgroundTransparency = isMobileDevice() and 0.15 or 1,
+		    BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Second,
+            Active = true,
+            AutoButtonColor = false,
 		    ZIndex = 10,
 		}), {
 		    OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://6031094634"), { -- Icon kéo giãn chuẩn
@@ -1765,7 +1817,8 @@ function OrionLib:MakeWindow(WindowConfig)
 		})
         local MainWindow = OrionLib:AddThemeObject(SetChildren(SetProps(MainElementGui, {
                 Parent = Orion,
-                Position = UDim2.new(0.5, -307, 0.5, -172),
+                AnchorPoint = Vector2.new(0, 0),
+                Position = UDim2.new(0.5, -WindowConfig.Size.X.Offset / 2, 0.5, -WindowConfig.Size.Y.Offset / 2),
                 Size = WindowConfig.Size,
                 BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Main,
                 ClipsDescendants = true
@@ -1859,7 +1912,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 WindowIcon.Parent = MainWindow.TopBar
         end
 
-        MakeDraggable(DragPoint, MainWindow)
+        MakeDraggable(MainWindow, DragPoint)
         local isMobile = table.find({Enum.Platform.IOS, Enum.Platform.Android}, UserInputService:GetPlatform())
         local MobileReopenButton = SetChildren(SetProps(MakeElement("Button"), {
                 Parent = Orion,
@@ -1879,28 +1932,55 @@ function OrionLib:MakeWindow(WindowConfig)
 
         MakeDraggable(MobileReopenButton, MobileReopenButton)
 
+        local function GetCollapsedSize()
+                return UDim2.new(0, math.max(WindowName.TextBounds.X + 140, 220), 0, 50)
+        end
+
+        local function SetWindowMinimized(state, fromKeybind)
+                if state then
+                        MainWindow.ClipsDescendants = true
+                        MainWindow.SizeDragging.Visible = false
+                        WindowTopBarLine.Visible = false
+                        MinimizeBtn.Ico.Image = "rbxassetid://7072720870"
+                        local tween = TweenService:Create(MainWindow, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = GetCollapsedSize()})
+                        tween:Play()
+                        task.delay(0.08, function()
+                                if MainWindow and MainWindow.Parent then
+                                        WindowStuff.Visible = false
+                                end
+                        end)
+                else
+                        MainWindow.Visible = true
+                        MobileReopenButton.Visible = false
+                        WindowStuff.Visible = true
+                        WindowTopBarLine.Visible = true
+                        MainWindow.SizeDragging.Visible = true
+                        MinimizeBtn.Ico.Image = "rbxassetid://7072719338"
+                        local tween = TweenService:Create(MainWindow, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = Window.Size})
+                        tween:Play()
+                        tween.Completed:Connect(function()
+                                if MainWindow and MainWindow.Parent then
+                                        MainWindow.ClipsDescendants = false
+                                end
+                        end)
+                end
+                Minimized = state
+                MinimizedKey = state
+        end
+
         AddConnection(MobileReopenButton.MouseButton1Click, function()
-                MainWindow.Visible = true
-                TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Size = Window.Size,
-				}):Play()
-				WindowStuff.Visible = true
-				WindowTopBarLine.Visible = true
-				MinimizeBtn.Ico.Image = "rbxassetid://7072719338"
-                MobileReopenButton.Visible = false
-                Minimized = false
-                MainWindow.SizeDragging.Visible = true
+                SetWindowMinimized(false)
         end)
 
         AddConnection(CloseBtn.MouseButton1Up, function()
-		        MainWindow.ClipsDescendants = true
-				local WindowLoading = TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                MainWindow.ClipsDescendants = true
+                MainWindow.SizeDragging.Visible = false
+				local WindowLoading = TweenService:Create(MainWindow, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
 					Size = UDim2.new(0, 0, 0, 0)
 				})
 				WindowLoading:Play()
 				WindowLoading.Completed:Wait()
                 MainWindow.Visible = false
-                MainWindow.SizeDragging.Visible = false
                 UIHidden = true
 
                 if UserInputService.TouchEnabled then
@@ -1908,51 +1988,22 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
                 OrionLib:MakeNotification({
                         Name = "Hide Gui",
-                        Content = (isMobile and "interact icon to reopen" or "Press Key ".._currentKey.Name).." To Repoen gui",
+                        Content = (isMobile and "tap the floating icon to reopen" or "Press Key ".._currentKey.Name).." to reopen gui",
                         Time = 5
                 })
                 OrionLib:SafeScript(WindowConfig.CloseCallback)
         end)
 
-        AddConnection(UserInputService.InputBegan, function(Input)
+        AddConnection(UserInputService.InputBegan, function(Input, gameProcessed)
+                if gameProcessed then return end
                 if Input.KeyCode == _currentKey then
                         MobileReopenButton.Visible = false
-                        if MinimizedKey then
-	                        TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = Window.Size}):Play()
-	                        MinimizeBtn.Ico.Image = "rbxassetid://7072719338"
-	                        wait(.02)
-	                        MainWindow.ClipsDescendants = false
-	                        WindowStuff.Visible = true
-	                        WindowTopBarLine.Visible = true
-		                else
-	                        MainWindow.ClipsDescendants = true
-	                        WindowTopBarLine.Visible = false
-	                        MinimizeBtn.Ico.Image = "rbxassetid://7072720870"
-	                        TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, WindowName.TextBounds.X + 140, 0, 50)}):Play()
-	                        wait(0.1)
-	                        WindowStuff.Visible = false
-		                end
-		                MinimizedKey = not MinimizedKey
+                        SetWindowMinimized(not MinimizedKey, true)
                 end
         end)
 
         AddConnection(MinimizeBtn.MouseButton1Up, function()
-                if Minimized then
-                        TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = WindowConfig.Size}):Play()
-                        MinimizeBtn.Ico.Image = "rbxassetid://7072719338"
-                        wait(.02)
-                        MainWindow.ClipsDescendants = false
-                        WindowStuff.Visible = true
-                        WindowTopBarLine.Visible = true
-                else
-                        MainWindow.ClipsDescendants = true
-                        WindowTopBarLine.Visible = false
-                        MinimizeBtn.Ico.Image = "rbxassetid://7072720870"
-                        TweenService:Create(MainWindow, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, WindowName.TextBounds.X + 140, 0, 50)}):Play()
-                        wait(0.1)
-                        WindowStuff.Visible = false
-                end
-                Minimized = not Minimized
+                SetWindowMinimized(not Minimized)
         end)
 
         local function LoadSequence()
@@ -2039,8 +2090,8 @@ function OrionLib:MakeWindow(WindowConfig)
 			MainWindow.Visible = true
 			Blur:Destroy()
 			BaseFrame:Destroy()
-			TweenService:Create(MainWindow, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Size = UDim2.new(0, 615, 0, 344),
+			TweenService:Create(MainWindow, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Size = Window.Size,
 			}):Play()
 		end
 
@@ -2061,7 +2112,7 @@ function OrionLib:MakeWindow(WindowConfig)
 			TabConfig.Icon = ResolveIcon(TabConfig.Icon or "")
 			TabConfig.Visible = TabConfig.Visible ~= false
 			TabConfig.Disabled = TabConfig.Disabled == true
-            TabConfig.IconOnly = TabConfig.IconOnly == true
+            TabConfig.IconOnly = WindowConfig.SidebarCompact or TabConfig.IconOnly == true
 
 			local Tabs = {
 				Disabled = TabConfig.Disabled,
@@ -2102,8 +2153,8 @@ function OrionLib:MakeWindow(WindowConfig)
 			AddItemTable(Tabs, TabConfig.Name, TabFrame)
 
 			local Container = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
-				Size = UDim2.new(1, -150, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
-				Position = UDim2.new(0, 150, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
+				Size = UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
+				Position = UDim2.new(0, WindowConfig.SidebarWidth, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
 				Parent = MainWindow,
 				Visible = false,
 				Name = "ItemContainer"

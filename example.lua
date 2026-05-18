@@ -18,6 +18,7 @@ local Window = OrionLib:CreateWindow({
     Theme = "Ocean",
     Icon = "sparkles",
     Size = UDim2.fromOffset(650, 390),
+    SidebarCompact = true,
     KeySystem = {
         Enabled = true,
         Title = "Demo Key System",
@@ -36,8 +37,7 @@ local Main = Window:Tab({
 
 local Combat = Window:Tab({
     Title = "Combat",
-    Icon = "sword",
-    IconOnly = true
+    Icon = "sword"
 })
 
 Main:HighlightButton({
@@ -83,7 +83,7 @@ Main:Slider({
 
 Combat:Paragraph({
     Title = "Icon-only tab",
-    Desc = "This tab uses IconOnly = true and the tab bar now animates with a highlight marker."
+    Desc = "This window uses SidebarCompact = true, so all tabs render icon-only with the animated highlight marker."
 })
 
 Combat:Button({
