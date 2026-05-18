@@ -655,6 +655,35 @@ local function ResolveIcon(icon)
     return icon
 end
 
+local function ResolveImageLikeAsset(asset)
+    if typeof(asset) == "number" then
+        return "rbxassetid://" .. tostring(asset)
+    end
+    if type(asset) ~= "string" then
+        return asset
+    end
+    asset = TranslateValue(asset)
+    if asset:find("^rbxassetid://") or asset:find("^rbxthumb://") or asset:find("^http://www%.roblox%.com/asset") then
+        return asset
+    end
+    if asset:match("^%d+$") then
+        return "rbxassetid://" .. asset
+    end
+    return asset
+end
+
+local function ResolveExternalMediaAsset(asset, folder)
+    asset = ResolveImageLikeAsset(asset)
+    if type(asset) ~= "string" then
+        return asset
+    end
+    if asset:find("^https?://") and not asset:find("roblox%.com") then
+        local loaded = OrionLib:MakeAsset({Icon = asset}, {Root = "OrionLibSave", Folder = folder or "OrionMedia"})
+        return loaded and loaded.Icon or asset
+    end
+    return asset
+end
+
 local function NormalizeWindowConfig(config)
     config = TranslateConfig(config or {})
     return {
@@ -1253,10 +1282,7 @@ function OrionLib:MakeNotification(NotificationConfig)
 			return Str
 		end
 
-		local IconId = NotificationConfig.Image
-		if not tostring(IconId):find("rbxassetid") and tostring(IconId):match("%d+") then
-			IconId = "rbxassetid://" .. tostring(IconId):match("%d+")
-		end
+		local IconId = ResolveImageLikeAsset(NotificationConfig.Image)
 
 		local NotificationParent = SetProps(MakeElement("Frame"), {
 			Size = UDim2.new(1, 0, 0, 0),
@@ -1715,7 +1741,7 @@ function OrionLib:MakeWindow(WindowConfig)
 		if typeof(WindowConfig.LinkVideo) == "string" then
 			MainElementGui = MakeElement("RoundVideo", Color3.fromRGB(255, 255, 255), true, true, 0, 10)
 		elseif typeof(WindowConfig.Image) == "string" or typeof(WindowConfig.Image) == "number" then
-			local Image = typeof(WindowConfig.Image) == "number" and "rbxassetid://"..WindowConfig.Image or OrionLib:MakeAsset({Icon = WindowConfig.Image}, {Root = "OrionLibSave", Folder = "OrionVideo"})
+			local Image = ResolveExternalMediaAsset(WindowConfig.Image, "OrionBackground")
 			MainElementGui = MakeElement("RoundImage", 0, 10, Image)
 		else
 			MainElementGui = MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 10)
@@ -1824,7 +1850,7 @@ function OrionLib:MakeWindow(WindowConfig)
         end
 
         if WindowConfig.ShowIcon then
-		        local IconTogglesUi = "rbxassetid://"..WindowConfig.Icon:match("%d+")
+                WindowConfig.Icon = ResolveImageLikeAsset(WindowConfig.Icon)
                 WindowName.Position = UDim2.new(0, 50, 0, -24)
                 local WindowIcon = SetProps(MakeElement("Image", WindowConfig.Icon), {
                         Size = UDim2.new(0, 20, 0, 20),
@@ -1945,7 +1971,7 @@ function OrionLib:MakeWindow(WindowConfig)
 				ZIndex = 999
 			})
 
-			local LoadSequenceLogo = SetChildren(SetProps(MakeElement("Image", "rbxassetid://"..WindowConfig.IntroIcon:match("%d+")), {
+			local LoadSequenceLogo = SetChildren(SetProps(MakeElement("Image", ResolveImageLikeAsset(WindowConfig.IntroIcon)), {
 				Parent = BaseFrame,
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.new(0.5, 0, 0.4, 0),

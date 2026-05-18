@@ -162,3 +162,17 @@ OrionLib:Localization({
     }
 })
 ```
+
+## Troubleshooting
+
+### `attempt to concatenate string with nil` when creating a window
+
+If you use a Lucide icon name such as `"sparkles"` or `"home"` for `Icon`/`IntroIcon`, OrionLib now routes it through the shared icon resolver instead of forcing a numeric Roblox asset id. This means all of these are valid:
+
+```lua
+Icon = "sparkles"
+Icon = "rbxassetid://14229447778"
+Icon = 14229447778
+```
+
+The same resolver is used for notification icons and window intro icons, so Lucide names with digits like `"trash-2"` will no longer be mistaken for Roblox asset id `2`.
