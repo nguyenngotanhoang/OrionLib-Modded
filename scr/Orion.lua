@@ -71,24 +71,121 @@ getgenv().OrionLib = {
 
 getgenv().Destroy = false
 
---Feather Icons https://raw.githubusercontent.com/Articles-Hub/ROBLOXScript/refs/heads/main/Library/Orion/icons.json
+-- Lucide Icons for Roblox compatible resolver.
+-- Prefer a Lucide module/provider (same GetAsset API as lucide-roblox / Obsidian-style ports),
+-- then fall back to the legacy Feather asset table for older Orion scripts.
 local Icons = {}
+local LucideAliases = {
+        ["x"] = "x",
+        ["close"] = "x",
+        ["settings"] = "settings",
+        ["setting"] = "settings",
+        ["home"] = "home",
+        ["house"] = "house",
+        ["search"] = "search",
+        ["user"] = "user",
+        ["users"] = "users",
+        ["zap"] = "zap",
+        ["sparkles"] = "sparkles",
+        ["sword"] = "swords",
+        ["play"] = "play",
+        ["pause"] = "pause",
+        ["folder"] = "folder",
+        ["save"] = "save",
+        ["trash"] = "trash-2",
+        ["mouse-pointer-click"] = "mouse-pointer-click",
+}
 
 local Success, Response = pcall(function()
         Icons = HttpService:JSONDecode(game:HttpGetAsync("https://raw.githubusercontent.com/Articles-Hub/ROBLOXScript/refs/heads/main/Library/Orion/icons.json")).icons
 end)
 
 if not Success then
-        warn("\nOrion Library - Failed to load Feather Icons. Error code: " .. Response .. "\n")
+        warn("\nOrion Library - Failed to load legacy icon fallback. Error code: " .. Response .. "\n")
+end
+
+local function NormalizeIconName(IconName: string)
+        if type(IconName) ~= "string" then return nil end
+        local IconLower = IconName:lower()
+        IconLower = IconLower:gsub("^lucide[:%-]", "")
+        IconLower = IconLower:gsub("^lucide_", "")
+        IconLower = IconLower:gsub("^solar:", "")
+        IconLower = IconLower:gsub("[_%s]+", "-")
+        IconLower = IconLower:gsub("%-bold%-duotone$", "")
+        return LucideAliases[IconLower] or IconLower
+end
+
+local function GetLucideProvider()
+        local candidates = {
+                OrionLib and OrionLib.LucideProvider,
+                OrionLib and OrionLib.Lucide,
+                getgenv().Lucide,
+                shared and shared.Lucide,
+        }
+        pcall(function()
+                local replicatedStorage = game:GetService("ReplicatedStorage")
+                local module = replicatedStorage:FindFirstChild("Lucide") or replicatedStorage:FindFirstChild("LucideIcons")
+                if module and module:IsA("ModuleScript") then
+                        table.insert(candidates, require(module))
+                end
+        end)
+        for _, provider in ipairs(candidates) do
+                if type(provider) == "table" and type(provider.GetAsset) == "function" then
+                        return provider
+                end
+        end
+        return nil
+end
+
+local function GetIconData(IconName: string, Size: number?)
+        local normalized = NormalizeIconName(IconName)
+        if not normalized or normalized == "" then return nil end
+
+        local provider = GetLucideProvider()
+        if provider then
+                local ok, asset = pcall(provider.GetAsset, normalized, Size or 48)
+                if ok and asset then
+                        return {
+                                Image = asset.Url or (asset.Id and "rbxassetid://" .. tostring(asset.Id)) or asset.Image,
+                                ImageRectOffset = asset.ImageRectOffset,
+                                ImageRectSize = asset.ImageRectSize,
+                                Name = asset.IconName or normalized,
+                                Source = "Lucide"
+                        }
+                end
+        end
+
+        if Icons[normalized] ~= nil then
+                return {Image = Icons[normalized], Name = normalized, Source = "Legacy"}
+        end
+        return nil
 end
 
 local function GetIcon(IconName: string)
-		local IconLower = IconName:lower() or ""
-        if Icons[IconLower] ~= nil then
-                return Icons[IconLower]
-        else
-                return nil
+        local data = GetIconData(IconName)
+        return data and data.Image or nil
+end
+
+local function ApplyIconToObject(Object, IconName: string, Size: number?)
+        local data = GetIconData(IconName, Size)
+        if data and data.Image then
+                Object.Image = data.Image
+                Object.ImageRectOffset = data.ImageRectOffset or Vector2.new(0, 0)
+                Object.ImageRectSize = data.ImageRectSize or Vector2.new(0, 0)
+                return true
         end
+        Object.Image = IconName or ""
+        Object.ImageRectOffset = Vector2.new(0, 0)
+        Object.ImageRectSize = Vector2.new(0, 0)
+        return false
+end
+
+function OrionLib:SetLucideProvider(provider)
+        OrionLib.LucideProvider = provider
+end
+
+function OrionLib:GetIcon(iconName: string, size: number?)
+        return GetIconData(iconName, size)
 end
 
 Orion = Instance.new("ScreenGui")
@@ -555,10 +652,7 @@ local function ResolveIcon(icon)
         return icon
     end
     icon = TranslateValue(icon)
-    if icon:find("rbxassetid://") or icon:find("http://www.roblox.com/asset") or icon:find("https?://") then
-        return icon
-    end
-    return GetIcon(icon) or icon
+    return icon
 end
 
 local function NormalizeWindowConfig(config)
@@ -1085,39 +1179,32 @@ end)
 
 CreateElement("Image", function(ImageID)
         local ImageNew = Create("ImageLabel", {
-                Image = ImageID,
+                Image = "",
                 BackgroundTransparency = 1
         })
-
-        if GetIcon(ImageID) ~= nil then
-                ImageNew.Image = GetIcon(ImageID)
-        end
-
+        ApplyIconToObject(ImageNew, ImageID)
         return ImageNew
 end)
 
 CreateElement("RoundImage", function(Scale, Offset, ImageID)
         local ImageNew = Create("ImageLabel", {
-                Image = ImageID,
+                Image = "",
                 BackgroundTransparency = 1
         }, {
 			Create("UICorner", {
 				CornerRadius = UDim.new(Scale, Offset)
 			})
 		})
-
-        if GetIcon(ImageID) ~= nil then
-                ImageNew.Image = GetIcon(ImageID)
-        end
-
+        ApplyIconToObject(ImageNew, ImageID)
         return ImageNew
 end)
 
 CreateElement("ImageButton", function(ImageID)
         local Image = Create("ImageButton", {
-                Image = ImageID,
+                Image = "",
                 BackgroundTransparency = 1
         })
+        ApplyIconToObject(Image, ImageID)
         return Image
 end)
 
@@ -1215,13 +1302,14 @@ function OrionLib:MakeNotification(NotificationConfig)
 			Padding = UDim.new(0, 8)
 		})
 
-		Create("ImageLabel", {
+		local NotificationIcon = Create("ImageLabel", {
 			Parent = Header,
 			Size = UDim2.new(0, 16, 0, 16),
-			Image = IconId,
+			Image = "",
 			ImageColor3 = Color3.fromRGB(255, 255, 255),
 			BackgroundTransparency = 1
 		})
+        ApplyIconToObject(NotificationIcon, IconId, 48)
 
 		Create("TextLabel", {
 			Parent = Header,
@@ -1363,12 +1451,13 @@ function OrionLib:MakeWatermark(Watermark)
 	Watermark.Flag = Watermark.Flag or nil
 
 	local WatermarkHe = {}
+	local WatermarkName = Watermark.Flag and ("Watermark_" .. tostring(Watermark.Flag)) or "OrionWatermark"
 	local LabelFrame = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
 	        Size = UDim2.new(0, 24, 0, 40),
-			Position = UDim2.fromOffset(6, 6),
-	        BackgroundTransparency = 0,
+			Position = Watermark.Position or UDim2.fromOffset(6, 6),
+	        BackgroundTransparency = Watermark.Transparency or 0,
 			Visible = Watermark.Visible,
-			Name = "Watermark_LabelDagger_"..Watermark.Flag or "Orion",
+			Name = WatermarkName,
 	        Parent = Orion
 	}), {
 	        OrionLib:AddThemeObject(SetProps(MakeElement("Label", Watermark.Text, 15), {
@@ -1380,25 +1469,33 @@ function OrionLib:MakeWatermark(Watermark)
 	        OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke")
 	}), "Second")
 
-	MakeDraggable(LabelFrame.Content, LabelFrame)
+	MakeDraggable(LabelFrame, LabelFrame)
 
 	function WatermarkHe:SetText(text: string)
 		if getgenv().Destroy then return end
+		Watermark.Text = tostring(text or "")
 		if LabelFrame and LabelFrame:FindFirstChild("Content") then
-			LabelFrame.Content.Text = text
+			LabelFrame.Content.Text = Watermark.Text
 		end
 	end
 	function WatermarkHe:SetVisible(visi: bool)
 		if getgenv().Destroy then return end
+		Watermark.Visible = visi == true
 		if LabelFrame then
-			LabelFrame.Visible = visi
+			LabelFrame.Visible = Watermark.Visible
+		end
+	end
+	function WatermarkHe:SetPosition(position: UDim2)
+		if getgenv().Destroy then return end
+		if LabelFrame and typeof(position) == "UDim2" then
+			LabelFrame.Position = position
 		end
 	end
 	if LabelFrame and LabelFrame:FindFirstChild("Content") then
 		local function UpdateSizeWatermaker()
-			local width = LabelFrame.Content.TextBounds.X + 20
+			local width = math.max(24, LabelFrame.Content.TextBounds.X + 20)
 			TweenService:Create(LabelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, width, 0, 35)}):Play()
-			TweenService:Create(LabelFrame.Content, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, width, 0, 35)}):Play()
+			TweenService:Create(LabelFrame.Content, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, -12, 1, 0)}):Play()
 		end
 		AddConnection(LabelFrame.Content:GetPropertyChangedSignal("Text"), function()
 			UpdateSizeWatermaker()
@@ -1443,6 +1540,7 @@ function OrionLib:MakeWindow(WindowConfig)
 		end
 		OrionLib:SetTheme(OrionLib.SelectedTheme)
         if WindowConfig.KeySystem and WindowConfig.KeySystem.Enabled ~= false then
+            WindowConfig.KeySystem.Blocking = true
             local keyPassed = OrionLib:MakeKeySystem(WindowConfig.KeySystem)
             if not keyPassed then return nil end
         end
@@ -1570,7 +1668,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         Text = "",
                         TextXAlignment = Enum.TextXAlignment.Center,
                         TextSize = 14,
-                        ClearTextOnFocus = WindowConfig.SearchBar.ClearTextOnFocus or true
+                        ClearTextOnFocus = WindowConfig.SearchBar.ClearTextOnFocus ~= false
                 })
 
                 local TextboxActual = OrionLib:AddThemeObject(SearchBox, "Text")
@@ -1587,20 +1685,18 @@ function OrionLib:MakeWindow(WindowConfig)
                 }), "Main")
 
                 local function SearchHandle()
-                        local Text = string.lower(SearchBox.Text)
+                        local Text = string.lower(SearchBox.Text or "")
 
-                        for i,v in pairs(TabHolder:GetChildren()) do
+                        for _, v in pairs(TabHolder:GetChildren()) do
                                 if v:IsA("TextButton") then
-                                        if string.find(string.lower(i), Text) then
-                                                v.Visible = true
-                                        else
-                                                v.Visible = false
-                                        end
+                                        local title = v:FindFirstChild("Title")
+                                        local searchText = title and title.Text or v.Name or ""
+                                        v.Visible = Text == "" or string.find(string.lower(searchText), Text, 1, true) ~= nil
                                 end
                         end
                 end
 
-                AddConnection(TextboxActual:GetPropertyChangedSignal("Text"), SearchHandle);
+                AddConnection(TextboxActual:GetPropertyChangedSignal("Text"), SearchHandle)
         end
 
         local WindowName = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("Label", WindowConfig.Name, 14), {
@@ -1691,7 +1787,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         Text = "",
                         TextXAlignment = Enum.TextXAlignment.Center,
                         TextSize = 14,
-                        ClearTextOnFocus = WindowConfig.SearchBar.ClearTextOnFocus or true
+                        ClearTextOnFocus = WindowConfig.SearchBar.ClearTextOnFocus ~= false
                 })
 
                 local TextboxActual = OrionLib:AddThemeObject(SearchBox, "Text")
@@ -1707,19 +1803,18 @@ function OrionLib:MakeWindow(WindowConfig)
 				}), "Main")
 
                 local function SearchHandleMain()
-                        local Text = string.lower(SearchBox.Text)
-						for i, v in pairs(MainWindow:GetChildren()) do
+                        local Text = string.lower(SearchBox.Text or "")
+						for _, v in pairs(MainWindow:GetChildren()) do
 							if v.Name == "ItemContainer" and v.Visible == true then
 								for _, j in pairs(v:GetChildren()) do
-									if j:IsA("Frame") then
-										local ContentFind = j:FindFirstChild("Content", true) or nil
-										if ContentFind then
-											if string.find(string.lower(ContentFind.Text), Text) then
-												j.Visible = true
-											else
-												j.Visible = false
-											end
-										end
+									if j:IsA("GuiObject") and not j:IsA("UIListLayout") and not j:IsA("UIPadding") then
+                                        if Text == "" then
+                                                j.Visible = true
+                                        else
+                                                local ContentFind = j:FindFirstChild("Content", true) or j:FindFirstChild("Title", true)
+                                                local searchable = ContentFind and ContentFind.Text or j.Name or ""
+                                                j.Visible = string.find(string.lower(searchable), Text, 1, true) ~= nil
+                                        end
 									end
 								end
 							end
@@ -2870,7 +2965,7 @@ function OrionLib:MakeWindow(WindowConfig)
 							function Image:SetIcon(iconId)
 								if getgenv().Destroy then return end
 								if IconImage then
-									IconImage.Image = tostring(iconId)
+									ApplyIconToObject(IconImage, tostring(iconId), Image.Size)
 								end
 							end
 
@@ -5242,162 +5337,4 @@ function OrionLib:OnDestroy(fn)
 	end
 end
 
-----
-Window = OrionLib:MakeWindow({Name = "Orion Rework", SearchBar = {Default = "Search Tabs", DefaultMain = "Search Group", ClearTextOnFocus = true, Tabs = true, Mains = true}, IntroText = "Article Hub 🅰️", IntroIcon = "rbxassetid://125448486325517", IntroToggleIcon = "rbxassetid://7734091286", HidePremium = false})
-Tab, SetTab = Window:MakeTab({
-	Name = "Tab 1",
-	Icon = "eGg",
-	PremiumOnly = false
-})
-
-UIsetting = Window:MakeTab({
-	Name = "UI Setting",
-	Icon = "eGg",
-	PremiumOnly = false
-})
-
-ButtonClick = Tab:AddButton({
-	Name = "Button!",
-	Callback = function()
-SetTab:SetDisabled(true)
-	end
-})
-
-Tab:AddDivider()
-
-Huh = Tab:AddButton({
-	Name = "Button!",
-	Callback = function()
-LabelText:Set("Hello", "Success")
-	end
-})
-
-Tab:AddToggle({
-	Name = "This is a toggle!",
-	Default = false,
-	Flag = "HelloIAmToggles"
-}):AddBind({
-	Default = Enum.KeyCode.E
-})
-
-Tab:AddToggle({
-	Name = "This is a toggle!",
-	Default = false,
-	Type = "Switch",
-	Callback = function(Value)
-OrionLib.Flags["Hhhh"]:Set({"Hello", "jj"})
-	end
-}):AddBind({
-	Default = Enum.KeyCode.E
-})
-
-Tab:AddDropdown({
-	Name = "Dropdown",
-	Multi = true,
-	MultiTrue = true,
-	Default = {},
-	Flag = "Hhhh",
-	Options = {"Hello", "jj", "ll", "++(", "kjk", "ọh"},
-	Callback = function(Value)
-for i, v in Value do
-print(i, v)
-end
-	end
-})
-
-Tab:AddDropdown({
-	Name = "Dropdown",
-	Multi = false,
-	Default = "1",
-	Options = {"1", "2", "4", "8", "1.6", "9"},
-	Callback = function(Value)
-print(Value)
-	end
-})
-
-Tab:AddTextbox({
-	Name = "Textbox",
-	Finished = false,
-	Numeric = false,
-	Default = "default box input",
-	TextDisappear = true,
-	Callback = function(Value)
-		print(Value)
-	end
-})
-
-Tab:AddTextbox({
-	Name = "Textbox",
-	Finished = true,
-	Numeric = false,
-	Default = "default box input",
-	TextDisappear = true,
-	Callback = function(Value)
-		print(Value)
-	end
-})
-
-Tab:AddTextbox({
-	Name = "Textbox",
-	Finished = false,
-	Numeric = true,
-	Default = "default box input",
-	TextDisappear = true,
-	Callback = function(Value)
-		TestSl:SetMax(Value)
-	end
-})
-
-local Viewport = Tab:AddViewport({
-	Orbit = true,
-	Control = true,
-	Zoom = true,
-	Size = 270
-})
-
-local Img = Tab:AddImage({
-	Icon = "rbxassetid://3944703587",
-	Size = 50
-})
-
-TestSl = Tab:AddSlider({
-        Name = "Slider",
-        Min = 0,
-        Max = 20,
-        Default = 5,
-        Color = Color3.fromRGB(255,255,255),
-        Increment = 0.1,
-        ValueName = "bananas",
-        Callback = function(Value)
-                Img:SetSize(Value)
-        end
-})
-
-LabelText = Tab:AddLabel("Hello")
-
-OrionLib:OnDestroy(function()
-	print("Hello Bro")
-end)
-
-OrionLib:MakeWatermark({
-	Text = "Skibidi Toool",
-	Visible = true,
-	Flag = "Hello"
-})
-
-local FrameTimer = tick()
-local CurrentRooms = 0
-local FrameCounter = 0
-local FPS = 60
-OrionLib:AddConnect(game:GetService("RunService").RenderStepped, function()
-FrameCounter += 1
-if (tick() - FrameTimer) >= 1 then
-    FPS = FrameCounter
-    FrameTimer = tick()
-    FrameCounter = 0
-end
-OrionLib.Flags["Hello"]:SetText(("%s FPS | %s Ping"):format(FPS, math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())))
-end)
-
-OrionLib:LoadAutoloadConfig()
-OrionLib:BuildSettings(UIsetting)
+return OrionLib

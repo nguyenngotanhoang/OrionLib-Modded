@@ -4,6 +4,8 @@ This repo now keeps the main library source in [`scr/Orion.lua`](../scr/Orion.lu
 
 ## Quick start
 
+`scr/Orion.lua` now returns the library only; it does not auto-create a demo window. This is important for key systems because the protected window is not built until the key check passes.
+
 ```lua
 local OrionLib = loadstring(readfile("scr/Orion.lua"))()
 
@@ -121,6 +123,21 @@ KeySystem = {
 ```
 
 Set `Enabled = false` to turn the key system off without removing the config.
+
+## Lucide icons
+
+OrionLib resolves icons through a Lucide-compatible provider first, using the same `GetAsset(iconName, size)` shape as `lucide-roblox` / Obsidian-style Lucide ports. If no provider is installed, the legacy Orion icon table remains as a fallback.
+
+```lua
+-- Optional: plug in a Lucide provider/module before creating windows.
+OrionLib:SetLucideProvider(Lucide)
+
+local asset = OrionLib:GetIcon("home", 48)
+-- asset.Image / asset.ImageRectOffset / asset.ImageRectSize are applied automatically
+-- by OrionLib-created Image, RoundImage, and ImageButton instances.
+```
+
+Supported icon names are normalized, so values like `lucide-home`, `lucide:home`, `home`, and some WindUI-style names resolve consistently.
 
 ## Themes and localization
 
