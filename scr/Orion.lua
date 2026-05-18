@@ -737,6 +737,9 @@ local function NormalizeWindowConfig(config)
         IntroIcon = ResolveIcon(config.IntroIcon or config.Icon or "rbxassetid://14229447778"),
         IntroToggleIcon = ResolveIcon(config.IntroToggleIcon or (config.OpenButton and config.OpenButton.Icon) or config.Icon or "rbxassetid://7734091286"),
         Size = config.Size or UDim2.fromOffset(615, 344),
+        SidebarCompact = config.SidebarCompact or config.IconOnly or config.CompactSidebar or config.SidebarCompacted or false,
+        SidebarWidth = config.SidebarWidth,
+        SidebarCompactWidth = config.SidebarCompactWidth or config.CompactWidth or 48,
         SearchBar = config.SearchBar or (config.HideSearchBar and nil or {Default = "Search Tabs", DefaultMain = "Search Elements", ClearTextOnFocus = true, Tabs = true, Mains = true}),
         LinkVideo = config.LinkVideo or config.Video,
         Image = config.Image or config.Background,
@@ -1593,8 +1596,9 @@ function OrionLib:MakeWindow(WindowConfig)
         WindowConfig.Theme = WindowConfig.Theme or "Default"
         WindowConfig.IntroIcon = ResolveIcon(WindowConfig.IntroIcon or WindowConfig.Icon or "rbxassetid://14229447778")
         WindowConfig.Size = mobileScaleSize(WindowConfig.Size or UDim2.fromOffset(615, 344))
-        WindowConfig.SidebarCompact = WindowConfig.SidebarCompact or WindowConfig.IconOnly or WindowConfig.CompactSidebar or false
-        WindowConfig.SidebarWidth = WindowConfig.SidebarCompact and 58 or (WindowConfig.SidebarWidth or 150)
+        WindowConfig.SidebarCompact = WindowConfig.SidebarCompact or WindowConfig.IconOnly or WindowConfig.CompactSidebar or WindowConfig.SidebarCompacted or false
+        WindowConfig.SidebarCompactWidth = WindowConfig.SidebarCompactWidth or WindowConfig.CompactWidth or 48
+        WindowConfig.SidebarWidth = WindowConfig.SidebarCompact and WindowConfig.SidebarCompactWidth or (WindowConfig.SidebarWidth or 150)
         WindowConfig.SearchBar = WindowConfig.SearchBar or (WindowConfig.HideSearchBar and nil or WindowConfig.Search)
         if WindowConfig.SidebarCompact and type(WindowConfig.SearchBar) == "table" then
                 WindowConfig.SearchBar.Tabs = false

@@ -14,6 +14,7 @@ local Window = OrionLib:CreateWindow({
     Theme = "Dark",
     Icon = "sparkles",
     SidebarCompact = true,
+    SidebarCompactWidth = 48,
     KeySystem = {
         Enabled = true,
         Keys = {"MY-KEY"},
@@ -59,12 +60,17 @@ Main:Dropdown({
 
 ### Tabs
 
-Tabs now support animated selection and a left-side highlight marker.
+Tabs now support animated selection and a left-side highlight marker. Use `SidebarCompact = true` on the window to make every tab icon-only like Obsidian's compact sidebar. The default compact width is `48`, matching Obsidian's `SidebarCompactWidth`; per-tab `IconOnly = true` still works for one-off cases.
 
 ```lua
 Window:Tab({ Title = "Main", Icon = "home" })
-Window:Tab({ Title = "Only Icon", Icon = "zap", IconOnly = true })
+Window:Tab({ Title = "Only Icon", Icon = "zap" }) -- text hidden when SidebarCompact = true
 ```
+
+
+### Mobile support
+
+The window clamps to the current viewport on mobile, the top bar uses a touch-friendly drag handle, and the resize control is larger on touch devices. Minimize/restore now hides the resize button while collapsed and uses shorter tweens for smoother mobile behavior.
 
 ### Elements
 

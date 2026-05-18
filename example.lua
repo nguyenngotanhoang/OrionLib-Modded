@@ -19,6 +19,7 @@ local Window = OrionLib:CreateWindow({
     Icon = "sparkles",
     Size = UDim2.fromOffset(650, 390),
     SidebarCompact = true,
+    SidebarCompactWidth = 48,
     KeySystem = {
         Enabled = true,
         Title = "Demo Key System",
