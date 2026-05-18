@@ -59,17 +59,12 @@ Main:Dropdown({
 
 ### Tabs
 
-Tabs now support animated selection and a left-side highlight marker. Use `SidebarCompact = true` on the window to make every tab icon-only like Obsidian's compact sidebar; per-tab `IconOnly = true` still works for one-off cases.
+Tabs now support animated selection and a left-side highlight marker.
 
 ```lua
 Window:Tab({ Title = "Main", Icon = "home" })
-Window:Tab({ Title = "Only Icon", Icon = "zap" }) -- icon-only when SidebarCompact = true
+Window:Tab({ Title = "Only Icon", Icon = "zap", IconOnly = true })
 ```
-
-
-### Mobile support
-
-The window clamps to the current viewport on mobile, the top bar uses a touch-friendly drag handle, and the resize control is larger on touch devices. Minimize/restore now hides the resize button while collapsed and uses shorter tweens for smoother mobile behavior.
 
 ### Elements
 
