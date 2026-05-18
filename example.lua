@@ -54,6 +54,24 @@ Main:HighlightButton({
     end
 })
 
+
+Main:WarningBox({
+    Title = "Mobile ready",
+    Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px."
+})
+
+local SafeGroup = Main:GroupBox({
+    Title = "GroupBox"
+})
+
+SafeGroup:Button({
+    Title = "Grouped Button",
+    Icon = "box",
+    Callback = function()
+        print("Grouped button clicked")
+    end
+})
+
 Main:Dropdown({
     Title = "Mode Dropdown",
     Options = {"Normal", "Fast", "Legit", "Rage"},
@@ -94,3 +112,5 @@ Combat:Button({
         print("Combat button clicked")
     end
 })
+
+Window:SettingsTab({ Title = "Settings", Icon = "settings" })

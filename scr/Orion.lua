@@ -72,12 +72,14 @@ getgenv().OrionLib = {
 getgenv().Destroy = false
 
 -- Lucide Icons for Roblox compatible resolver.
--- Prefer a Lucide module/provider (same GetAsset API as lucide-roblox / Obsidian-style ports),
--- then fall back to the legacy Feather asset table for older Orion scripts.
-local Icons = {}
+-- Uses deividcomsono/lucide-roblox-direct (same icon source Obsidian uses) and no Orion/Feather fallback.
+local LucideURL = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua"
 local LucideAliases = {
         ["x"] = "x",
         ["close"] = "x",
+        ["minimize"] = "minus",
+        ["maximize"] = "maximize-2",
+        ["resize"] = "move-diagonal-2",
         ["settings"] = "settings",
         ["setting"] = "settings",
         ["home"] = "home",
@@ -94,15 +96,10 @@ local LucideAliases = {
         ["save"] = "save",
         ["trash"] = "trash-2",
         ["mouse-pointer-click"] = "mouse-pointer-click",
+        ["warning"] = "triangle-alert",
+        ["alert"] = "triangle-alert",
+        ["info"] = "info",
 }
-
-local Success, Response = pcall(function()
-        Icons = HttpService:JSONDecode(game:HttpGetAsync("https://raw.githubusercontent.com/Articles-Hub/ROBLOXScript/refs/heads/main/Library/Orion/icons.json")).icons
-end)
-
-if not Success then
-        warn("\nOrion Library - Failed to load legacy icon fallback. Error code: " .. Response .. "\n")
-end
 
 local function NormalizeIconName(IconName: string)
         if type(IconName) ~= "string" then return nil end
@@ -115,9 +112,11 @@ local function NormalizeIconName(IconName: string)
         return LucideAliases[IconLower] or IconLower
 end
 
-local function GetLucideProvider()
+local function LoadLucideProvider()
+        if OrionLib.LucideProvider then
+                return OrionLib.LucideProvider
+        end
         local candidates = {
-                OrionLib and OrionLib.LucideProvider,
                 OrionLib and OrionLib.Lucide,
                 getgenv().Lucide,
                 shared and shared.Lucide,
@@ -131,10 +130,31 @@ local function GetLucideProvider()
         end)
         for _, provider in ipairs(candidates) do
                 if type(provider) == "table" and type(provider.GetAsset) == "function" then
+                        OrionLib.LucideProvider = provider
                         return provider
                 end
         end
-        return nil
+        pcall(function()
+                if game.HttpGet then
+                        local source = game:HttpGet(LucideURL)
+                        local loaded = loadstring and loadstring(source, "LucideIcons")
+                        if loaded then
+                                local provider = loaded()
+                                if type(provider) == "table" and type(provider.GetAsset) == "function" then
+                                        OrionLib.LucideProvider = provider
+                                end
+                        end
+                end
+        end)
+        return OrionLib.LucideProvider
+end
+
+local function GetLucideProvider()
+        local provider = OrionLib and OrionLib.LucideProvider
+        if type(provider) == "table" and type(provider.GetAsset) == "function" then
+                return provider
+        end
+        return LoadLucideProvider()
 end
 
 local function GetIconData(IconName: string, Size: number?)
@@ -154,10 +174,6 @@ local function GetIconData(IconName: string, Size: number?)
                         }
                 end
         end
-
-        if Icons[normalized] ~= nil then
-                return {Image = Icons[normalized], Name = normalized, Source = "Legacy"}
-        end
         return nil
 end
 
@@ -174,7 +190,7 @@ local function ApplyIconToObject(Object, IconName: string, Size: number?)
                 Object.ImageRectSize = data.ImageRectSize or Vector2.new(0, 0)
                 return true
         end
-        Object.Image = IconName or ""
+        Object.Image = ""
         Object.ImageRectOffset = Vector2.new(0, 0)
         Object.ImageRectSize = Vector2.new(0, 0)
         return false
@@ -732,10 +748,10 @@ local function NormalizeWindowConfig(config)
         IntroText = config.IntroText or config.Author or config.Title or "Orion WindUI",
         CloseCallback = config.CloseCallback or config.OnClose or function() end,
         ShowIcon = config.ShowIcon or config.Icon ~= nil,
-        Icon = ResolveIcon(config.Icon or "rbxassetid://14229447778"),
+        Icon = ResolveIcon(config.Icon or "sparkles"),
         Theme = config.Theme or "Dark",
-        IntroIcon = ResolveIcon(config.IntroIcon or config.Icon or "rbxassetid://14229447778"),
-        IntroToggleIcon = ResolveIcon(config.IntroToggleIcon or (config.OpenButton and config.OpenButton.Icon) or config.Icon or "rbxassetid://7734091286"),
+        IntroIcon = ResolveIcon(config.IntroIcon or config.Icon or "sparkles"),
+        IntroToggleIcon = ResolveIcon(config.IntroToggleIcon or (config.OpenButton and config.OpenButton.Icon) or config.Icon or "panel-top-open"),
         Size = config.Size or UDim2.fromOffset(615, 344),
         SidebarCompact = config.SidebarCompact or config.IconOnly or config.CompactSidebar or config.SidebarCompacted or false,
         SidebarWidth = config.SidebarWidth,
@@ -1310,7 +1326,7 @@ function OrionLib:MakeNotification(NotificationConfig)
 	task.spawn(function()
 		NotificationConfig.Name = NotificationConfig.Name or "Notification"
 		NotificationConfig.Content = NotificationConfig.Content or "Content"
-		NotificationConfig.Image = NotificationConfig.Image or "rbxassetid://14229447778"
+		NotificationConfig.Image = NotificationConfig.Image or "sparkles"
 		NotificationConfig.Time = NotificationConfig.Time or 5
 		NotificationConfig.Volume = NotificationConfig.Volume or OrionLib.NotifyVolume
 
@@ -1592,9 +1608,9 @@ function OrionLib:MakeWindow(WindowConfig)
         WindowConfig.IntroText = WindowConfig.IntroText or WindowConfig.Author or "Orion Library"
         WindowConfig.CloseCallback = WindowConfig.CloseCallback or WindowConfig.OnClose or function() end
         WindowConfig.ShowIcon = WindowConfig.ShowIcon or WindowConfig.Icon ~= nil
-        WindowConfig.Icon = ResolveIcon(WindowConfig.Icon or "rbxassetid://14229447778")
+        WindowConfig.Icon = ResolveIcon(WindowConfig.Icon or "sparkles")
         WindowConfig.Theme = WindowConfig.Theme or "Default"
-        WindowConfig.IntroIcon = ResolveIcon(WindowConfig.IntroIcon or WindowConfig.Icon or "rbxassetid://14229447778")
+        WindowConfig.IntroIcon = ResolveIcon(WindowConfig.IntroIcon or WindowConfig.Icon or "sparkles")
         WindowConfig.Size = mobileScaleSize(WindowConfig.Size or UDim2.fromOffset(615, 344))
         WindowConfig.SidebarCompact = WindowConfig.SidebarCompact or WindowConfig.IconOnly or WindowConfig.CompactSidebar or WindowConfig.SidebarCompacted or false
         WindowConfig.SidebarCompactWidth = WindowConfig.SidebarCompactWidth or WindowConfig.CompactWidth or 48
@@ -1645,7 +1661,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 Position = UDim2.new(0.5, 0, 0, 0),
                 BackgroundTransparency = 1
         }), {
-                OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072725342"), {
+                OrionLib:AddThemeObject(SetProps(MakeElement("Image", "x"), {
                         Position = UDim2.new(0, 9, 0, 6),
                         Size = UDim2.new(0, 18, 0, 18),
                 }), "Text")
@@ -1655,7 +1671,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 Size = UDim2.new(0.5, 0, 1, 0),
                 BackgroundTransparency = 1
         }), {
-                OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072719338"), {
+                OrionLib:AddThemeObject(SetProps(MakeElement("Image", "minus"), {
                         Position = UDim2.new(0, 9, 0, 6),
                         Size = UDim2.new(0, 18, 0, 18),
                         Name = "Ico"
@@ -1708,7 +1724,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                 SetChildren(SetProps(MakeElement("Image", "https://www.roblox.com/headshot-thumbnail/image?userId=".. LocalPlayer.UserId .."&width=420&height=420&format=png"), {
                                         Size = UDim2.new(1, 0, 1, 0)
                                 }), {MakeElement("Corner", 1)}),
-                                OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("Image", "rbxassetid://4031889928"), {
+                                OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("Image", "user"), {
                                         Size = UDim2.new(1, 0, 1, 0),
                                 }), {MakeElement("Corner", 1)}), "Second"),
                                 MakeElement("Corner", 1)
@@ -1810,7 +1826,7 @@ function OrionLib:MakeWindow(WindowConfig)
             AutoButtonColor = false,
 		    ZIndex = 10,
 		}), {
-		    OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://6031094634"), { -- Icon kéo giãn chuẩn
+		    OrionLib:AddThemeObject(SetProps(MakeElement("Image", "move-diagonal-2"), { -- Icon kéo giãn chuẩn
 		        AnchorPoint = Vector2.new(0.5, 0.5),
 		        Position = UDim2.new(0.5, 0, 0.5, 0),
 		        Size = UDim2.new(1, 0, 1, 0),
@@ -1885,19 +1901,23 @@ function OrionLib:MakeWindow(WindowConfig)
 				    TextboxActual
 				}), "Main")
 
+                local function GetSearchableText(object)
+                        local parts = {object.Name or ""}
+                        for _, descendant in ipairs(object:GetDescendants()) do
+                                if descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox") then
+                                        table.insert(parts, descendant.Text or "")
+                                end
+                        end
+                        return string.lower(table.concat(parts, " "))
+                end
+
                 local function SearchHandleMain()
                         local Text = string.lower(SearchBox.Text or "")
 						for _, v in pairs(MainWindow:GetChildren()) do
 							if v.Name == "ItemContainer" and v.Visible == true then
 								for _, j in pairs(v:GetChildren()) do
 									if j:IsA("GuiObject") and not j:IsA("UIListLayout") and not j:IsA("UIPadding") then
-                                        if Text == "" then
-                                                j.Visible = true
-                                        else
-                                                local ContentFind = j:FindFirstChild("Content", true) or j:FindFirstChild("Title", true)
-                                                local searchable = ContentFind and ContentFind.Text or j.Name or ""
-                                                j.Visible = string.find(string.lower(searchable), Text, 1, true) ~= nil
-                                        end
+                                        j.Visible = Text == "" or string.find(GetSearchableText(j), Text, 1, true) ~= nil
 									end
 								end
 							end
@@ -1926,7 +1946,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Main,
                 Visible = false
         }), {
-                OrionLib:AddThemeObject(SetProps(MakeElement("Image", WindowConfig.IntroToggleIcon or "http://www.roblox.com/asset/?id=8834748103"), {
+                OrionLib:AddThemeObject(SetProps(MakeElement("Image", WindowConfig.IntroToggleIcon or "panel-top-open"), {
                         AnchorPoint = Vector2.new(0.5, 0.5),
                         Position = UDim2.new(0.5, 0, 0.5, 0),
                         Size = UDim2.new(0.7, 0, 0.7, 0),
@@ -1945,7 +1965,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         MainWindow.ClipsDescendants = true
                         MainWindow.SizeDragging.Visible = false
                         WindowTopBarLine.Visible = false
-                        MinimizeBtn.Ico.Image = "rbxassetid://7072720870"
+                        MinimizeBtn.Ico.Image = "maximize-2"
                         local tween = TweenService:Create(MainWindow, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = GetCollapsedSize()})
                         tween:Play()
                         task.delay(0.08, function()
@@ -1959,7 +1979,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         WindowStuff.Visible = true
                         WindowTopBarLine.Visible = true
                         MainWindow.SizeDragging.Visible = true
-                        MinimizeBtn.Ico.Image = "rbxassetid://7072719338"
+                        MinimizeBtn.Ico.Image = "minus"
                         local tween = TweenService:Create(MainWindow, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = Window.Size})
                         tween:Play()
                         tween.Completed:Connect(function()
@@ -2362,10 +2382,10 @@ function OrionLib:MakeWindow(WindowConfig)
 						    end)
 
 						    local Icons = {
-						        success = "rbxassetid://3926305904",
-						        error = "rbxassetid://3926307971",
-						        warning = "rbxassetid://3926305904",
-						        fail = "rbxassetid://7743878857"
+						        success = "circle-check",
+						        error = "circle-x",
+						        warning = "triangle-alert",
+						        fail = "circle-x"
 						    }
 
 						    local StateColors = {
@@ -2405,7 +2425,7 @@ function OrionLib:MakeWindow(WindowConfig)
 										LabelFrame.Content.Position = UDim2.new(0,30,0,0)
 						                LabelFrame.Icon.Visible = true
 										LabelFrame.BackgroundTransparency = 0.6
-						                LabelFrame.Icon.Image = Icons[State]
+						                ApplyIconToObject(LabelFrame.Icon, Icons[State], 48)
 										local Stroke = Create("UIStroke", {
 							                Color = StateColors[State],
 							                Thickness = 1.6,
@@ -2461,6 +2481,72 @@ function OrionLib:MakeWindow(WindowConfig)
                                 end
                                 return ParagraphFunction
                         end
+                        function ElementFunction:AddWarningBox(WarningConfig)
+                                WarningConfig = TranslateConfig(WarningConfig or {})
+                                WarningConfig.Title = WarningConfig.Title or WarningConfig.Name or "Warning"
+                                WarningConfig.Content = WarningConfig.Content or WarningConfig.Desc or WarningConfig.Description or ""
+                                WarningConfig.Icon = ResolveIcon(WarningConfig.Icon or "triangle-alert")
+                                WarningConfig.Color = WarningConfig.Color or Color3.fromRGB(255, 190, 80)
+                                WarningConfig.Visible = WarningConfig.Visible ~= false
+                                local Warning = {Type = "WarningBox", Visible = WarningConfig.Visible}
+
+                                local WarningFrame = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
+                                        Size = UDim2.new(1, 0, 0, 58),
+                                        Parent = ItemParent,
+                                        Visible = WarningConfig.Visible,
+                                        BackgroundTransparency = 0.2
+                                }), {
+                                        SetProps(MakeElement("Frame"), {
+                                                Name = "Accent",
+                                                Size = UDim2.new(0, 4, 1, -12),
+                                                Position = UDim2.new(0, 8, 0, 6),
+                                                BackgroundColor3 = WarningConfig.Color
+                                        }),
+                                        OrionLib:AddThemeObject(SetProps(MakeElement("Image", WarningConfig.Icon), {
+                                                Size = UDim2.new(0, 18, 0, 18),
+                                                Position = UDim2.new(0, 20, 0, 12),
+                                                ImageColor3 = WarningConfig.Color,
+                                                Name = "Icon"
+                                        }), "Text"),
+                                        OrionLib:AddThemeObject(SetProps(MakeElement("Label", WarningConfig.Title, 14), {
+                                                Size = UDim2.new(1, -54, 0, 18),
+                                                Position = UDim2.new(0, 44, 0, 9),
+                                                Font = Enum.Font.GothamBold,
+                                                Name = "Title"
+                                        }), "Text"),
+                                        OrionLib:AddThemeObject(SetProps(MakeElement("Label", WarningConfig.Content, 12), {
+                                                Size = UDim2.new(1, -54, 0, 20),
+                                                Position = UDim2.new(0, 44, 0, 29),
+                                                Font = Enum.Font.GothamSemibold,
+                                                TextWrapped = true,
+                                                Name = "Content"
+                                        }), "TextDark"),
+                                        OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke")
+                                }), "Second")
+
+                                local function UpdateSize()
+                                        local content = WarningFrame:FindFirstChild("Content")
+                                        if content then
+                                                content.Size = UDim2.new(1, -54, 0, content.TextBounds.Y)
+                                                WarningFrame.Size = UDim2.new(1, 0, 0, math.max(58, content.TextBounds.Y + 40))
+                                        end
+                                end
+                                AddConnection(WarningFrame.Content:GetPropertyChangedSignal("Text"), UpdateSize)
+                                UpdateSize()
+
+                                function Warning:Set(title, content)
+                                        if WarningFrame and WarningFrame:FindFirstChild("Title") then WarningFrame.Title.Text = title or WarningFrame.Title.Text end
+                                        if WarningFrame and WarningFrame:FindFirstChild("Content") then WarningFrame.Content.Text = content or WarningFrame.Content.Text end
+                                        UpdateSize()
+                                end
+                                function Warning:SetVisible(state)
+                                        Warning.Visible = state == true
+                                        if WarningFrame then WarningFrame.Visible = Warning.Visible end
+                                end
+                                if WarningConfig.Flag then OrionLib.Flags[WarningConfig.Flag] = Warning end
+                                return Warning
+                        end
+
                         function ElementFunction:AddButton(ButtonConfig)
                                 ButtonConfig = ButtonConfig or {}
                                 ButtonConfig.Visible = ButtonConfig.Visible or true
@@ -2468,7 +2554,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                 ButtonConfig.Name = ButtonConfig.Name or "Button"
                                 ButtonConfig.Callback = ButtonConfig.Callback or function() end
                                 ButtonConfig.Flag = ButtonConfig.Flag or nil
-                                ButtonConfig.Icon = ButtonConfig.Icon or "rbxassetid://3944703587"
+                                ButtonConfig.Icon = ButtonConfig.Icon or "mouse-pointer-click"
                                 local Button = {Disabled = ButtonConfig.Disabled, Visible = ButtonConfig.Visible, Flag = ButtonConfig.Flag}
 
                                 local Click = SetProps(MakeElement("Button"), {
@@ -2566,7 +2652,7 @@ function OrionLib:MakeWindow(WindowConfig)
 	                                ButtonConfigClone.Name = ButtonConfigClone.Name or "Button"
 	                                ButtonConfigClone.Callback = ButtonConfigClone.Callback or function() end
 									ButtonConfigClone.Flag = ButtonConfigClone.Flag or nil
-	                                ButtonConfigClone.Icon = ButtonConfigClone.Icon or "rbxassetid://3944703587"
+	                                ButtonConfigClone.Icon = ButtonConfigClone.Icon or "mouse-pointer-click"
 									local ButtonClone = {Disabled = ButtonConfigClone.Disabled, Visible = ButtonConfigClone.Visible, Flag = ButtonConfigClone.Flag}
 
 									if ButtonFrame then
@@ -2670,7 +2756,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                 ButtonConfig.Visible = ButtonConfig.Visible ~= false
                                 ButtonConfig.Disabled = ButtonConfig.Disabled == true
                                 ButtonConfig.Color = ButtonConfig.Color or Color3.fromRGB(90, 140, 255)
-                                ButtonConfig.Icon = ResolveIcon(ButtonConfig.Icon or "rbxassetid://3944703587")
+                                ButtonConfig.Icon = ResolveIcon(ButtonConfig.Icon or "mouse-pointer-click")
                                 local Button = {Disabled = ButtonConfig.Disabled, Visible = ButtonConfig.Visible, Highlighted = true, Type = "HighlightButton"}
 
                                 local Click = SetProps(MakeElement("Button"), {
@@ -3268,7 +3354,7 @@ function OrionLib:MakeWindow(WindowConfig)
 										Name = "Stroke",
 										Transparency = 0.5
 									}),
-									SetProps(MakeElement("Image", "rbxassetid://3944680095"), {
+									SetProps(MakeElement("Image", "check"), {
 										Size = UDim2.new(0, 8, 0, 8),
 										AnchorPoint = Vector2.new(0.5, 0.5),
 										Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -3411,7 +3497,7 @@ function OrionLib:MakeWindow(WindowConfig)
 										Name = "Check",
 										Parent = ToggleFrame
 									}), {
-										SetProps(MakeElement("Image", "rbxassetid://3944680095"), {
+										SetProps(MakeElement("Image", "check"), {
 											Size = UDim2.new(0, 8, 0, 8),
 											AnchorPoint = Vector2.new(0.5, 0.5),
 											Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -3891,7 +3977,7 @@ function OrionLib:MakeWindow(WindowConfig)
 										Name = "Content"
 									}), "Text"),
 
-									OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
+									OrionLib:AddThemeObject(SetProps(MakeElement("Image", "chevron-down"), {
 										Size = UDim2.new(0, 20, 0, 20),
 										AnchorPoint = Vector2.new(0, 0.5),
 										Position = UDim2.new(1, -30, 0.5, 0),
@@ -5010,6 +5096,8 @@ function OrionLib:MakeWindow(WindowConfig)
                                 Section[methodName] = method
                             end
 
+							function SectionFunction:WarningBox(config) config = TranslateConfig(config or {}); return SectionFunction:AddWarningBox(config) end
+
 							if SectionConfig.Flag then
 								OrionLib.Flags[SectionConfig.Flag] = Section
 							end
@@ -5019,6 +5107,54 @@ function OrionLib:MakeWindow(WindowConfig)
 						for i, v in next, GetElements(Container) do
 							ElementFunction[i] = v
 						end
+
+
+                        function ElementFunction:AddGroupBox(GroupConfig)
+                            GroupConfig = TranslateConfig(GroupConfig or {})
+                            GroupConfig.Name = GroupConfig.Name or GroupConfig.Title or "GroupBox"
+                            GroupConfig.Visible = GroupConfig.Visible ~= false
+                            local Group = {Type = "GroupBox", Visible = GroupConfig.Visible}
+                            local GroupFrame = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
+                                Size = UDim2.new(1, 0, 0, 36),
+                                Parent = Container,
+                                Visible = GroupConfig.Visible,
+                                BackgroundTransparency = 0.25
+                            }), {
+                                OrionLib:AddThemeObject(SetProps(MakeElement("Label", GroupConfig.Name, 14), {
+                                    Size = UDim2.new(1, -24, 0, 20),
+                                    Position = UDim2.new(0, 12, 0, 8),
+                                    Font = Enum.Font.GothamBold,
+                                    Name = "Title"
+                                }), "Text"),
+                                SetChildren(SetProps(MakeElement("TFrame"), {
+                                    Name = "Holder",
+                                    Size = UDim2.new(1, -20, 0, 0),
+                                    Position = UDim2.new(0, 10, 0, 34)
+                                }), {MakeElement("List", 0, 6)}),
+                                OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke")
+                            }), "Second")
+                            AddConnection(GroupFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+                                GroupFrame.Holder.Size = UDim2.new(1, -20, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y)
+                                GroupFrame.Size = UDim2.new(1, 0, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y + 46)
+                            end)
+                            for methodName, method in next, GetElements(GroupFrame.Holder) do
+                                Group[methodName] = method
+                            end
+                            Group.Button = function(_, config) config = TranslateConfig(config or {}); config.Name = config.Name or config.Title or "Button"; return Group:AddButton(config) end
+                            Group.HighlightButton = function(_, config) config = TranslateConfig(config or {}); config.Name = config.Name or config.Title or "Highlight Button"; return Group:AddHighlightButton(config) end
+                            Group.WarningBox = function(_, config) config = TranslateConfig(config or {}); return Group:AddWarningBox(config) end
+                            Group.Toggle = function(_, config) config = TranslateConfig(config or {}); config.Name = config.Name or config.Title or "Toggle"; config.Default = config.Default ~= nil and config.Default or config.Value; return Group:AddToggle(config) end
+                            Group.Slider = function(_, config) config = TranslateConfig(config or {}); config.Name = config.Name or config.Title or "Slider"; config.Default = config.Default ~= nil and config.Default or config.Value; return Group:AddSlider(config) end
+                            Group.Dropdown = function(_, config) config = TranslateConfig(config or {}); config.Name = config.Name or config.Title or "Dropdown"; config.Default = config.Default ~= nil and config.Default or config.Value; return Group:AddDropdown(config) end
+                            Group.Input = function(_, config) config = TranslateConfig(config or {}); config.Name = config.Name or config.Title or "Input"; config.Default = config.Default ~= nil and config.Default or config.Value; return Group:AddTextbox(config) end
+                            Group.Paragraph = function(_, config) config = TranslateConfig(config or {}); return Group:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "") end
+                            function Group:SetVisible(state)
+                                Group.Visible = state == true
+                                GroupFrame.Visible = Group.Visible
+                            end
+                            if GroupConfig.Flag then OrionLib.Flags[GroupConfig.Flag] = Group end
+                            return Group
+                        end
 
 
                         local function NormalizeElementConfig(config, defaultName)
@@ -5034,6 +5170,16 @@ function OrionLib:MakeWindow(WindowConfig)
                         function ElementFunction:Button(config)
                             config = NormalizeElementConfig(config, "Button")
                             return ElementFunction:AddButton(config)
+                        end
+
+                        function ElementFunction:WarningBox(config)
+                            config = NormalizeElementConfig(config, "Warning")
+                            return ElementFunction:AddWarningBox(config)
+                        end
+
+                        function ElementFunction:GroupBox(config)
+                            config = NormalizeElementConfig(config, "GroupBox")
+                            return ElementFunction:AddGroupBox(config)
                         end
 
                         function ElementFunction:HighlightButton(config)
@@ -5107,7 +5253,7 @@ function OrionLib:MakeWindow(WindowConfig)
 								Size = UDim2.new(1, 0, 1, 0),
 								Parent = ItemParent
 							}), {
-								OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://3610239960"), {
+								OrionLib:AddThemeObject(SetProps(MakeElement("Image", "lock-keyhole"), {
 									Size = UDim2.new(0, 18, 0, 18),
 									Position = UDim2.new(0, 15, 0, 15),
 									ImageTransparency = 0.4
@@ -5117,7 +5263,7 @@ function OrionLib:MakeWindow(WindowConfig)
 									Position = UDim2.new(0, 38, 0, 18),
 									TextTransparency = 0.4
 								}), "Text"),
-								OrionLib:AddThemeObject(SetProps(MakeElement("Image", "rbxassetid://4483345875"), {
+								OrionLib:AddThemeObject(SetProps(MakeElement("Image", "crown"), {
 									Size = UDim2.new(0, 56, 0, 56),
 									Position = UDim2.new(0, 84, 0, 110),
 								}), "Text"),
@@ -5209,6 +5355,19 @@ function OrionLib:MakeWindow(WindowConfig)
 
         function Functions:OnDestroy(callback)
                 OrionLib:OnDestroy(callback)
+        end
+
+        function Functions:MakeSettingsTab(SettingsConfig)
+                SettingsConfig = TranslateConfig(SettingsConfig or {})
+                SettingsConfig.Name = SettingsConfig.Name or SettingsConfig.Title or "Settings"
+                SettingsConfig.Icon = SettingsConfig.Icon or "settings"
+                local tab = Functions:MakeTab(SettingsConfig)
+                OrionLib:BuildSettings(tab)
+                return tab
+        end
+
+        function Functions:SettingsTab(SettingsConfig)
+                return Functions:MakeSettingsTab(SettingsConfig)
         end
 
         function Functions:Destroy()

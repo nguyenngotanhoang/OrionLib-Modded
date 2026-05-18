@@ -68,6 +68,29 @@ Window:Tab({ Title = "Only Icon", Icon = "zap" }) -- text hidden when SidebarCom
 ```
 
 
+
+### GroupBox and WarningBox
+
+`GroupBox` creates an Obsidian-style framed group that can contain regular elements. `WarningBox` creates a page-style callout with a Lucide warning icon.
+
+```lua
+local Group = Main:GroupBox({ Title = "GroupBox" })
+Group:Button({ Title = "Inside Group", Icon = "box" })
+
+Main:WarningBox({
+    Title = "Heads up",
+    Desc = "This page uses Lucide icons only."
+})
+```
+
+### Settings tab
+
+Use `Window:SettingsTab()` to add Orion's built-in settings page with a Lucide settings icon; in compact sidebar mode it renders as an icon-only settings tab.
+
+```lua
+Window:SettingsTab({ Title = "Settings", Icon = "settings" })
+```
+
 ### Mobile support
 
 The window clamps to the current viewport on mobile, the top bar uses a touch-friendly drag handle, and the resize control is larger on touch devices. Minimize/restore now hides the resize button while collapsed and uses shorter tweens for smoother mobile behavior.
@@ -78,6 +101,8 @@ WindUI-style element aliases are available on tabs and sections:
 
 - `Button`
 - `HighlightButton`
+- `WarningBox`
+- `GroupBox`
 - `Toggle`
 - `Slider`
 - `Dropdown`
@@ -133,7 +158,7 @@ Set `Enabled = false` to turn the key system off without removing the config.
 
 ## Lucide icons
 
-OrionLib resolves icons through a Lucide-compatible provider first, using the same `GetAsset(iconName, size)` shape as `lucide-roblox` / Obsidian-style Lucide ports. If no provider is installed, the legacy Orion icon table remains as a fallback.
+OrionLib resolves icons through a Lucide-compatible provider first, using the same `GetAsset(iconName, size)` shape as `lucide-roblox` / Obsidian-style Lucide ports. The library auto-loads `deividcomsono/lucide-roblox-direct` (the Lucide source used by Obsidian-style ports) and no longer falls back to Orion/Feather icons.
 
 ```lua
 -- Optional: plug in a Lucide provider/module before creating windows.
