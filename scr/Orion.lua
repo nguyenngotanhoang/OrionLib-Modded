@@ -1569,7 +1569,7 @@ end
 getgenv().TogglesSaveTable = {}
 getgenv().NameBindKey = {}
 function KeyBindAdd()
-	KeyBindFrame = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
+	KeyBindFrame = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, OrionLib.Style.CardRadius or 6), {
 	        Size = UDim2.new(0, 235, 0, 160),
 			Position = UDim2.fromOffset(6, 6),
 	        BackgroundTransparency = 0,
@@ -1578,11 +1578,23 @@ function KeyBindAdd()
 	        Parent = Orion
 	}), {
 	        OrionLib:AddThemeObject(SetProps(MakeElement("Label", "Key Binds", 15), {
-	                Size = UDim2.new(1, -12, 0.15, 0),
+	                Size = UDim2.new(1, -46, 0, 25),
 	                Position = UDim2.new(0, 8, 0, 0),
 	                Font = Enum.Font.GothamBold,
 	                Name = "Content"
 	        }), "Text"),
+			SetChildren(SetProps(MakeElement("Button"), {
+					Size = UDim2.new(0, 24, 0, 24),
+					Position = UDim2.new(1, -28, 0, 1),
+					Name = "Close"
+			}), {
+					OrionLib:AddThemeObject(SetProps(MakeElement("Image", "x"), {
+							AnchorPoint = Vector2.new(0.5, 0.5),
+							Position = UDim2.new(0.5, 0, 0.5, 0),
+							Size = UDim2.new(0, 15, 0, 15),
+							ImageTransparency = 0.25
+					}), "TextDark")
+			}),
 	        OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke")
 	}), "Second")
 
@@ -1602,7 +1614,10 @@ function KeyBindAdd()
 		MakeElement("Padding", 15, 10, 10, 15)
 	}), "Divider")
 
-	MakeDraggable(KeyBindFrame.Content, KeyBindFrame)
+	MakeDraggable(KeyBindFrame, KeyBindFrame.Content)
+	AddConnection(KeyBindFrame.Close.MouseButton1Click, function()
+		OrionLib:SetKeyBindVisible(false)
+	end)
 	AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
 		Container.CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + 30)
 	end)
@@ -1612,6 +1627,12 @@ KeyBindAdd()
 function OrionLib:SetKeyBindVisible(visi: bool)
 	if KeyBindFrame then
 		KeyBindFrame.Visible = visi
+	end
+end
+
+function OrionLib:ToggleKeyBindMenu()
+	if KeyBindFrame then
+		KeyBindFrame.Visible = not KeyBindFrame.Visible
 	end
 end
 
@@ -1871,11 +1892,22 @@ function OrionLib:MakeWindow(WindowConfig)
                 local function SearchHandle()
                         local Text = string.lower(SearchBox.Text or "")
 
-                        for _, v in pairs(TabHolder:GetChildren()) do
-                                if v:IsA("TextButton") then
+                        for _, v in pairs(TabHolder:GetDescendants()) do
+                                if v:IsA("TextButton") and v:GetAttribute("OrionTabButton") then
                                         local title = v:FindFirstChild("Title")
                                         local searchText = title and title.Text or v.Name or ""
                                         v.Visible = Text == "" or string.find(string.lower(searchText), Text, 1, true) ~= nil
+                                end
+                        end
+                        for _, group in pairs(TabHolder:GetChildren()) do
+                                if group:IsA("GuiObject") and group:FindFirstChild("Holder") then
+                                        local visibleChildren = 0
+                                        for _, child in pairs(group.Holder:GetChildren()) do
+                                                if child:IsA("GuiObject") and child.Visible then
+                                                        visibleChildren += 1
+                                                end
+                                        end
+                                        group.Visible = Text == "" or visibleChildren > 0 or string.find(string.lower(group.Name), Text, 1, true) ~= nil
                                 end
                         end
                 end
@@ -2231,6 +2263,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
         local Functions = {}
 		local TabName = {}
+        local AllTabs = {}
 		function Functions:MakeTab(TabConfig)
 			TabConfig = TabConfig or {}
 			TabConfig = TranslateConfig(TabConfig)
@@ -2239,18 +2272,24 @@ function OrionLib:MakeWindow(WindowConfig)
 			TabConfig.Visible = TabConfig.Visible ~= false
 			TabConfig.Disabled = TabConfig.Disabled == true
             TabConfig.IconOnly = WindowConfig.SidebarCompact or TabConfig.IconOnly == true
+            local TabParent = TabConfig._Parent or TabHolder
+            local TabIndent = tonumber(TabConfig._Indent or 0) or 0
+            local TabWidthOffset = tonumber(TabConfig._WidthOffset or 0) or 0
 
 			local Tabs = {
 				Disabled = TabConfig.Disabled,
 				Visible = TabConfig.Visible,
-				Type = "Tabs"
+				Type = "Tabs",
+                Name = TabConfig.Name,
+                Group = TabConfig._Group
 			}
 
 			local TabFrame = SetChildren(SetProps(MakeElement("Button"), {
-				Size = UDim2.new(1, 0, 0, 30),
-				Parent = TabHolder,
+				Size = UDim2.new(1, -TabWidthOffset, 0, 30),
+				Parent = TabParent,
 				Visible = TabConfig.Visible,
-				AutoButtonColor = not TabConfig.Disabled
+				AutoButtonColor = not TabConfig.Disabled,
+                Name = TabConfig.Name
 			}), {
 				OrionLib:AddThemeObject(SetProps(MakeElement("Frame"), {
                     Size = UDim2.new(0, 3, 0, 0),
@@ -2262,21 +2301,26 @@ function OrionLib:MakeWindow(WindowConfig)
 				OrionLib:AddThemeObject(SetProps(MakeElement("Image", TabConfig.Icon), {
 					AnchorPoint = TabConfig.IconOnly and Vector2.new(0.5, 0.5) or Vector2.new(0, 0.5),
 					Size = UDim2.new(0, TabConfig.IconOnly and 22 or 18, 0, TabConfig.IconOnly and 22 or 18),
-					Position = TabConfig.IconOnly and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0, 10, 0.5, 0),
+					Position = TabConfig.IconOnly and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0, 10 + TabIndent, 0.5, 0),
 					ImageTransparency = TabConfig.Disabled and 0.7 or 0.4,
 					Name = "Ico"
 				}), "Text"),
 				OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("Label", TabConfig.Name, 14), {
-					Size = UDim2.new(1, -35, 1, 0),
-					Position = UDim2.new(0, 35, 0, 0),
+					Size = UDim2.new(1, -(35 + TabIndent), 1, 0),
+					Position = UDim2.new(0, 35 + TabIndent, 0, 0),
 					Font = Enum.Font.GothamSemibold,
                     Visible = not TabConfig.IconOnly,
 					TextTransparency = TabConfig.Disabled and 0.7 or 0.4,
 					Name = "Title"
 				}), {OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke")}), "Text")
 			})
+            TabFrame:SetAttribute("OrionTabButton", true)
+            TabFrame:SetAttribute("IconOnly", TabConfig.IconOnly == true)
 
 			AddItemTable(Tabs, TabConfig.Name, TabFrame)
+            table.insert(AllTabs, Tabs)
+            TabName[TabConfig.Name] = Tabs
+            local TabBadge
 
 			local Container = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
 				Size = UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
@@ -2295,9 +2339,11 @@ function OrionLib:MakeWindow(WindowConfig)
 
 			local function SelectTab()
 				if Tabs.Disabled then return end
-				for _, Tab in next, TabHolder:GetChildren() do
-					if Tab:IsA("TextButton") then
-						TweenService:Create(Tab.Ico, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0.4, Size = UDim2.new(0, Tab == TabFrame and (TabConfig.IconOnly and 22 or 18) or 18, 0, Tab == TabFrame and (TabConfig.IconOnly and 22 or 18) or 18)}):Play()
+				for _, Tab in next, TabHolder:GetDescendants() do
+					if Tab:IsA("TextButton") and Tab:GetAttribute("OrionTabButton") and Tab:FindFirstChild("Ico") then
+                        local iconOnly = Tab:GetAttribute("IconOnly") == true
+                        local size = iconOnly and 22 or 18
+						TweenService:Create(Tab.Ico, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0.4, Size = UDim2.new(0, size, 0, size)}):Play()
                         if Tab:FindFirstChild("Title") then
 							TweenService:Create(Tab.Title, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0.4}):Play()
                         end
@@ -2346,6 +2392,65 @@ function OrionLib:MakeWindow(WindowConfig)
 				TabFrame.Visible = state
 				if not state then Container.Visible = false end
 			end
+
+            function Tabs:Select()
+                SelectTab()
+            end
+
+            function Tabs:SetTitle(title)
+                if getgenv().Destroy then return end
+                if TabName[Tabs.Name] == Tabs then
+                    TabName[Tabs.Name] = nil
+                end
+                Tabs.Name = tostring(title or Tabs.Name)
+                TabFrame.Name = Tabs.Name
+                TabName[Tabs.Name] = Tabs
+                if TabFrame:FindFirstChild("Title") then
+                    TabFrame.Title.Text = Tabs.Name
+                end
+            end
+
+            function Tabs:SetIcon(icon)
+                if getgenv().Destroy then return end
+                TabConfig.Icon = ResolveIcon(icon or TabConfig.Icon)
+                if TabFrame:FindFirstChild("Ico") then
+                    ApplyIconToObject(TabFrame.Ico, TabConfig.Icon, TabConfig.IconOnly and 48 or 32)
+                end
+            end
+
+            function Tabs:SetBadge(value, color)
+                if getgenv().Destroy then return end
+                if value == nil or value == false or tostring(value) == "" then
+                    if TabBadge then
+                        TabBadge:Destroy()
+                        TabBadge = nil
+                    end
+                    return
+                end
+                local text = tostring(value)
+                if not TabBadge then
+                    TabBadge = SetChildren(SetProps(MakeElement("RoundFrame", color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)), 1, 0), {
+                        Size = TabConfig.IconOnly and UDim2.new(0, 8, 0, 8) or UDim2.new(0, 20, 0, 16),
+                        Position = TabConfig.IconOnly and UDim2.new(1, -12, 0, 7) or UDim2.new(1, -30, 0.5, -8),
+                        BackgroundColor3 = color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+                        Parent = TabFrame,
+                        Name = "Badge"
+                    }), {
+                        SetProps(MakeElement("Label", "", 10), {
+                            Size = UDim2.new(1, 0, 1, 0),
+                            Font = Enum.Font.GothamBold,
+                            TextXAlignment = Enum.TextXAlignment.Center,
+                            Visible = not TabConfig.IconOnly,
+                            Name = "Value"
+                        })
+                    })
+                end
+                TabBadge.BackgroundColor3 = color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
+                if TabBadge:FindFirstChild("Value") then
+                    TabBadge.Value.Text = text
+                    TabBadge.Size = TabConfig.IconOnly and UDim2.new(0, 8, 0, 8) or UDim2.new(0, math.max(20, TabBadge.Value.TextBounds.X + 10), 0, 16)
+                end
+            end
 
                 local function GetElements(ItemParent)
                         local ElementFunction = {}
@@ -3513,7 +3618,7 @@ function OrionLib:MakeWindow(WindowConfig)
 								end
 							end
 
-							function UpdateLayout()
+							local function UpdateLayout()
 								local hasBind = ToggleFrame:FindFirstChild("ButtonKey")
 								if hasBind then
 									if ToggleFrame:FindFirstChild("Switch") then
@@ -3525,7 +3630,7 @@ function OrionLib:MakeWindow(WindowConfig)
 								end
 							end
 
-							function AddTogglesKeyBind(name: string)
+							local function AddTogglesKeyBind(name: string)
 								local KeyBindAdd = ToggleFrame:Clone()
 								KeyBindAdd.Parent = Orion.KeyBind.ItemContainer
 								local displayName = GetUniqueToggleName(name)
@@ -3707,8 +3812,10 @@ function OrionLib:MakeWindow(WindowConfig)
 									Value = BindConfig.Default.Name or BindConfig.Default,
 									Type = "Bind",
 									Save = BindConfig.Save,
-									Binding = false
+									Binding = false,
+									Hold = BindConfig.Hold == true
 								}
+								local Holding = false
 
 								local Click = SetProps(MakeElement("Button"), {
 									Size = UDim2.new(0, 30, 0, 24),
@@ -3773,7 +3880,21 @@ function OrionLib:MakeWindow(WindowConfig)
 										return
 									end
 									if Input.KeyCode.Name == Bind.Value then
-										Toggle:Set(not Toggle.Value)
+										if Bind.Hold then
+											Holding = true
+											Toggle:Set(true)
+										else
+											Toggle:Set(not Toggle.Value)
+										end
+									end
+								end)
+
+								AddConnection(UserInputService.InputEnded, function(Input, gp)
+									if ToggleConfig.Disabled then return end
+									if gp then return end
+									if Bind.Hold and Holding and Input.KeyCode.Name == Bind.Value then
+										Holding = false
+										Toggle:Set(false)
 									end
 								end)
 
@@ -3785,16 +3906,20 @@ function OrionLib:MakeWindow(WindowConfig)
 										if getgenv().TogglesSaveTable[Toggle.__DisplayName] then
 											local FrameToHere = getgenv().TogglesSaveTable[Toggle.__DisplayName]
 											if FrameToHere and FrameToHere:FindFirstChild("Frame") and FrameToHere.Frame:FindFirstChild("Value") then
-												FrameToHere.Frame:FindFirstChild("Value").Text = Key
+												FrameToHere.Frame:FindFirstChild("Value").Text = Bind.Value
 											end
 										end
 									end
 								end
 
+								function Bind:SetHold(state)
+									Bind.Hold = state == true
+								end
+
 								AddTogglesKeyBind(ToggleConfig.Name)
 
 								if BindConfig.Flag then
-									OrionLib.Flags[Toggle][BindConfig.Flag] = Bind
+									OrionLib.Flags[BindConfig.Flag] = Bind
 								end
 								return Bind
 							end
@@ -5345,6 +5470,26 @@ function OrionLib:MakeWindow(WindowConfig)
                             return ElementFunction:AddImage({Icon = config.Image or config.Icon, Size = config.Size or config.Height or 160, Visible = config.Visible})
                         end
 
+                        ElementFunction.Tab = Tabs
+                        ElementFunction.Select = function()
+                            return Tabs:Select()
+                        end
+                        ElementFunction.SetTitle = function(_, title)
+                            return Tabs:SetTitle(title)
+                        end
+                        ElementFunction.SetIcon = function(_, icon)
+                            return Tabs:SetIcon(icon)
+                        end
+                        ElementFunction.SetBadge = function(_, value, color)
+                            return Tabs:SetBadge(value, color)
+                        end
+                        ElementFunction.SetDisabled = function(_, state)
+                            return Tabs:SetDisabled(state)
+                        end
+                        ElementFunction.SetVisible = function(_, state)
+                            return Tabs:SetVisible(state)
+                        end
+
 						if TabConfig.PremiumOnly then
 							for i, v in next, ElementFunction do
 								ElementFunction[i] = function() end
@@ -5385,8 +5530,183 @@ function OrionLib:MakeWindow(WindowConfig)
 						return ElementFunction, Tabs
 					end
 
+        function Functions:TabGroup(GroupConfig)
+                GroupConfig = TranslateConfig(GroupConfig or {})
+                GroupConfig.Name = GroupConfig.Name or GroupConfig.Title or "Group"
+                GroupConfig.Icon = ResolveIcon(GroupConfig.Icon or "folder")
+                GroupConfig.Visible = GroupConfig.Visible ~= false
+                GroupConfig.Collapsed = GroupConfig.Collapsed == true
+                local Group = {
+                        Name = GroupConfig.Name,
+                        Collapsed = GroupConfig.Collapsed,
+                        Visible = GroupConfig.Visible,
+                        Tabs = {},
+                        Type = "TabGroup"
+                }
+
+                local HeaderClick = SetProps(MakeElement("Button"), {
+                        Size = UDim2.new(1, 0, 0, 30),
+                        AutoButtonColor = false,
+                        Name = "Header"
+                })
+
+                local GroupFrame = SetChildren(SetProps(MakeElement("TFrame"), {
+                        Size = UDim2.new(1, 0, 0, 30),
+                        Parent = TabHolder,
+                        Visible = Group.Visible,
+                        Name = Group.Name
+                }), {
+                        HeaderClick,
+                        OrionLib:AddThemeObject(SetProps(MakeElement("Image", GroupConfig.Icon), {
+                                AnchorPoint = WindowConfig.SidebarCompact and Vector2.new(0.5, 0.5) or Vector2.new(0, 0.5),
+                                Size = UDim2.new(0, WindowConfig.SidebarCompact and 22 or 16, 0, WindowConfig.SidebarCompact and 22 or 16),
+                                Position = WindowConfig.SidebarCompact and UDim2.new(0.5, 0, 0, 15) or UDim2.new(0, 10, 0, 15),
+                                ImageTransparency = 0.35,
+                                Name = "GroupIcon"
+                        }), "TextDark"),
+                        OrionLib:AddThemeObject(SetProps(MakeElement("Label", Group.Name, 12), {
+                                Size = UDim2.new(1, -52, 0, 30),
+                                Position = UDim2.new(0, 32, 0, 0),
+                                Font = Enum.Font.GothamBold,
+                                TextTransparency = 0.25,
+                                TextXAlignment = Enum.TextXAlignment.Left,
+                                Visible = not WindowConfig.SidebarCompact,
+                                Name = "Title"
+                        }), "TextDark"),
+                        OrionLib:AddThemeObject(SetProps(MakeElement("Image", "chevron-down"), {
+                                AnchorPoint = Vector2.new(1, 0.5),
+                                Size = UDim2.new(0, 16, 0, 16),
+                                Position = UDim2.new(1, -10, 0, 15),
+                                ImageTransparency = 0.35,
+                                Visible = not WindowConfig.SidebarCompact,
+                                Name = "Chevron"
+                        }), "TextDark"),
+                        SetChildren(SetProps(MakeElement("TFrame"), {
+                                Size = UDim2.new(1, 0, 0, 0),
+                                Position = UDim2.new(0, 0, 0, 30),
+                                Visible = not Group.Collapsed,
+                                Name = "Holder"
+                        }), {
+                                MakeElement("List", 0, 2)
+                        })
+                })
+
+                local Holder = GroupFrame.Holder
+                local function UpdateGroupSize()
+                        local contentHeight = Holder.UIListLayout.AbsoluteContentSize.Y
+                        Holder.Visible = not Group.Collapsed
+                        Holder.Size = UDim2.new(1, 0, 0, contentHeight)
+                        GroupFrame.Size = UDim2.new(1, 0, 0, 30 + (Group.Collapsed and 0 or contentHeight))
+                        if GroupFrame:FindFirstChild("Chevron") then
+                                TweenService:Create(GroupFrame.Chevron, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+                                        Rotation = Group.Collapsed and -90 or 0
+                                }):Play()
+                        end
+                end
+
+                AddConnection(Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateGroupSize)
+                AddConnection(HeaderClick.MouseButton1Click, function()
+                        Group:SetCollapsed(not Group.Collapsed)
+                end)
+
+                function Group:Tab(TabConfig)
+                        TabConfig = TranslateConfig(TabConfig or {})
+                        TabConfig._Parent = Holder
+                        TabConfig._Indent = WindowConfig.SidebarCompact and 0 or 10
+                        TabConfig._Group = Group
+                        local Elements, Tab = Functions:MakeTab(TabConfig)
+                        table.insert(Group.Tabs, Tab)
+                        UpdateGroupSize()
+                        return Elements, Tab
+                end
+
+                function Group:SetCollapsed(state)
+                        Group.Collapsed = state == true
+                        UpdateGroupSize()
+                end
+
+                function Group:SetVisible(state)
+                        Group.Visible = state == true
+                        GroupFrame.Visible = Group.Visible
+                end
+
+                function Group:SetTitle(title)
+                        Group.Name = tostring(title or Group.Name)
+                        GroupFrame.Name = Group.Name
+                        if GroupFrame:FindFirstChild("Title") then
+                                GroupFrame.Title.Text = Group.Name
+                        end
+                end
+
+                function Group:SetIcon(icon)
+                        GroupConfig.Icon = ResolveIcon(icon or GroupConfig.Icon)
+                        if GroupFrame:FindFirstChild("GroupIcon") then
+                                ApplyIconToObject(GroupFrame.GroupIcon, GroupConfig.Icon, 32)
+                        end
+                end
+
+                UpdateGroupSize()
+                if GroupConfig.Flag then
+                        OrionLib.Flags[GroupConfig.Flag] = Group
+                end
+                return Group
+        end
+
+        function Functions:GroupTab(GroupConfig)
+                return Functions:TabGroup(GroupConfig)
+        end
+
+        function Functions:TabSection(GroupConfig)
+                return Functions:TabGroup(GroupConfig)
+        end
+
         function Functions:Tab(TabConfig)
                 return Functions:MakeTab(TabConfig)
+        end
+
+        function Functions:SelectTab(tab)
+                if type(tab) == "string" then
+                        tab = TabName[tab]
+                end
+                if type(tab) == "table" and type(tab.Select) == "function" then
+                        tab:Select()
+                        return true
+                end
+                return false
+        end
+
+        function Functions:GetTabs()
+                local tabs = {}
+                for _, tab in ipairs(AllTabs) do
+                        table.insert(tabs, tab)
+                end
+                return tabs
+        end
+
+        function Functions:SetTitle(title)
+                WindowConfig.Name = tostring(title or WindowConfig.Name)
+                WindowName.Text = WindowConfig.Name
+        end
+
+        function Functions:SetIcon(icon)
+                WindowConfig.Icon = ResolveImageLikeAsset(ResolveIcon(icon or WindowConfig.Icon))
+                local topBar = MainWindow:FindFirstChild("TopBar")
+                if topBar then
+                        for _, child in ipairs(topBar:GetChildren()) do
+                                if child:IsA("ImageLabel") and child.Name ~= "Ico" then
+                                        ApplyIconToObject(child, WindowConfig.Icon, 32)
+                                        break
+                                end
+                        end
+                end
+        end
+
+        function Functions:SetKeyBindMenuVisible(state)
+                OrionLib:SetKeyBindVisible(state == true)
+        end
+
+        function Functions:ToggleKeyBindMenu()
+                OrionLib:ToggleKeyBindMenu()
         end
 
         function Functions:Open()

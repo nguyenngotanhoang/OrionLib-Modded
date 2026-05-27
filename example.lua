@@ -44,10 +44,22 @@ local Main = Window:Tab({
     Icon = "home"
 })
 
-local Combat = Window:Tab({
+local Gameplay = Window:TabGroup({
+    Title = "Gameplay",
+    Icon = "folder"
+})
+
+local Combat = Gameplay:Tab({
     Title = "Combat",
     Icon = "sword"
 })
+
+local Farming = Gameplay:Tab({
+    Title = "Farming",
+    Icon = "zap"
+})
+
+Combat:SetBadge("2")
 
 Main:HighlightButton({
     Title = "Highlighted Action",
@@ -95,6 +107,10 @@ Main:Toggle({
     Callback = function(enabled)
         print("Toggle:", enabled)
     end
+}):AddBind({
+    Default = Enum.KeyCode.F,
+    Hold = true,
+    Flag = "FeatureHoldBind"
 })
 
 Main:Slider({
@@ -120,5 +136,12 @@ Combat:Button({
         print("Combat button clicked")
     end
 })
+
+Farming:Paragraph({
+    Title = "Grouped tab",
+    Desc = "This tab lives inside Window:TabGroup and can still use every normal element."
+})
+
+Window:ToggleKeyBindMenu()
 
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })

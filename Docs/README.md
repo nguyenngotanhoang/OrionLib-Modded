@@ -60,7 +60,7 @@ Main:Dropdown({
 
 - `OrionLib:CreateWindow(config)` / `OrionLib:Window(config)` are aliases around Orion's `MakeWindow`.
 - Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, and `HideSearchBar` in addition to existing Orion fields.
-- Window methods include `Tab`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `OnOpen`, `OnClose`, and `OnDestroy`.
+- Window methods include `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
 
 ### Tabs
 
@@ -71,7 +71,17 @@ Window:Tab({ Title = "Main", Icon = "home" })
 Window:Tab({ Title = "Only Icon", Icon = "zap" }) -- text hidden when SidebarCompact = true
 ```
 
+### Tab groups
 
+`TabGroup` adds collapsible sidebar groups while each grouped tab keeps the normal tab API. `GroupTab` and `TabSection` are aliases.
+
+```lua
+local Gameplay = Window:TabGroup({ Title = "Gameplay", Icon = "folder" })
+local Combat = Gameplay:Tab({ Title = "Combat", Icon = "sword" })
+
+Combat:SetBadge("2")
+Window:SelectTab("Combat")
+```
 
 ### GroupBox and WarningBox
 
@@ -159,6 +169,20 @@ KeySystem = {
 ```
 
 Set `Enabled = false` to turn the key system off without removing the config.
+
+### KeyBind menu
+
+Toggle binds can be mirrored in the floating KeyBind menu. `Hold = true` turns the key into press-and-hold behavior.
+
+```lua
+Main:Toggle({ Title = "Sprint" }):AddBind({
+    Default = Enum.KeyCode.F,
+    Hold = true,
+    Flag = "SprintBind"
+})
+
+Window:ToggleKeyBindMenu()
+```
 
 ## Lucide icons
 
