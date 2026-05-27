@@ -45,7 +45,11 @@ Main:Dropdown({
 
 ## Project structure
 
-- `scr/Orion.lua` — main library implementation.
+- `scr/Orion.lua` — runtime bundle entrypoint and main implementation.
+- `scr/theme/palette.lua` — built-in themes and shared style tokens.
+- `scr/component/factory.lua` — reusable UI creation, layout, color, and hover helpers.
+- `scr/window/config.lua` — public window config alias normalizer.
+- `scr/README.md` — contributor layout notes for the source bundle.
 - `Orion.lua` — compatibility loader for older scripts.
 - `example.lua` — full WindUI-style usage sample.
 - `Docs/README.md` — this documentation.
@@ -171,7 +175,7 @@ local asset = OrionLib:GetIcon("home", 48)
 
 Supported icon names are normalized, so values like `lucide-home`, `lucide:home`, `home`, and some WindUI-style names resolve consistently.
 
-## Themes and localization
+## Themes, style, and localization
 
 ```lua
 OrionLib:AddTheme({
@@ -181,7 +185,15 @@ OrionLib:AddTheme({
     Stroke = Color3.fromRGB(70, 70, 90),
     Divider = Color3.fromRGB(70, 70, 90),
     Text = Color3.fromRGB(255, 255, 255),
-    TextDark = Color3.fromRGB(170, 170, 185)
+    TextDark = Color3.fromRGB(170, 170, 185),
+    Accent = Color3.fromRGB(96, 165, 250),
+    AccentDark = Color3.fromRGB(37, 99, 235)
+})
+
+OrionLib:SetStyle({
+    WindowRadius = 12,
+    CardRadius = 7,
+    ElementHeight = 40
 })
 
 OrionLib:Localization({

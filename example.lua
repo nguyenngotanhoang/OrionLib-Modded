@@ -9,13 +9,21 @@ OrionLib:AddTheme({
     Stroke = Color3.fromRGB(66, 120, 170),
     Divider = Color3.fromRGB(45, 80, 120),
     Text = Color3.fromRGB(245, 250, 255),
-    TextDark = Color3.fromRGB(160, 180, 205)
+    TextDark = Color3.fromRGB(160, 180, 205),
+    Accent = Color3.fromRGB(56, 189, 248),
+    AccentDark = Color3.fromRGB(2, 132, 199)
+})
+
+OrionLib:SetStyle({
+    WindowRadius = 12,
+    CardRadius = 7,
+    ElementHeight = 40
 })
 
 local Window = OrionLib:CreateWindow({
     Title = "Orion x WindUI Demo",
     Author = "Open source UI example",
-    Theme = "Ocean",
+    Theme = "Midnight",
     Icon = "sparkles",
     Size = UDim2.fromOffset(650, 390),
     SidebarCompact = true,

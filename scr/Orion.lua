@@ -18,6 +18,24 @@ local request = http_request or request or (syn and syn.request) or (fluxus and 
 local getcustomasset = getcustomasset or getsynasset or function() end
 local makefolder = makefolder or function() end
 
+local function LoadBundleModule(path)
+    if not (readfile and isfile and loadstring and isfile(path)) then
+        return nil
+    end
+    local ok, result = pcall(function()
+        return loadstring(readfile(path), path)()
+    end)
+    if ok then
+        return result
+    end
+    warn("[OrionLib] Failed loading module " .. tostring(path) .. ": " .. tostring(result))
+    return nil
+end
+
+local BundlePalette = LoadBundleModule("scr/theme/palette.lua")
+local BundleThemes = BundlePalette and BundlePalette.Themes or nil
+local BundleStyle = BundlePalette and BundlePalette.Style or nil
+
 getgenv().OrionLib = {
     Elements = {},
     ThemeObjects = {},
@@ -26,14 +44,16 @@ getgenv().OrionLib = {
     Flags = {},
     SizeMin = Vector2.new(480, 360),
     OnDestroyTo = {},
-    Themes = {
+    Themes = BundleThemes or {
 	    Default = {
-            Main = Color3.fromRGB(25, 25, 25),
-            Second = Color3.fromRGB(32, 32, 32),
-            Stroke = Color3.fromRGB(60, 60, 60),
-            Divider = Color3.fromRGB(60, 60, 60),
-            Text = Color3.fromRGB(240, 240, 240),
-            TextDark = Color3.fromRGB(150, 150, 150)
+            Main = Color3.fromRGB(18, 20, 27),
+            Second = Color3.fromRGB(25, 28, 38),
+            Stroke = Color3.fromRGB(58, 64, 82),
+            Divider = Color3.fromRGB(43, 48, 62),
+            Text = Color3.fromRGB(245, 247, 252),
+            TextDark = Color3.fromRGB(156, 164, 181),
+            Accent = Color3.fromRGB(96, 165, 250),
+            AccentDark = Color3.fromRGB(37, 99, 235)
 	    },
         Dark = {
             Main = Color3.fromRGB(18, 18, 22),
@@ -41,7 +61,9 @@ getgenv().OrionLib = {
             Stroke = Color3.fromRGB(58, 58, 72),
             Divider = Color3.fromRGB(58, 58, 72),
             Text = Color3.fromRGB(245, 245, 250),
-            TextDark = Color3.fromRGB(165, 166, 180)
+            TextDark = Color3.fromRGB(165, 166, 180),
+            Accent = Color3.fromRGB(129, 140, 248),
+            AccentDark = Color3.fromRGB(79, 70, 229)
         },
         Light = {
             Main = Color3.fromRGB(245, 246, 250),
@@ -49,7 +71,9 @@ getgenv().OrionLib = {
             Stroke = Color3.fromRGB(210, 214, 225),
             Divider = Color3.fromRGB(210, 214, 225),
             Text = Color3.fromRGB(30, 32, 40),
-            TextDark = Color3.fromRGB(95, 101, 116)
+            TextDark = Color3.fromRGB(95, 101, 116),
+            Accent = Color3.fromRGB(37, 99, 235),
+            AccentDark = Color3.fromRGB(29, 78, 216)
         },
 	    Ubuntu = {
 			Main = Color3.fromRGB(233, 84, 32),
@@ -57,9 +81,12 @@ getgenv().OrionLib = {
 			Stroke = Color3.fromRGB(70, 70, 70),
 			Divider = Color3.fromRGB(70, 70, 70),
 			Text = Color3.fromRGB(255, 255, 255),
-			TextDark = Color3.fromRGB(180, 180, 180)
+			TextDark = Color3.fromRGB(180, 180, 180),
+            Accent = Color3.fromRGB(233, 84, 32),
+            AccentDark = Color3.fromRGB(190, 62, 22)
 		}
     },
+    Style = BundleStyle or {Radius = 8, CardRadius = 6, WindowRadius = 12, ElementHeight = 40, ElementPadding = 12, AnimationSpeed = 0.2},
     NotifyVolume = 3,
     SelectedTheme = "Default",
     NotifyOnError = false,
@@ -70,6 +97,13 @@ getgenv().OrionLib = {
 }
 
 getgenv().Destroy = false
+
+local BundleFactoryModule = LoadBundleModule("scr/component/factory.lua")
+local BundleFactory = type(BundleFactoryModule) == "function" and BundleFactoryModule({
+    OrionLib = OrionLib,
+    TweenService = TweenService,
+    Color3 = Color3
+}) or nil
 
 -- Lucide Icons for Roblox compatible resolver.
 -- Uses deividcomsono/lucide-roblox-direct (same icon source Obsidian uses) and no Orion/Feather fallback.
@@ -508,6 +542,9 @@ function OrionLib:MakeAsset(list, options)
 end
 
 local function Create(Name, Properties, Children)
+        if BundleFactory and BundleFactory.Create then
+                return BundleFactory.Create(Name, Properties, Children)
+        end
         local Object = Instance.new(Name)
         for i, v in next, Properties or {} do
                 Object[i] = v
@@ -543,6 +580,9 @@ local function MakeElement(ElementName, ...)
 end
 
 local function SetProps(Element, Props)
+    if BundleFactory and BundleFactory.SetProps then
+        return BundleFactory.SetProps(Element, Props)
+    end
     for Property, Value in pairs(Props) do
         Element[Property] = Value
     end
@@ -556,6 +596,9 @@ local Total = {
 
 local function SetChildren(Element, Children)
         Total.SetChildren += 1;
+        if BundleFactory and BundleFactory.SetChildren then
+                return BundleFactory.SetChildren(Element, Children)
+        end
     table.foreach(Children, function(_, Child)
                 Child.Parent = Element
         end)
@@ -563,10 +606,32 @@ local function SetChildren(Element, Children)
 end
 
 local function Round(Number, Factor)
+    if BundleFactory and BundleFactory.Round then
+        return BundleFactory.Round(Number, Factor)
+    end
 	local decimals = tostring(Factor):match("%.(%d+)")
 	decimals = decimals and #decimals or 0
 	local result = math.floor(Number / Factor + 0.5) * Factor
 	return tonumber(string.format("%." .. decimals .. "f", result))
+end
+
+local function GetThemeValue(Type, Fallback)
+    if BundleFactory and BundleFactory.ThemeValue then
+        return BundleFactory.ThemeValue(Type, Fallback)
+    end
+    local theme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
+    return theme[Type] or Fallback
+end
+
+local function ColorAdd(Color, Amount)
+    if BundleFactory and BundleFactory.ColorAdd then
+        return BundleFactory.ColorAdd(Color, Amount)
+    end
+    return Color3.fromRGB(
+        math.clamp(Color.R * 255 + Amount, 0, 255),
+        math.clamp(Color.G * 255 + Amount, 0, 255),
+        math.clamp(Color.B * 255 + Amount, 0, 255)
+    )
 end
 
 local function ReturnProperty(Object)
@@ -629,7 +694,12 @@ function OrionLib:AddTheme(theme)
         Stroke = theme.Stroke or theme.Border or Color3.fromRGB(60, 60, 60),
         Divider = theme.Divider or theme.Stroke or theme.Border or Color3.fromRGB(60, 60, 60),
         Text = theme.Text or theme.TextPrimary or Color3.fromRGB(240, 240, 240),
-        TextDark = theme.TextDark or theme.TextSecondary or Color3.fromRGB(150, 150, 150)
+        TextDark = theme.TextDark or theme.TextSecondary or Color3.fromRGB(150, 150, 150),
+        Accent = theme.Accent or theme.Brand or Color3.fromRGB(96, 165, 250),
+        AccentDark = theme.AccentDark or theme.BrandDark or theme.Accent or Color3.fromRGB(37, 99, 235),
+        Success = theme.Success or Color3.fromRGB(74, 222, 128),
+        Warning = theme.Warning or Color3.fromRGB(251, 191, 36),
+        Error = theme.Error or Color3.fromRGB(248, 113, 113)
     }
     return OrionLib.Themes[name]
 end
@@ -645,6 +715,14 @@ end
 
 function OrionLib:GetCurrentTheme()
     return OrionLib.SelectedTheme
+end
+
+function OrionLib:SetStyle(style)
+    if type(style) ~= "table" then return OrionLib.Style end
+    for key, value in pairs(style) do
+        OrionLib.Style[key] = value
+    end
+    return OrionLib.Style
 end
 
 function OrionLib:OnThemeChange(callback)
@@ -738,6 +816,17 @@ local function ResolveExternalMediaAsset(asset, folder)
 end
 
 local function NormalizeWindowConfig(config)
+    local WindowConfigModule = LoadBundleModule("scr/window/config.lua")
+    if type(WindowConfigModule) == "function" then
+        local normalizer = WindowConfigModule({
+            OrionLib = OrionLib,
+            TranslateConfig = TranslateConfig,
+            ResolveIcon = ResolveIcon
+        })
+        if type(normalizer) == "table" and type(normalizer.Normalize) == "function" then
+            return normalizer.Normalize(config)
+        end
+    end
     config = TranslateConfig(config or {})
     return {
         Name = config.Name or config.Title or "Library",
@@ -1219,7 +1308,7 @@ CreateElement("RoundFrame", function(Color, Scale, Offset)
                 BorderSizePixel = 0
         }, {
                 Create("UICorner", {
-                        CornerRadius = UDim.new(Scale, Offset)
+                        CornerRadius = UDim.new(Scale or 0, Offset or OrionLib.Style.CardRadius or 6)
                 })
         })
         return Frame
@@ -1232,7 +1321,7 @@ CreateElement("RoundVideo", function(Color, Loop, Play, Scale, Offset)
                 Playing = Play or true
         }, {
                 Create("UICorner", {
-                        CornerRadius = UDim.new(Scale, Offset)
+                        CornerRadius = UDim.new(Scale or 0, Offset or OrionLib.Style.CardRadius or 6)
                 })
         })
         return Video
@@ -1277,7 +1366,7 @@ CreateElement("RoundImage", function(Scale, Offset, ImageID)
                 BackgroundTransparency = 1
         }, {
 			Create("UICorner", {
-				CornerRadius = UDim.new(Scale, Offset)
+				CornerRadius = UDim.new(Scale or 0, Offset or OrionLib.Style.CardRadius or 6)
 			})
 		})
         ApplyIconToObject(ImageNew, ImageID)
@@ -1299,7 +1388,7 @@ CreateElement("Label", function(Text, TextSize, Transparency)
                 TextColor3 = Color3.fromRGB(240, 240, 240),
                 TextTransparency = Transparency or 0,
                 TextSize = TextSize or 15,
-                Font = Enum.Font.Gotham,
+                Font = OrionLib.Style.Font or Enum.Font.Gotham,
                 RichText = true,
                 BackgroundTransparency = 1,
                 TextXAlignment = Enum.TextXAlignment.Left
@@ -1688,7 +1777,7 @@ function OrionLib:MakeWindow(WindowConfig)
         })
 
 		local hasLinkVideo = typeof(WindowConfig.LinkVideo) == "string"
-        local WindowStuff = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 10), {
+        local WindowStuff = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, OrionLib.Style.WindowRadius or 12), {
                 Size = UDim2.new(0, WindowConfig.SidebarWidth, 1, -50),
                 Position = UDim2.new(0, 0, 0, 50),
                 BackgroundTransparency = hasLinkVideo and 1 or 0
@@ -1808,12 +1897,12 @@ function OrionLib:MakeWindow(WindowConfig)
 
 		local MainElementGui
 		if typeof(WindowConfig.LinkVideo) == "string" then
-			MainElementGui = MakeElement("RoundVideo", Color3.fromRGB(255, 255, 255), true, true, 0, 10)
+			MainElementGui = MakeElement("RoundVideo", Color3.fromRGB(255, 255, 255), true, true, 0, OrionLib.Style.WindowRadius or 12)
 		elseif typeof(WindowConfig.Image) == "string" or typeof(WindowConfig.Image) == "number" then
 			local Image = ResolveExternalMediaAsset(WindowConfig.Image, "OrionBackground")
-			MainElementGui = MakeElement("RoundImage", 0, 10, Image)
+			MainElementGui = MakeElement("RoundImage", 0, OrionLib.Style.WindowRadius or 12, Image)
 		else
-			MainElementGui = MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, 10)
+			MainElementGui = MakeElement("RoundFrame", Color3.fromRGB(255,255,255), 0, OrionLib.Style.WindowRadius or 12)
 		end
 		local SizeDrag = SetChildren(SetProps(MakeElement("Button"), {
 		    Name = "SizeDragging",
@@ -1849,6 +1938,12 @@ function OrionLib:MakeWindow(WindowConfig)
                 }), {
                         WindowName,
                         WindowTopBarLine,
+                        OrionLib:AddThemeObject(SetProps(MakeElement("Frame"), {
+                                Size = UDim2.new(0, 80, 0, 2),
+                                Position = UDim2.new(0, WindowConfig.ShowIcon and 50 or 25, 1, -2),
+                                BackgroundTransparency = 0.05,
+                                Name = "AccentLine"
+                        }), "Accent"),
                         OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 7), {
                                 Size = UDim2.new(0, 70, 0, 30),
                                 BackgroundTransparency = typeof(WindowConfig.LinkVideo) == "string" and 0.2 or 0,
@@ -1863,6 +1958,13 @@ function OrionLib:MakeWindow(WindowConfig)
                                 CloseBtn,
                                 MinimizeBtn
                         }), "Second"),
+                }),
+                Create("UIGradient", {
+                        Color = ColorSequence.new({
+                                ColorSequenceKeypoint.new(0, GetThemeValue("Main", Color3.fromRGB(18, 20, 27))),
+                                ColorSequenceKeypoint.new(1, GetThemeValue("Second", Color3.fromRGB(25, 28, 38)))
+                        }),
+                        Rotation = 90
                 }),
                 DragPoint,
                 SizeDrag,
@@ -2582,7 +2684,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                                 AddConnection(Click.MouseEnter, function()
 		                                if ButtonConfig.Disabled then return end
-                                        TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                                        TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
                                 end)
 
                                 AddConnection(Click.MouseLeave, function()
@@ -2592,7 +2694,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                                 AddConnection(Click.MouseButton1Up, function()
 		                                if ButtonConfig.Disabled then return end
-                                        TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                                        TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
                                         spawn(function()
                                                 Button:Click()
                                         end)
@@ -2600,7 +2702,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                                 AddConnection(Click.MouseButton1Down, function()
 		                                if ButtonConfig.Disabled then return end
-                                        TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 6)}):Play()
+                                        TweenService:Create(ButtonFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 6)}):Play()
                                 end)
 
                                 function Button:Set(ButtonText)
@@ -2666,7 +2768,7 @@ function OrionLib:MakeWindow(WindowConfig)
 										local Click = ButtonCloneFrame and ButtonCloneFrame:FindFirstChildOfClass("TextButton")
 										AddConnection(Click.MouseEnter, function()
 				                                if ButtonConfigClone.Disabled then return end
-		                                        TweenService:Create(ButtonCloneFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+		                                        TweenService:Create(ButtonCloneFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
 		                                end)
 
 		                                AddConnection(Click.MouseLeave, function()
@@ -2676,7 +2778,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
 		                                AddConnection(Click.MouseButton1Up, function()
 				                                if ButtonConfigClone.Disabled then return end
-		                                        TweenService:Create(ButtonCloneFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+		                                        TweenService:Create(ButtonCloneFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
 		                                        spawn(function()
 		                                                ButtonClone:Click()
 		                                        end)
@@ -2684,7 +2786,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
 		                                AddConnection(Click.MouseButton1Down, function()
 				                                if ButtonConfigClone.Disabled then return end
-		                                        TweenService:Create(ButtonCloneFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 6)}):Play()
+		                                        TweenService:Create(ButtonCloneFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 6)}):Play()
 		                                end)
 
 										function ButtonClone:Set(ButtonText)
@@ -3304,7 +3406,7 @@ function OrionLib:MakeWindow(WindowConfig)
 							ToggleConfig.Name = ToggleConfig.Name or "Toggle"
 							ToggleConfig.Default = ToggleConfig.Default or false
 							ToggleConfig.Callback = ToggleConfig.Callback or function() end
-							ToggleConfig.Color = ToggleConfig.Color or Color3.fromRGB(9, 99, 195)
+							ToggleConfig.Color = ToggleConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
 							ToggleConfig.Visible = ToggleConfig.Visible or true
 							ToggleConfig.Disabled = ToggleConfig.Disabled or false
 							ToggleConfig.Type = ToggleConfig.Type or "CheckBox"
@@ -3326,11 +3428,11 @@ function OrionLib:MakeWindow(WindowConfig)
 							})
 							local ToggleBox
 							if ToggleConfig.Type == "Switch" then
-								ToggleBox = SetChildren(SetProps(MakeElement("RoundFrame", OrionLib.Themes.Default.Divider, 0, 12), {
+								ToggleBox = SetChildren(SetProps(MakeElement("RoundFrame", GetThemeValue("Divider", OrionLib.Themes.Default.Divider), 0, 12), {
 									Size = UDim2.new(0, 40, 0, 20),
 									Position = UDim2.new(1, -8, 0.5, 0),
 									AnchorPoint = Vector2.new(1, 0.5),
-									BackgroundColor3 = OrionLib.Themes.Default.Divider,
+									BackgroundColor3 = GetThemeValue("Divider", OrionLib.Themes.Default.Divider),
 									Name = "Switch"
 								}), {
 									OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
@@ -3346,11 +3448,11 @@ function OrionLib:MakeWindow(WindowConfig)
 									Size = UDim2.new(0, 24, 0, 24),
 									Position = UDim2.new(1, -24, 0.5, 0),
 									AnchorPoint = Vector2.new(0.5, 0.5),
-									BackgroundColor3 = OrionLib.Themes.Default.Divider,
+									BackgroundColor3 = GetThemeValue("Divider", OrionLib.Themes.Default.Divider),
 									Name = "Check"
 								}), {
 									SetProps(MakeElement("Stroke"), {
-										Color = OrionLib.Themes.Default.Stroke,
+										Color = GetThemeValue("Stroke", OrionLib.Themes.Default.Stroke),
 										Name = "Stroke",
 										Transparency = 0.5
 									}),
@@ -3380,7 +3482,7 @@ function OrionLib:MakeWindow(WindowConfig)
 							function Toggle:UpdateTweenKeyBindToggles(Object, bool)
 								if Object:FindFirstChild("Switch") and Object.Switch:FindFirstChild("Knob") then
 									TweenService:Create(Object.Switch, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {
-										BackgroundColor3 = bool and ToggleConfig.Color or OrionLib.Themes.Default.Divider
+										BackgroundColor3 = bool and ToggleConfig.Color or GetThemeValue("Divider", OrionLib.Themes.Default.Divider)
 									}):Play()
 									TweenService:Create(Object.Switch.Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {
 										Position = bool and UDim2.new(1, -19, 0.48, 0) or UDim2.new(0, 1, 0.48, 0)
@@ -3388,10 +3490,10 @@ function OrionLib:MakeWindow(WindowConfig)
 								end
 								if Object:FindFirstChild("Check") then
 									TweenService:Create(Object.Check, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-										BackgroundColor3 = bool and ToggleConfig.Color or OrionLib.Themes.Default.Divider
+										BackgroundColor3 = bool and ToggleConfig.Color or GetThemeValue("Divider", OrionLib.Themes.Default.Divider)
 									}):Play()
 									TweenService:Create(Object.Check.Stroke, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
-										Color = bool and ToggleConfig.Color or OrionLib.Themes.Default.Stroke
+										Color = bool and ToggleConfig.Color or GetThemeValue("Stroke", OrionLib.Themes.Default.Stroke)
 									}):Play()
 									TweenService:Create(Object.Check.Ico, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
 										ImageTransparency = bool and 0 or 1,
@@ -3475,7 +3577,7 @@ function OrionLib:MakeWindow(WindowConfig)
 								end
 
 								if newMode == "Switch" then
-									local newSwitch = SetChildren(SetProps(MakeElement("RoundFrame", OrionLib.Themes.Default.Divider, 0, 12), {
+									local newSwitch = SetChildren(SetProps(MakeElement("RoundFrame", GetThemeValue("Divider", OrionLib.Themes.Default.Divider), 0, 12), {
 										Size = UDim2.new(0, 40, 0, 20),
 										Position = UDim2.new(1, -8, 0.5, 0),
 										AnchorPoint = Vector2.new(1, 0.5),
@@ -3528,11 +3630,11 @@ function OrionLib:MakeWindow(WindowConfig)
 									if ToggleConfig.Type == "Switch" and ToggleBox:FindFirstChild("Knob") then
 										TweenService:Create(ToggleBox, TweenInfo.new(0.2), {
 											BackgroundColor3 = state and Color3.fromRGB(120,120,120)
-												or (Toggle.Value and ToggleConfig.Color or OrionLib.Themes.Default.Divider)
+												or (Toggle.Value and ToggleConfig.Color or GetThemeValue("Divider", OrionLib.Themes.Default.Divider))
 										}):Play()
 									elseif ToggleBox:FindFirstChild("Stroke") then
 										TweenService:Create(ToggleBox.Stroke, TweenInfo.new(0.2), {
-											Color = state and Color3.fromRGB(120,120,120) or (Toggle.Value and ToggleConfig.Color or OrionLib.Themes.Default.Stroke)
+											Color = state and Color3.fromRGB(120,120,120) or (Toggle.Value and ToggleConfig.Color or GetThemeValue("Stroke", OrionLib.Themes.Default.Stroke))
 										}):Play()
 									end
 								end
@@ -3712,7 +3814,7 @@ function OrionLib:MakeWindow(WindowConfig)
 							SliderConfig.Default = SliderConfig.Default or 50
 							SliderConfig.Callback = SliderConfig.Callback or function() end
 							SliderConfig.ValueName = SliderConfig.ValueName or ""
-							SliderConfig.Color = SliderConfig.Color or Color3.fromRGB(9, 149, 98)
+							SliderConfig.Color = SliderConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
 							SliderConfig.Flag = SliderConfig.Flag or nil
 							SliderConfig.Save = SliderConfig.Save or false
 
@@ -4306,7 +4408,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                         AnchorPoint = Vector2.new(1, 0.5)
                                 }), {
                                         OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
-                                        AddThemeObject(SetProps(MakeElement("Label", BindConfig.Name, 14), {
+                                        OrionLib:AddThemeObject(SetProps(MakeElement("Label", BindConfig.Name, 14), {
                                                 Size = UDim2.new(1, 0, 1, 0),
                                                 Font = Enum.Font.GothamBold,
                                                 TextXAlignment = Enum.TextXAlignment.Center,
@@ -4381,7 +4483,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                 end)
 
                                 AddConnection(Click.MouseEnter, function()
-                                        TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                                        TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
                                 end)
 
                                 AddConnection(Click.MouseLeave, function()
@@ -4389,11 +4491,11 @@ function OrionLib:MakeWindow(WindowConfig)
                                 end)
 
                                 AddConnection(Click.MouseButton1Up, function()
-                                        TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                                        TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
                                 end)
 
                                 AddConnection(Click.MouseButton1Down, function()
-                                        TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 6)}):Play()
+                                        TweenService:Create(BindFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 6)}):Play()
                                 end)
 
                                 function Bind:Set(Key)
@@ -4579,7 +4681,7 @@ function OrionLib:MakeWindow(WindowConfig)
 								end
 
                                 AddConnection(Click.MouseEnter, function()
-                                        TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                                        TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
                                 end)
 
                                 AddConnection(Click.MouseLeave, function()
@@ -4587,12 +4689,12 @@ function OrionLib:MakeWindow(WindowConfig)
                                 end)
 
                                 AddConnection(Click.MouseButton1Up, function()
-                                        TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 3, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 3)}):Play()
+                                        TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3)}):Play()
                                         TextboxActual:CaptureFocus()
                                 end)
 
                                 AddConnection(Click.MouseButton1Down, function()
-                                        TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(OrionLib.Themes[OrionLib.SelectedTheme].Second.R * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.G * 255 + 6, OrionLib.Themes[OrionLib.SelectedTheme].Second.B * 255 + 6)}):Play()
+                                        TweenService:Create(TextboxFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 6)}):Play()
                                 end)
 
                                 if TextboxConfig.Flag then
@@ -4809,7 +4911,7 @@ function OrionLib:MakeWindow(WindowConfig)
 								Size = UDim2.new(1, 0, 1, 0)
 							})
 
-							local ColorpickerBox = AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 4), {
+							local ColorpickerBox = OrionLib:AddThemeObject(SetChildren(SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 4), {
 								Size = UDim2.new(0, 24, 0, 24),
 								Position = UDim2.new(1, -12, 0.5, 0),
 								AnchorPoint = Vector2.new(1, 0.5)
