@@ -11,7 +11,7 @@ return {
             AccentDark = Color3.fromRGB(37, 99, 235),
             Success = Color3.fromRGB(74, 222, 128),
             Warning = Color3.fromRGB(251, 191, 36),
-            Error = Color3.fromRGB(248, 113, 113)
+            Error = Color3.fromRGB(248, 113, 113),
         },
         Dark = {
             Main = Color3.fromRGB(16, 17, 21),
@@ -24,7 +24,7 @@ return {
             AccentDark = Color3.fromRGB(79, 70, 229),
             Success = Color3.fromRGB(52, 211, 153),
             Warning = Color3.fromRGB(245, 158, 11),
-            Error = Color3.fromRGB(239, 68, 68)
+            Error = Color3.fromRGB(239, 68, 68),
         },
         Light = {
             Main = Color3.fromRGB(246, 248, 252),
@@ -37,7 +37,7 @@ return {
             AccentDark = Color3.fromRGB(29, 78, 216),
             Success = Color3.fromRGB(22, 163, 74),
             Warning = Color3.fromRGB(217, 119, 6),
-            Error = Color3.fromRGB(220, 38, 38)
+            Error = Color3.fromRGB(220, 38, 38),
         },
         Ubuntu = {
             Main = Color3.fromRGB(35, 31, 32),
@@ -50,7 +50,7 @@ return {
             AccentDark = Color3.fromRGB(190, 62, 22),
             Success = Color3.fromRGB(78, 180, 110),
             Warning = Color3.fromRGB(236, 167, 44),
-            Error = Color3.fromRGB(230, 90, 84)
+            Error = Color3.fromRGB(230, 90, 84),
         },
         Midnight = {
             Main = Color3.fromRGB(11, 18, 32),
@@ -63,7 +63,7 @@ return {
             AccentDark = Color3.fromRGB(2, 132, 199),
             Success = Color3.fromRGB(45, 212, 191),
             Warning = Color3.fromRGB(251, 191, 36),
-            Error = Color3.fromRGB(251, 113, 133)
+            Error = Color3.fromRGB(251, 113, 133),
         },
         Emerald = {
             Main = Color3.fromRGB(13, 24, 22),
@@ -76,7 +76,7 @@ return {
             AccentDark = Color3.fromRGB(5, 150, 105),
             Success = Color3.fromRGB(110, 231, 183),
             Warning = Color3.fromRGB(251, 191, 36),
-            Error = Color3.fromRGB(248, 113, 113)
+            Error = Color3.fromRGB(248, 113, 113),
         },
         Rose = {
             Main = Color3.fromRGB(31, 18, 27),
@@ -89,8 +89,8 @@ return {
             AccentDark = Color3.fromRGB(219, 39, 119),
             Success = Color3.fromRGB(74, 222, 128),
             Warning = Color3.fromRGB(251, 191, 36),
-            Error = Color3.fromRGB(251, 113, 133)
-        }
+            Error = Color3.fromRGB(251, 113, 133),
+        },
     },
     Style = {
         Radius = 8,
@@ -102,6 +102,6 @@ return {
         Font = Enum.Font.Gotham,
         FontMedium = Enum.Font.GothamSemibold,
         FontBold = Enum.Font.GothamBold,
-        FontBlack = Enum.Font.GothamBlack
-    }
+        FontBlack = Enum.Font.GothamBlack,
+    },
 }

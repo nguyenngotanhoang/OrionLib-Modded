@@ -1,6 +1,5 @@
 -- OrionLib x WindUI style example
--- Load from scr/Orion.lua while developing locally, or load Orion.lua for compatibility.
-local OrionLib = loadstring(readfile("scr/Orion.lua"))()
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua"))()
 
 OrionLib:AddTheme({
     Name = "Ocean",
@@ -11,13 +10,13 @@ OrionLib:AddTheme({
     Text = Color3.fromRGB(245, 250, 255),
     TextDark = Color3.fromRGB(160, 180, 205),
     Accent = Color3.fromRGB(56, 189, 248),
-    AccentDark = Color3.fromRGB(2, 132, 199)
+    AccentDark = Color3.fromRGB(2, 132, 199),
 })
 
 OrionLib:SetStyle({
     WindowRadius = 12,
     CardRadius = 7,
-    ElementHeight = 40
+    ElementHeight = 40,
 })
 
 local Window = OrionLib:CreateWindow({
@@ -33,30 +32,30 @@ local Window = OrionLib:CreateWindow({
         Title = "Demo Key System",
         Subtitle = "Enter the demo key before loading the UI",
         Note = "Demo key: ORION-DEMO",
-        Keys = {"ORION-DEMO"},
+        Keys = { "ORION-DEMO" },
         SaveKey = false,
-        Link = "https://github.com/Footagesus/WindUI"
-    }
+        Link = "https://github.com/Footagesus/WindUI",
+    },
 })
 
 local Main = Window:Tab({
     Title = "Main",
-    Icon = "home"
+    Icon = "home",
 })
 
 local Gameplay = Window:TabGroup({
     Title = "Gameplay",
-    Icon = "folder"
+    Icon = "folder",
 })
 
 local Combat = Gameplay:Tab({
     Title = "Combat",
-    Icon = "sword"
+    Icon = "sword",
 })
 
 local Farming = Gameplay:Tab({
     Title = "Farming",
-    Icon = "zap"
+    Icon = "zap",
 })
 
 Combat:SetBadge("2")
@@ -69,19 +68,18 @@ Main:HighlightButton({
         OrionLib:Notify({
             Title = "Highlight",
             Content = "The new highlight button was clicked.",
-            Duration = 4
+            Duration = 4,
         })
-    end
+    end,
 })
-
 
 Main:WarningBox({
     Title = "Mobile ready",
-    Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px."
+    Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px.",
 })
 
 local SafeGroup = Main:GroupBox({
-    Title = "GroupBox"
+    Title = "GroupBox",
 })
 
 SafeGroup:Button({
@@ -89,16 +87,16 @@ SafeGroup:Button({
     Icon = "box",
     Callback = function()
         print("Grouped button clicked")
-    end
+    end,
 })
 
 Main:Dropdown({
     Title = "Mode Dropdown",
-    Options = {"Normal", "Fast", "Legit", "Rage"},
+    Options = { "Normal", "Fast", "Legit", "Rage" },
     Default = "Normal",
     Callback = function(value)
         print("Dropdown value:", value)
-    end
+    end,
 })
 
 Main:Toggle({
@@ -106,11 +104,11 @@ Main:Toggle({
     Value = false,
     Callback = function(enabled)
         print("Toggle:", enabled)
-    end
+    end,
 }):AddBind({
     Default = Enum.KeyCode.F,
     Hold = true,
-    Flag = "FeatureHoldBind"
+    Flag = "FeatureHoldBind",
 })
 
 Main:Slider({
@@ -121,12 +119,12 @@ Main:Slider({
     Increment = 1,
     Callback = function(value)
         print("Slider:", value)
-    end
+    end,
 })
 
 Combat:Paragraph({
     Title = "Icon-only tab",
-    Desc = "This window uses SidebarCompact = true, so all tabs render icon-only with the animated highlight marker."
+    Desc = "This window uses SidebarCompact = true, so all tabs render icon-only with the animated highlight marker.",
 })
 
 Combat:Button({
@@ -134,12 +132,12 @@ Combat:Button({
     Icon = "mouse-pointer-click",
     Callback = function()
         print("Combat button clicked")
-    end
+    end,
 })
 
 Farming:Paragraph({
     Title = "Grouped tab",
-    Desc = "This tab lives inside Window:TabGroup and can still use every normal element."
+    Desc = "This tab lives inside Window:TabGroup and can still use every normal element.",
 })
 
 Window:ToggleKeyBindMenu()

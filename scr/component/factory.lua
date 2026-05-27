@@ -55,19 +55,19 @@ return function(context)
         return {
             Enter = function()
                 TweenService:Create(object, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = Factory.ColorAdd(baseColor, hoverAmount or 4)
+                    BackgroundColor3 = Factory.ColorAdd(baseColor, hoverAmount or 4),
                 }):Play()
             end,
             Leave = function()
                 TweenService:Create(object, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = baseColor
+                    BackgroundColor3 = baseColor,
                 }):Play()
             end,
             Press = function()
                 TweenService:Create(object, TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                    BackgroundColor3 = Factory.ColorAdd(baseColor, pressAmount or 8)
+                    BackgroundColor3 = Factory.ColorAdd(baseColor, pressAmount or 8),
                 }):Play()
-            end
+            end,
         }
     end
 
