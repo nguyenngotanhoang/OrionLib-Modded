@@ -165,6 +165,27 @@ local BundleFactory = type(BundleFactoryModule) == "function"
             Color3 = Color3,
         })
     or nil
+    
+-- Service KeySystem by WindUI and no Orion/Feather fallback, thank WindUI!
+local function UrlKeySystem(apiConfig)
+    if not apiConfig or not apiConfig.Type then return nil end
+    local ServiceKey = loadstring(game:HttpGet("https://raw.githubusercontent.com/Articles-Hub/ROBLOXScript/refs/heads/main/Library/Orion/service.luau"))()
+    local apiType = apiConfig.Type:lower()
+    local init = {
+        pandadevelopment = function()
+            return ServiceKey:PandaDevelopment(apiConfig.ServiceId)
+        end,
+        luarmor = function()
+            return ServiceKey:Luarmor(apiConfig.ScriptId, apiConfig.Discord)
+        end
+    }
+    local initializer = init[apiType]
+    if initializer then
+        local success, service = pcall(initializer)
+        return success and service or nil
+    end
+    return nil
+end
 
 -- Lucide Icons for Roblox compatible resolver.
 -- Uses deividcomsono/lucide-roblox-direct (same icon source Obsidian uses) and no Orion/Feather fallback.
@@ -673,10 +694,6 @@ function MakeDraggable(gui: GuiObject, DragFrame: GuiObject, Callback: () -> ()?
         end
         local delta = input.Position - dragStart
         gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        local screen = workspace.CurrentCamera.ViewportSize
-        local pos = gui.AbsolutePosition
-        local size = gui.AbsoluteSize
-        gui.Position = UDim2.fromOffset(math.clamp(pos.X, 0, math.max(0, screen.X - size.X)), math.clamp(pos.Y, 0, math.max(0, screen.Y - size.Y)))
         if Callback then
             OrionLib:SafeScript(Callback)
         end
@@ -746,9 +763,8 @@ function MakeResizable(gui: GuiObject, DragFrame: GuiObject, Callback: () -> ()?
         if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             getgenv().DraggingSize = true
             local delta = input.Position - startMouse
-            local maxSize = getMaxSize()
-            local newX = math.clamp(startSize.X.Offset + delta.X, OrionLib.SizeMin.X, maxSize.X)
-            local newY = math.clamp(startSize.Y.Offset + delta.Y, OrionLib.SizeMin.Y, maxSize.Y)
+            local newX = math.clamp(startSize.X.Offset + delta.X, OrionLib.SizeMin.X, math.huge)
+            local newY = math.clamp(startSize.Y.Offset + delta.Y, OrionLib.SizeMin.Y, math.huge)
             gui.Size = UDim2.new(0, newX, 0, newY)
             gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset, startPos.Y.Scale, startPos.Y.Offset)
             if Callback then
@@ -1052,6 +1068,22 @@ function OrionLib:GetThemes()
     end
     table.sort(themes)
     return themes
+end
+
+function OrionLib:SetColor(typeName, color)
+	local theme = OrionLib.Themes[OrionLib.SelectedTheme]
+	theme[typeName] = color
+	local objects = OrionLib.ThemeObjects[typeName]
+	if objects then
+		for _, obj in ipairs(objects) do
+			if obj and obj.Parent then
+				local prop = ReturnProperty(obj)
+				if prop then
+					obj[prop] = color
+				end
+			end
+		end
+	end
 end
 
 function OrionLib:GetCurrentTheme()
@@ -1722,6 +1754,19 @@ end
 
 function OrionLib:MakeKeySystem(KeyConfig)
     KeyConfig = TranslateConfig(KeyConfig or {})
+    local apiSystem
+    if KeyConfig.API then
+        apiSystem = UrlKeySystem(KeyConfig.API)
+        if apiSystem then
+            KeyConfig.Callback = function(input)
+                if tostring(input) == tostring(apiSystem.Verify) then
+	                return true
+                end
+                return false
+            end
+            KeyConfig.Link = apiSystem.Copy
+        end
+    end
     if KeyConfig.Enabled == false then
         OrionLib.KeySystemPassed = true
         return true
@@ -1736,18 +1781,16 @@ function OrionLib:MakeKeySystem(KeyConfig)
     KeyConfig.SaveKey = KeyConfig.SaveKey == true
     KeyConfig.FileName = KeyConfig.FileName or "OrionLibKey.txt"
     KeyConfig.Keys = KeyConfig.Keys or KeyConfig.ValidKeys or {}
-    KeyConfig.Callback = KeyConfig.Callback
-        or KeyConfig.Validate
-        or function(input)
-            if type(KeyConfig.Keys) == "table" then
-                for _, key in ipairs(KeyConfig.Keys) do
-                    if tostring(input) == tostring(key) then
-                        return true
-                    end
+    KeyConfig.Callback = KeyConfig.Callback or KeyConfig.Validate or function(input)
+        if type(KeyConfig.Keys) == "table" then
+            for _, key in ipairs(KeyConfig.Keys) do
+                if tostring(input) == tostring(key) then
+                    return true
                 end
             end
-            return false
         end
+        return false
+    end
     KeyConfig.Icon = ResolveIcon(KeyConfig.Icon or "key-round")
     local KeyTheme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
     local KeyMain = KeyTheme.Main or Color3.fromRGB(18, 20, 27)
@@ -1768,163 +1811,187 @@ function OrionLib:MakeKeySystem(KeyConfig)
     end
 
     local unlocked = false
-    local KeyGui = Instance.new("ScreenGui")
-    KeyGui.Name = "OrionKeySystem"
-    KeyGui.ResetOnSpawn = false
-    KeyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    KeyGui.Parent = PARENT
-
-    local Backdrop = Instance.new("Frame")
-    Backdrop.Size = UDim2.new(1, 0, 1, 0)
-    Backdrop.BackgroundColor3 = KeyMain
-    Backdrop.BackgroundTransparency = 0.16
-    Backdrop.Parent = KeyGui
-
-    local Card = Instance.new("Frame")
-    Card.AnchorPoint = Vector2.new(0.5, 0.5)
-    Card.Position = UDim2.new(0.5, 0, 0.5, 0)
-    Card.Size = UDim2.new(0, 0, 0, 0)
-    Card.BackgroundColor3 = KeyMain
-    Card.ClipsDescendants = true
-    Card.Parent = Backdrop
-    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 12)
-    local CardGradient = Instance.new("UIGradient")
-    CardGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, -34)),
-        ColorSequenceKeypoint.new(0.45, KeyMain),
-        ColorSequenceKeypoint.new(1, KeySecond),
+    local KeyGui = Create("ScreenGui", {Name = "OrionKeySystem", Parent = PARENT, ResetOnSpawn = false})
+    local Backdrop = Create("Frame", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = KeyMain,
+        BackgroundTransparency = 0.16,
+        Parent = KeyGui
     })
-    CardGradient.Rotation = 24
-    CardGradient.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.72),
-        NumberSequenceKeypoint.new(1, 0.03),
+
+    local Card = Create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = KeyMain,
+        ClipsDescendants = true,
+        Parent = Backdrop
+    }, {
+        Create("UICorner", {CornerRadius = UDim.new(0, 12)}),
+        Create("UIStroke", {Color = KeyStroke, Thickness = 1.5}),
+        Create("UIGradient", {
+            Rotation = 24,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, -34)),
+                ColorSequenceKeypoint.new(0.45, KeyMain),
+                ColorSequenceKeypoint.new(1, KeySecond),
+            }),
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.72),
+                NumberSequenceKeypoint.new(1, 0.03),
+            })
+        }),
+        Create("Frame", {
+            Size = UDim2.new(1, 0, 0, 3),
+            BackgroundColor3 = KeyAccent,
+            BorderSizePixel = 0
+        })
     })
-    CardGradient.Parent = Card
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Color = KeyStroke
-    Stroke.Thickness = 1.5
-    Stroke.Parent = Card
 
-    local AccentLine = Instance.new("Frame")
-    AccentLine.Size = UDim2.new(1, 0, 0, 3)
-    AccentLine.BackgroundColor3 = KeyAccent
-    AccentLine.BorderSizePixel = 0
-    AccentLine.Parent = Card
+    local IconWrap = Create("Frame", {
+        Size = UDim2.new(0, 42, 0, 42),
+        Position = UDim2.new(0, 18, 0, 18),
+        BackgroundColor3 = KeyAccent,
+        BackgroundTransparency = 0.12,
+        Parent = Card
+    }, { Create("UICorner", {CornerRadius = UDim.new(0, 10)}) })
 
-    local IconWrap = Instance.new("Frame")
-    IconWrap.Size = UDim2.new(0, 42, 0, 42)
-    IconWrap.Position = UDim2.new(0, 18, 0, 18)
-    IconWrap.BackgroundColor3 = KeyAccent
-    IconWrap.BackgroundTransparency = 0.12
-    IconWrap.BorderSizePixel = 0
-    IconWrap.Parent = Card
-    Instance.new("UICorner", IconWrap).CornerRadius = UDim.new(0, 10)
-
-    local IconImage = Instance.new("ImageLabel")
-    IconImage.AnchorPoint = Vector2.new(0.5, 0.5)
-    IconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
-    IconImage.Size = UDim2.new(0, 23, 0, 23)
-    IconImage.BackgroundTransparency = 1
-    IconImage.ImageColor3 = KeyText
-    IconImage.Parent = IconWrap
+    local IconImage = Create("ImageLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 23, 0, 23),
+        BackgroundTransparency = 1,
+        ImageColor3 = KeyText,
+        Parent = IconWrap
+    })
     ApplyIconToObject(IconImage, KeyConfig.Icon, 48)
 
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -92, 0, 28)
-    Title.Position = UDim2.new(0, 72, 0, 17)
-    Title.BackgroundTransparency = 1
-    Title.Font = Enum.Font.GothamBlack
-    Title.TextSize = 21
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.TextColor3 = KeyText
-    Title.Text = KeyConfig.Title
-    Title.Parent = Card
-
-    local Subtitle = Instance.new("TextLabel")
-    Subtitle.Size = UDim2.new(1, -92, 0, 22)
-    Subtitle.Position = UDim2.new(0, 72, 0, 44)
-    Subtitle.BackgroundTransparency = 1
-    Subtitle.Font = Enum.Font.GothamSemibold
-    Subtitle.TextSize = 13
-    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
-    Subtitle.TextColor3 = KeyTextDark
-    Subtitle.Text = KeyConfig.Subtitle
-    Subtitle.Parent = Card
-
-    local Input = Instance.new("TextBox")
-    Input.Size = UDim2.new(1, -32, 0, 38)
-    Input.Position = UDim2.new(0, 16, 0, 91)
-    Input.BackgroundColor3 = KeySecond
-    Input.TextColor3 = KeyText
-    Input.PlaceholderText = KeyConfig.Placeholder or "Key"
-    Input.PlaceholderColor3 = KeyTextDark
-    Input.Text = savedKey or ""
-    Input.ClearTextOnFocus = false
-    Input.Font = Enum.Font.GothamSemibold
-    Input.TextSize = 14
-    Input.Parent = Card
-    Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 8)
-    local InputStroke = Instance.new("UIStroke")
-    InputStroke.Color = KeyStroke
-    InputStroke.Thickness = 1
-    InputStroke.Parent = Input
-
-    local Status = Instance.new("TextLabel")
-    Status.Size = UDim2.new(1, -32, 0, 38)
-    Status.Position = UDim2.new(0, 16, 0, 139)
-    Status.BackgroundTransparency = 1
-    Status.Font = Enum.Font.GothamSemibold
-    Status.TextSize = 12
-    Status.TextXAlignment = Enum.TextXAlignment.Left
-    Status.TextYAlignment = Enum.TextYAlignment.Top
-    Status.TextWrapped = true
-    Status.TextColor3 = KeyTextDark
-    Status.Text = KeyConfig.Note
-    Status.Parent = Card
-
-    local Submit = Instance.new("TextButton")
-    Submit.Size = UDim2.new(KeyConfig.Link and 0.48 or 1, KeyConfig.Link and -18 or -32, 0, 36)
-    Submit.Position = UDim2.new(0, 16, 1, -52)
-    Submit.BackgroundColor3 = KeyAccent
-    Submit.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Submit.Text = KeyConfig.SubmitText or "Unlock"
-    Submit.Font = Enum.Font.GothamBold
-    Submit.TextSize = 14
-    Submit.Parent = Card
-    Instance.new("UICorner", Submit).CornerRadius = UDim.new(0, 8)
-    local SubmitStroke = Instance.new("UIStroke")
-    SubmitStroke.Color = ColorAdd(KeyAccent, 22)
-    SubmitStroke.Thickness = 1
-    SubmitStroke.Transparency = 0.35
-    SubmitStroke.Parent = Submit
-    local SubmitGradient = Instance.new("UIGradient")
-    SubmitGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, 18)),
-        ColorSequenceKeypoint.new(1, ColorAdd(KeyAccent, -24)),
+    local Title = Create("TextLabel", {
+        Size = UDim2.new(1, -92, 0, 28),
+        Position = UDim2.new(0, 72, 0, 17),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamBlack,
+        TextSize = 21,
+        TextColor3 = KeyText,
+        Text = KeyConfig.Title or "Key System",
+        TextXAlignment = "Left",
+        Parent = Card
     })
-    SubmitGradient.Rotation = 0
-    SubmitGradient.Parent = Submit
+
+    local Subtitle = Create("TextLabel", {
+        Size = UDim2.new(1, -92, 0, 22),
+        Position = UDim2.new(0, 72, 0, 44),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamSemibold,
+        TextSize = 13,
+        TextColor3 = KeyTextDark,
+        Text = KeyConfig.Subtitle or "Enter your key to continue",
+        TextXAlignment = "Left",
+        Parent = Card
+    })
+
+    local Input = Create("TextBox", {
+        Size = UDim2.new(1, -32, 0, 38),
+        Position = UDim2.new(0, 16, 0, 91),
+        BackgroundColor3 = KeySecond,
+        TextColor3 = KeyText,
+        PlaceholderText = KeyConfig.Placeholder or "Enter Key...",
+        Text = savedKey or "",
+        Font = Enum.Font.GothamSemibold,
+        TextSize = 14,
+        Parent = Card
+    }, {
+        Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
+        Create("UIStroke", {Color = KeyStroke, Thickness = 1})
+    })
+
+    local Status = Create("TextLabel", {
+        Size = UDim2.new(1, -32, 0, 38),
+        Position = UDim2.new(0, 16, 0, 139),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamSemibold,
+        TextSize = 12,
+        TextColor3 = KeyTextDark,
+        Text = KeyConfig.Note or "Secure Session",
+        TextXAlignment = "Left",
+        TextYAlignment = "Top",
+        TextWrapped = true,
+        Parent = Card
+    })
+
+    local btnList = {}
+    table.insert(btnList, "Submit")
+    if KeyConfig.Link then table.insert(btnList, "GetKey") end
+    if KeyConfig.Discord then table.insert(btnList, "Discord") end
+    local totalBtns = #btnList
+    local btnWidthScale = (1 / totalBtns)
+    local padding = 12
+    local Submit = Create("TextButton", {
+        Size = UDim2.new(btnWidthScale, -padding, 0, 36),
+        Position = UDim2.new(0, 16, 1, -52),
+        BackgroundColor3 = KeyAccent,
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        Text = KeyConfig.SubmitText or "Unlock",
+        Font = Enum.Font.GothamBold,
+        TextSize = 14,
+        Parent = Card
+    }, {
+        Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
+        Create("UIStroke", {Color = ColorAdd(KeyAccent, 22), Thickness = 1, Transparency = 0.35}),
+        Create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, 18)),
+                ColorSequenceKeypoint.new(1, ColorAdd(KeyAccent, -24)),
+            })
+        })
+    })
 
     if KeyConfig.Link then
-        local GetKey = Instance.new("TextButton")
-        GetKey.Size = UDim2.new(0.48, -18, 0, 36)
-        GetKey.Position = UDim2.new(0.52, 2, 1, -52)
-        GetKey.BackgroundColor3 = KeySecond
-        GetKey.TextColor3 = KeyText
-        GetKey.Text = KeyConfig.GetKeyText or "Get Key"
-        GetKey.Font = Enum.Font.GothamBold
-        GetKey.TextSize = 14
-        GetKey.Parent = Card
-        Instance.new("UICorner", GetKey).CornerRadius = UDim.new(0, 8)
-        local GetKeyStroke = Instance.new("UIStroke")
-        GetKeyStroke.Color = KeyStroke
-        GetKeyStroke.Thickness = 1
-        GetKeyStroke.Parent = GetKey
+        local GetKey = Create("TextButton", {
+            Size = UDim2.new(btnWidthScale, -padding, 0, 36),
+            Position = UDim2.new(btnWidthScale, (totalBtns == 3 and 8 or 2), 1, -52),
+            BackgroundColor3 = KeySecond,
+            TextColor3 = KeyText,
+            Text = KeyConfig.GetKeyText or "Get Key",
+            Font = Enum.Font.GothamBold,
+            TextSize = 14,
+            Parent = Card
+        }, {
+            Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
+            Create("UIStroke", {Color = KeyStroke, Thickness = 1})
+        })
         AddConnection(GetKey.MouseButton1Click, function()
-            if setclipboard then
-                setclipboard(KeyConfig.Link)
-            end
-            Status.Text = setclipboard and "Key link copied to clipboard" or KeyConfig.Link
+	        local Copylink = KeyConfig.Link
+			if Copylink then
+				if type(Copylink) == "function" then
+					Copylink()
+				elseif type(Copylink) == "string" then
+					setclipboard(Copylink)
+				end
+			end
+            Status.Text = "Key link copied to clipboard"
+            Status.TextColor3 = Color3.fromRGB(90, 220, 140)
+        end)
+    end
+
+    if KeyConfig.Discord then
+        local DiscordBtn = Create("TextButton", {
+            Size = UDim2.new(btnWidthScale, -padding, 0, 36),
+            Position = UDim2.new(btnWidthScale * (totalBtns - 1), 8, 1, -52),
+            BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            Text = "Discord",
+            Font = Enum.Font.GothamBold,
+            TextSize = 14,
+            Parent = Card
+        }, {
+            Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
+            Create("UIStroke", {Color = Color3.fromRGB(114, 137, 218), Thickness = 1})
+        })
+        AddConnection(DiscordBtn.MouseButton1Click, function()
+            setclipboard(tostring(KeyConfig.Discord))
+            Status.Text = "Discord link copied!"
+            Status.TextColor3 = Color3.fromRGB(90, 220, 140)
         end)
     end
 
@@ -9450,6 +9517,17 @@ function OrionLib:BuildSettings(Tab: table)
     local themeList = Tab:AddDropdown({
         Name = "Theme List",
         Options = ThemeList,
+    })
+    
+    Tab:AddButton({
+        Name = "Refresh List",
+        Callback = function()
+	        local ThemeList = {}
+			for i in pairs(OrionLib.Themes) do
+				table.insert(ThemeList, i)
+			end
+            themeList:Refresh(ThemeList, true)
+        end
     })
 
     Tab:AddButton({
