@@ -85,30 +85,30 @@ Window:SelectTab("Combat")
 
 ### Dashboard and TabCard
 
-`Dashboard` creates a first-class overview tab with a `TabBox`, live `StatCard`s, and gradient `TabCard`s that open feature tabs.
+`Dashboard` creates a first-class overview tab with a `TabBox`, live `StatCard`s, and gradient `TabCard`s. By default, every `TabCard` creates its own dedicated tab and inserts a matching `TabBox`.
 
 ```lua
 local Dashboard = Window:Dashboard({
     Title = "Dashboard",
     Description = "Hub overview and live status.",
     Stats = {
-        { Title = "Players", Icon = "users", Value = function() return #game:GetService("Players"):GetPlayers() end, Interval = 2 },
-        { Title = "Uptime", Icon = "clock", Value = function() return tostring(os.time()) end, Interval = 1 }
+        { Title = "Players", Icon = "solar:users-group-rounded-bold-duotone", Value = function() return #game:GetService("Players"):GetPlayers() end, Interval = 2 },
+        { Title = "Uptime", Icon = "solar:clock-circle-bold-duotone", Value = function() return tostring(os.time()) end, Interval = 1 }
     }
 })
 
-local Combat = Window:Tab({ Title = "Combat", Icon = "sword" })
-
 Dashboard:TabCard({
     Title = "Combat",
-    Description = "Open the combat page.",
-    Icon = "sword",
-    Tab = Combat,
-    Color = Color3.fromRGB(248, 113, 113)
+    Description = "Creates a dedicated combat card page.",
+    Icon = "solar:sword-bold-duotone",
+    Color = Color3.fromRGB(248, 113, 113),
+    Build = function(Tab)
+        Tab:Button({ Title = "Card Combat Button", Icon = "tabler:sword" })
+    end
 })
 ```
 
-If `TabCard` does not receive `Tab`, `Target`, or `Page`, it auto-creates a dedicated tab and inserts a matching `TabBox`.
+To intentionally route a card into an existing tab, pass `UseExistingTab = true` with `Tab`, `Target`, or `Page`.
 
 ### GroupBox and WarningBox
 
@@ -232,20 +232,23 @@ Main:Toggle({ Title = "Sprint" }):AddBind({
 Window:ToggleKeyBindMenu()
 ```
 
-## Lucide icons
+## Icons
 
 OrionLib resolves icons through a Lucide-compatible provider first, using the same `GetAsset(iconName, size)` shape as `lucide-roblox` / Obsidian-style Lucide ports. The library auto-loads `deividcomsono/lucide-roblox-direct` (the Lucide source used by Obsidian-style ports) and no longer falls back to Orion/Feather icons.
+It also supports Iconify icon-set prefixes from Icônes/Iconify, including `solar`, `tabler`, `ph`, `mdi`, `ri`, `heroicons`, `material-symbols`, and other `prefix:name` sets.
 
 ```lua
 -- Optional: plug in a Lucide provider/module before creating windows.
 OrionLib:SetLucideProvider(Lucide)
 
 local asset = OrionLib:GetIcon("home", 48)
+local solar = OrionLib:GetIcon("solar:home-2-bold-duotone", 48)
+local tabler = OrionLib:GetIcon("tabler:settings", 48)
 -- asset.Image / asset.ImageRectOffset / asset.ImageRectSize are applied automatically
 -- by OrionLib-created Image, RoundImage, and ImageButton instances.
 ```
 
-Supported icon names are normalized, so values like `lucide-home`, `lucide:home`, `home`, and some WindUI-style names resolve consistently.
+Supported icon names are normalized, so values like `lucide-home`, `lucide:home`, `home`, and some WindUI-style names resolve consistently. Use `OrionLib:SetIconSet("solar")` to make unprefixed names load from another Iconify set by default.
 
 ## Themes, style, and localization
 

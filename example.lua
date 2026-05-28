@@ -43,11 +43,11 @@ local Window = OrionLib:CreateWindow({
 local Dashboard = Window:Dashboard({
     Title = "Dashboard",
     Description = "Overview cards can open feature tabs, while stat cards update in real time.",
-    Icon = "layout-dashboard",
+    Icon = "solar:widget-5-bold-duotone",
     Stats = {
         {
             Title = "Players",
-            Icon = "users",
+            Icon = "solar:users-group-rounded-bold-duotone",
             Value = function()
                 return #game:GetService("Players"):GetPlayers()
             end,
@@ -55,7 +55,7 @@ local Dashboard = Window:Dashboard({
         },
         {
             Title = "Uptime",
-            Icon = "clock",
+            Icon = "solar:clock-circle-bold-duotone",
             Value = function()
                 return tostring(math.floor(os.clock() - StartedAt)) .. "s"
             end,
@@ -90,25 +90,47 @@ end)
 
 Dashboard:TabCard({
     Title = "Main Controls",
-    Description = "Open buttons, dropdowns, toggles, and the rich graph demo.",
-    Icon = "house",
-    Tab = Main,
+    Description = "Creates a dedicated card tab instead of jumping into the existing Main tab.",
+    Icon = "solar:home-2-bold-duotone",
+    TabIcon = "solar:home-2-bold-duotone",
+    Build = function(Tab)
+        Tab:Paragraph({
+            Title = "Dedicated TabCard Page",
+            Desc = "This tab was created by the Dashboard card and includes its own TabBox automatically.",
+        })
+    end,
 })
 
 Dashboard:TabCard({
     Title = "Combat",
-    Description = "Open the combat tab from a highlighted gradient card.",
-    Icon = "sword",
-    Tab = Combat,
+    Description = "Creates a dedicated combat card page with its own header.",
+    Icon = "solar:sword-bold-duotone",
+    TabIcon = "solar:sword-bold-duotone",
     Color = Color3.fromRGB(248, 113, 113),
+    Build = function(Tab)
+        Tab:Button({
+            Title = "Card Combat Button",
+            Icon = "tabler:sword",
+            Callback = function()
+                print("Card combat button clicked")
+            end,
+        })
+    end,
 })
 
 Dashboard:TabCard({
     Title = "Farming",
-    Description = "Open the grouped farming tab and keep the sidebar compact.",
-    Icon = "zap",
-    Tab = Farming,
+    Description = "Creates a dedicated farming card page and demonstrates another icon set.",
+    Icon = "ph:plant-duotone",
+    TabIcon = "ph:plant-duotone",
     Color = Color3.fromRGB(52, 211, 153),
+    Build = function(Tab)
+        Tab:WarningBox({
+            Title = "Farming Card",
+            Desc = "This page was auto-created by TabCard.",
+            Icon = "mdi:sprout",
+        })
+    end,
 })
 
 Main:TabBox({

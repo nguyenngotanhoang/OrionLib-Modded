@@ -92,6 +92,7 @@ getgenv().OrionLib = {
     NotifyOnError = false,
     Folder = "OrionLibSave",
     Version = "OrionWind-1.0.0",
+    DefaultIconSet = "lucide",
     LocalizationConfig = { Enabled = false, Prefix = "loc:", DefaultLanguage = "en", Translations = {} },
     SelectedLanguage = nil,
 }
@@ -110,6 +111,15 @@ local BundleFactory = type(BundleFactoryModule) == "function"
 -- Lucide Icons for Roblox compatible resolver.
 -- Uses deividcomsono/lucide-roblox-direct (same icon source Obsidian uses) and no Orion/Feather fallback.
 local LucideURL = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua"
+local IconifyURL = "https://api.iconify.design"
+local IconifyAliases = {
+    ["fontawesome"] = "fa6-solid",
+    ["hero"] = "heroicons",
+    ["heroicon"] = "heroicons",
+    ["material"] = "material-symbols",
+    ["phosphor"] = "ph",
+    ["remix"] = "ri",
+}
 local LucideAliases = {
     ["x"] = "x",
     ["close"] = "x",
@@ -139,6 +149,34 @@ local LucideAliases = {
     ["info"] = "info",
 }
 
+local function NormalizeIconifyName(iconName: string)
+    iconName = iconName:lower()
+    iconName = iconName:gsub("[_%s]+", "-")
+    iconName = iconName:gsub("^%s+", ""):gsub("%s+$", "")
+    return iconName
+end
+
+local function SplitIconifyName(iconName: string)
+    if type(iconName) ~= "string" then
+        return nil, nil
+    end
+    local prefix, name = iconName:match("^([%w%-]+):(.+)$")
+    if not prefix or not name or name == "" then
+        local defaultSet = OrionLib.IconSet or OrionLib.DefaultIconSet
+        if defaultSet and defaultSet ~= "" and defaultSet ~= "lucide" then
+            prefix = defaultSet
+            name = iconName
+        else
+            return nil, nil
+        end
+    end
+    prefix = IconifyAliases[prefix:lower()] or prefix:lower()
+    if prefix == "lucide" then
+        return nil, nil
+    end
+    return prefix, NormalizeIconifyName(name)
+end
+
 local function NormalizeIconName(IconName: string)
     if type(IconName) ~= "string" then
         return nil
@@ -146,10 +184,25 @@ local function NormalizeIconName(IconName: string)
     local IconLower = IconName:lower()
     IconLower = IconLower:gsub("^lucide[:%-]", "")
     IconLower = IconLower:gsub("^lucide_", "")
-    IconLower = IconLower:gsub("^solar:", "")
     IconLower = IconLower:gsub("[_%s]+", "-")
     IconLower = IconLower:gsub("%-bold%-duotone$", "")
     return LucideAliases[IconLower] or IconLower
+end
+
+local function GetIconifyData(IconName: string, Size: number?)
+    local prefix, name = SplitIconifyName(IconName)
+    if not prefix or not name then
+        return nil
+    end
+    local iconSize = tonumber(Size or 48) or 48
+    return {
+        Image = string.format("%s/%s/%s.svg?color=white&width=%d&height=%d", IconifyURL, prefix, name, iconSize, iconSize),
+        ImageRectOffset = Vector2.new(0, 0),
+        ImageRectSize = Vector2.new(0, 0),
+        Name = prefix .. ":" .. name,
+        Source = "Iconify",
+        IconSet = prefix,
+    }
 end
 
 local function GetDirectImageData(IconName: any)
@@ -237,6 +290,11 @@ local function GetIconData(IconName: string, Size: number?)
         return direct
     end
 
+    local iconify = GetIconifyData(IconName, Size)
+    if iconify then
+        return iconify
+    end
+
     local normalized = NormalizeIconName(IconName)
     if not normalized or normalized == "" then
         return nil
@@ -284,6 +342,10 @@ end
 
 function OrionLib:SetLucideProvider(provider)
     OrionLib.LucideProvider = provider
+end
+
+function OrionLib:SetIconSet(iconSet: string?)
+    OrionLib.IconSet = iconSet and tostring(iconSet):lower() or "lucide"
 end
 
 function OrionLib:GetIcon(iconName: string, size: number?)
@@ -3740,15 +3802,17 @@ function OrionLib:MakeWindow(WindowConfig)
                     if Card.TargetTab and type(Card.TargetTab.Select) == "function" then
                         return Card.TargetElements, Card.TargetTab
                     end
-                    local Target = CardConfig.Tab or CardConfig.Target or CardConfig.Page
-                    if type(Target) == "string" then
-                        Card.TargetTab = TabName[Target]
-                    elseif type(Target) == "table" then
-                        if type(Target.Select) == "function" then
-                            Card.TargetTab = Target
-                        elseif type(Target.Tab) == "table" and type(Target.Tab.Select) == "function" then
-                            Card.TargetElements = Target
-                            Card.TargetTab = Target.Tab
+                    if CardConfig.UseExistingTab == true then
+                        local Target = CardConfig.Tab or CardConfig.Target or CardConfig.Page
+                        if type(Target) == "string" then
+                            Card.TargetTab = TabName[Target]
+                        elseif type(Target) == "table" then
+                            if type(Target.Select) == "function" then
+                                Card.TargetTab = Target
+                            elseif type(Target.Tab) == "table" and type(Target.Tab.Select) == "function" then
+                                Card.TargetElements = Target
+                                Card.TargetTab = Target.Tab
+                            end
                         end
                     end
 
@@ -3760,6 +3824,8 @@ function OrionLib:MakeWindow(WindowConfig)
                         })
                         Card.TargetElements = TargetElements
                         Card.TargetTab = TargetTab
+                        Card.Elements = TargetElements
+                        Card.Tab = TargetTab
                         if TargetElements and type(TargetElements.TabBox) == "function" then
                             TargetElements:TabBox({
                                 Title = CardConfig.TabBoxTitle or CardConfig.Title,
@@ -3830,9 +3896,15 @@ function OrionLib:MakeWindow(WindowConfig)
 
                 function Card:SetTarget(target)
                     CardConfig.Tab = target
+                    CardConfig.UseExistingTab = true
                     Card.TargetTab = nil
                     Card.TargetElements = nil
                     ResolveTarget()
+                end
+
+                function Card:GetTab()
+                    ResolveTarget()
+                    return Card.TargetElements, Card.TargetTab
                 end
 
                 function Card:SetVisible(state)
