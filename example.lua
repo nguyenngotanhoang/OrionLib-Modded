@@ -19,6 +19,7 @@ OrionLib:SetStyle({
     ElementHeight = 40,
 })
 
+local StartedAt = os.clock()
 local Window = OrionLib:CreateWindow({
     Title = "Orion x WindUI Demo",
     Author = "Open source UI example",
@@ -32,9 +33,34 @@ local Window = OrionLib:CreateWindow({
         Title = "Demo Key System",
         Subtitle = "Enter the demo key before loading the UI",
         Note = "Demo key: ORION-DEMO",
+        Icon = "key-round",
         Keys = { "ORION-DEMO" },
         SaveKey = false,
         Link = "https://github.com/Footagesus/WindUI",
+    },
+})
+
+local Dashboard = Window:Dashboard({
+    Title = "Dashboard",
+    Description = "Overview cards can open feature tabs, while stat cards update in real time.",
+    Icon = "layout-dashboard",
+    Stats = {
+        {
+            Title = "Players",
+            Icon = "users",
+            Value = function()
+                return #game:GetService("Players"):GetPlayers()
+            end,
+            Interval = 2,
+        },
+        {
+            Title = "Uptime",
+            Icon = "clock",
+            Value = function()
+                return tostring(math.floor(os.clock() - StartedAt)) .. "s"
+            end,
+            Interval = 1,
+        },
     },
 })
 
@@ -62,9 +88,33 @@ pcall(function()
     Combat:SetBadge("2")
 end)
 
-Main:Paragraph({
-    Title = "Main Page",
-    Desc = "If this text appears, the selected page container is rendering correctly.",
+Dashboard:TabCard({
+    Title = "Main Controls",
+    Description = "Open buttons, dropdowns, toggles, and the rich graph demo.",
+    Icon = "house",
+    Tab = Main,
+})
+
+Dashboard:TabCard({
+    Title = "Combat",
+    Description = "Open the combat tab from a highlighted gradient card.",
+    Icon = "sword",
+    Tab = Combat,
+    Color = Color3.fromRGB(248, 113, 113),
+})
+
+Dashboard:TabCard({
+    Title = "Farming",
+    Description = "Open the grouped farming tab and keep the sidebar compact.",
+    Icon = "zap",
+    Tab = Farming,
+    Color = Color3.fromRGB(52, 211, 153),
+})
+
+Main:TabBox({
+    Title = "Main Controls",
+    Description = "This page was opened from a Dashboard TabCard and uses the new TabBox header.",
+    Icon = "house",
 })
 
 Main:HighlightButton({

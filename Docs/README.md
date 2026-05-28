@@ -60,7 +60,7 @@ Main:Dropdown({
 
 - `OrionLib:CreateWindow(config)` / `OrionLib:Window(config)` are aliases around Orion's `MakeWindow`.
 - Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, and `HideSearchBar` in addition to existing Orion fields.
-- Window methods include `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
+- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
 
 ### Tabs
 
@@ -82,6 +82,33 @@ local Combat = Gameplay:Tab({ Title = "Combat", Icon = "sword" })
 Combat:SetBadge("2")
 Window:SelectTab("Combat")
 ```
+
+### Dashboard and TabCard
+
+`Dashboard` creates a first-class overview tab with a `TabBox`, live `StatCard`s, and gradient `TabCard`s that open feature tabs.
+
+```lua
+local Dashboard = Window:Dashboard({
+    Title = "Dashboard",
+    Description = "Hub overview and live status.",
+    Stats = {
+        { Title = "Players", Icon = "users", Value = function() return #game:GetService("Players"):GetPlayers() end, Interval = 2 },
+        { Title = "Uptime", Icon = "clock", Value = function() return tostring(os.time()) end, Interval = 1 }
+    }
+})
+
+local Combat = Window:Tab({ Title = "Combat", Icon = "sword" })
+
+Dashboard:TabCard({
+    Title = "Combat",
+    Description = "Open the combat page.",
+    Icon = "sword",
+    Tab = Combat,
+    Color = Color3.fromRGB(248, 113, 113)
+})
+```
+
+If `TabCard` does not receive `Tab`, `Target`, or `Page`, it auto-creates a dedicated tab and inserts a matching `TabBox`.
 
 ### GroupBox and WarningBox
 
@@ -123,6 +150,9 @@ WindUI-style element aliases are available on tabs and sections:
 - `Input`
 - `Colorpicker`
 - `Paragraph`
+- `TabBox`
+- `TabCard`
+- `StatCard`
 - `Graph`
 - `RichLabel`
 - `AdvancedLabel`
@@ -158,6 +188,7 @@ Graph:Toggle({ Title = "Enabled", Value = true })
 ### Key system
 
 The key system can be enabled or disabled from the window config. When enabled, it opens before the main UI is built.
+The key screen uses the same Orion x WindUI theme colors, rounded card, accent gradient, Lucide icon, and matching input/buttons.
 
 ```lua
 local Window = OrionLib:CreateWindow({

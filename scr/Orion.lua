@@ -854,6 +854,23 @@ local function TranslateValue(value)
     return current[key] or key
 end
 
+local TranslateConfigSkipKeys = {
+    Build = true,
+    Button = true,
+    Callback = true,
+    Container = true,
+    Frame = true,
+    Holder = true,
+    Instance = true,
+    OnClick = true,
+    OnUpdate = true,
+    Page = true,
+    Parent = true,
+    Tab = true,
+    Target = true,
+    Validate = true,
+}
+
 local function TranslateConfig(config, Seen)
     if type(config) ~= "table" then
         return config
@@ -864,7 +881,7 @@ local function TranslateConfig(config, Seen)
     end
     Seen[config] = true
     for key, value in pairs(config) do
-        local SkipKey = type(key) == "string" and (key == "Callback" or key:sub(1, 1) == "_")
+        local SkipKey = type(key) == "string" and (TranslateConfigSkipKeys[key] or key:sub(1, 1) == "_")
         if not SkipKey then
             if type(value) == "string" then
                 config[key] = TranslateValue(value)
@@ -1034,6 +1051,14 @@ function OrionLib:MakeKeySystem(KeyConfig)
             end
             return false
         end
+    KeyConfig.Icon = ResolveIcon(KeyConfig.Icon or "key-round")
+    local KeyTheme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
+    local KeyMain = KeyTheme.Main or Color3.fromRGB(18, 20, 27)
+    local KeySecond = KeyTheme.Second or Color3.fromRGB(25, 28, 38)
+    local KeyStroke = KeyTheme.Stroke or Color3.fromRGB(58, 64, 82)
+    local KeyText = KeyTheme.Text or Color3.fromRGB(245, 247, 252)
+    local KeyTextDark = KeyTheme.TextDark or Color3.fromRGB(156, 164, 181)
+    local KeyAccent = KeyConfig.Color or KeyTheme.Accent or Color3.fromRGB(96, 165, 250)
 
     local savedKey
     if KeyConfig.SaveKey and isfile and readfile and isfile(KeyConfig.FileName) then
@@ -1049,95 +1074,155 @@ function OrionLib:MakeKeySystem(KeyConfig)
     local KeyGui = Instance.new("ScreenGui")
     KeyGui.Name = "OrionKeySystem"
     KeyGui.ResetOnSpawn = false
+    KeyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     KeyGui.Parent = PARENT
 
     local Backdrop = Instance.new("Frame")
     Backdrop.Size = UDim2.new(1, 0, 1, 0)
-    Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    Backdrop.BackgroundTransparency = 0.35
+    Backdrop.BackgroundColor3 = KeyMain
+    Backdrop.BackgroundTransparency = 0.16
     Backdrop.Parent = KeyGui
 
     local Card = Instance.new("Frame")
     Card.AnchorPoint = Vector2.new(0.5, 0.5)
     Card.Position = UDim2.new(0.5, 0, 0.5, 0)
     Card.Size = UDim2.new(0, 0, 0, 0)
-    Card.BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Main
+    Card.BackgroundColor3 = KeyMain
+    Card.ClipsDescendants = true
     Card.Parent = Backdrop
     Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 12)
+    local CardGradient = Instance.new("UIGradient")
+    CardGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, -34)),
+        ColorSequenceKeypoint.new(0.45, KeyMain),
+        ColorSequenceKeypoint.new(1, KeySecond),
+    })
+    CardGradient.Rotation = 24
+    CardGradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.72),
+        NumberSequenceKeypoint.new(1, 0.03),
+    })
+    CardGradient.Parent = Card
     local Stroke = Instance.new("UIStroke")
-    Stroke.Color = OrionLib.Themes[OrionLib.SelectedTheme].Stroke
+    Stroke.Color = KeyStroke
     Stroke.Thickness = 1.5
     Stroke.Parent = Card
 
+    local AccentLine = Instance.new("Frame")
+    AccentLine.Size = UDim2.new(1, 0, 0, 3)
+    AccentLine.BackgroundColor3 = KeyAccent
+    AccentLine.BorderSizePixel = 0
+    AccentLine.Parent = Card
+
+    local IconWrap = Instance.new("Frame")
+    IconWrap.Size = UDim2.new(0, 42, 0, 42)
+    IconWrap.Position = UDim2.new(0, 18, 0, 18)
+    IconWrap.BackgroundColor3 = KeyAccent
+    IconWrap.BackgroundTransparency = 0.12
+    IconWrap.BorderSizePixel = 0
+    IconWrap.Parent = Card
+    Instance.new("UICorner", IconWrap).CornerRadius = UDim.new(0, 10)
+
+    local IconImage = Instance.new("ImageLabel")
+    IconImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    IconImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+    IconImage.Size = UDim2.new(0, 23, 0, 23)
+    IconImage.BackgroundTransparency = 1
+    IconImage.ImageColor3 = KeyText
+    IconImage.Parent = IconWrap
+    ApplyIconToObject(IconImage, KeyConfig.Icon, 48)
+
     local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -32, 0, 28)
-    Title.Position = UDim2.new(0, 16, 0, 18)
+    Title.Size = UDim2.new(1, -92, 0, 28)
+    Title.Position = UDim2.new(0, 72, 0, 17)
     Title.BackgroundTransparency = 1
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 20
+    Title.Font = Enum.Font.GothamBlack
+    Title.TextSize = 21
     Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.TextColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Text
+    Title.TextColor3 = KeyText
     Title.Text = KeyConfig.Title
     Title.Parent = Card
 
     local Subtitle = Instance.new("TextLabel")
-    Subtitle.Size = UDim2.new(1, -32, 0, 22)
-    Subtitle.Position = UDim2.new(0, 16, 0, 48)
+    Subtitle.Size = UDim2.new(1, -92, 0, 22)
+    Subtitle.Position = UDim2.new(0, 72, 0, 44)
     Subtitle.BackgroundTransparency = 1
     Subtitle.Font = Enum.Font.GothamSemibold
     Subtitle.TextSize = 13
     Subtitle.TextXAlignment = Enum.TextXAlignment.Left
-    Subtitle.TextColor3 = OrionLib.Themes[OrionLib.SelectedTheme].TextDark
+    Subtitle.TextColor3 = KeyTextDark
     Subtitle.Text = KeyConfig.Subtitle
     Subtitle.Parent = Card
 
     local Input = Instance.new("TextBox")
     Input.Size = UDim2.new(1, -32, 0, 38)
-    Input.Position = UDim2.new(0, 16, 0, 84)
-    Input.BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Second
-    Input.TextColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Text
+    Input.Position = UDim2.new(0, 16, 0, 91)
+    Input.BackgroundColor3 = KeySecond
+    Input.TextColor3 = KeyText
     Input.PlaceholderText = KeyConfig.Placeholder or "Key"
-    Input.PlaceholderColor3 = OrionLib.Themes[OrionLib.SelectedTheme].TextDark
+    Input.PlaceholderColor3 = KeyTextDark
     Input.Text = savedKey or ""
     Input.ClearTextOnFocus = false
     Input.Font = Enum.Font.GothamSemibold
     Input.TextSize = 14
     Input.Parent = Card
     Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 8)
+    local InputStroke = Instance.new("UIStroke")
+    InputStroke.Color = KeyStroke
+    InputStroke.Thickness = 1
+    InputStroke.Parent = Input
 
     local Status = Instance.new("TextLabel")
-    Status.Size = UDim2.new(1, -32, 0, 20)
-    Status.Position = UDim2.new(0, 16, 0, 128)
+    Status.Size = UDim2.new(1, -32, 0, 38)
+    Status.Position = UDim2.new(0, 16, 0, 139)
     Status.BackgroundTransparency = 1
     Status.Font = Enum.Font.GothamSemibold
     Status.TextSize = 12
     Status.TextXAlignment = Enum.TextXAlignment.Left
-    Status.TextColor3 = OrionLib.Themes[OrionLib.SelectedTheme].TextDark
+    Status.TextYAlignment = Enum.TextYAlignment.Top
+    Status.TextWrapped = true
+    Status.TextColor3 = KeyTextDark
     Status.Text = KeyConfig.Note
     Status.Parent = Card
 
     local Submit = Instance.new("TextButton")
     Submit.Size = UDim2.new(KeyConfig.Link and 0.48 or 1, KeyConfig.Link and -18 or -32, 0, 36)
     Submit.Position = UDim2.new(0, 16, 1, -52)
-    Submit.BackgroundColor3 = KeyConfig.Color or Color3.fromRGB(90, 140, 255)
+    Submit.BackgroundColor3 = KeyAccent
     Submit.TextColor3 = Color3.fromRGB(255, 255, 255)
     Submit.Text = KeyConfig.SubmitText or "Unlock"
     Submit.Font = Enum.Font.GothamBold
     Submit.TextSize = 14
     Submit.Parent = Card
     Instance.new("UICorner", Submit).CornerRadius = UDim.new(0, 8)
+    local SubmitStroke = Instance.new("UIStroke")
+    SubmitStroke.Color = ColorAdd(KeyAccent, 22)
+    SubmitStroke.Thickness = 1
+    SubmitStroke.Transparency = 0.35
+    SubmitStroke.Parent = Submit
+    local SubmitGradient = Instance.new("UIGradient")
+    SubmitGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, 18)),
+        ColorSequenceKeypoint.new(1, ColorAdd(KeyAccent, -24)),
+    })
+    SubmitGradient.Rotation = 0
+    SubmitGradient.Parent = Submit
 
     if KeyConfig.Link then
         local GetKey = Instance.new("TextButton")
         GetKey.Size = UDim2.new(0.48, -18, 0, 36)
         GetKey.Position = UDim2.new(0.52, 2, 1, -52)
-        GetKey.BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Second
-        GetKey.TextColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Text
+        GetKey.BackgroundColor3 = KeySecond
+        GetKey.TextColor3 = KeyText
         GetKey.Text = KeyConfig.GetKeyText or "Get Key"
         GetKey.Font = Enum.Font.GothamBold
         GetKey.TextSize = 14
         GetKey.Parent = Card
         Instance.new("UICorner", GetKey).CornerRadius = UDim.new(0, 8)
+        local GetKeyStroke = Instance.new("UIStroke")
+        GetKeyStroke.Color = KeyStroke
+        GetKeyStroke.Thickness = 1
+        GetKeyStroke.Parent = GetKey
         AddConnection(GetKey.MouseButton1Click, function()
             if setclipboard then
                 setclipboard(KeyConfig.Link)
@@ -1146,7 +1231,7 @@ function OrionLib:MakeKeySystem(KeyConfig)
         end)
     end
 
-    TweenService:Create(Card, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 390, 0, 205) }):Play()
+    TweenService:Create(Card, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 430, 0, 238) }):Play()
 
     local function TryUnlock()
         local ok, result = pcall(KeyConfig.Callback, Input.Text)
@@ -3278,6 +3363,489 @@ function OrionLib:MakeWindow(WindowConfig)
                     OrionLib.Flags[WarningConfig.Flag] = Warning
                 end
                 return Warning
+            end
+
+            function ElementFunction:AddTabBox(TabBoxConfig)
+                TabBoxConfig = TranslateConfig(TabBoxConfig or {})
+                TabBoxConfig.Title = TabBoxConfig.Title or TabBoxConfig.Name or "Tab"
+                TabBoxConfig.Description = TabBoxConfig.Description or TabBoxConfig.Desc or TabBoxConfig.Content or ""
+                TabBoxConfig.Icon = ResolveIcon(TabBoxConfig.Icon or "info")
+                TabBoxConfig.Color = TabBoxConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
+                TabBoxConfig.Visible = TabBoxConfig.Visible ~= false
+                TabBoxConfig.RichText = TabBoxConfig.RichText ~= false
+                local TabBox = { Type = "TabBox", Visible = TabBoxConfig.Visible }
+
+                local TabBoxFrame = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 7), {
+                            Size = UDim2.new(1, 0, 0, 74),
+                            Parent = ItemParent,
+                            Visible = TabBoxConfig.Visible,
+                            BackgroundTransparency = 0.14,
+                            Name = "TabBox",
+                        }),
+                        {
+                            Create("UIGradient", {
+                                Color = ColorSequence.new({
+                                    ColorSequenceKeypoint.new(0, ColorAdd(TabBoxConfig.Color, -30)),
+                                    ColorSequenceKeypoint.new(1, GetThemeValue("Second", Color3.fromRGB(25, 28, 38))),
+                                }),
+                                Rotation = 12,
+                                Transparency = NumberSequence.new({
+                                    NumberSequenceKeypoint.new(0, 0.42),
+                                    NumberSequenceKeypoint.new(1, 0.04),
+                                }),
+                            }),
+                            SetProps(MakeElement("Frame", TabBoxConfig.Color), {
+                                Size = UDim2.new(0, 4, 1, -16),
+                                Position = UDim2.new(0, 10, 0, 8),
+                                BackgroundColor3 = TabBoxConfig.Color,
+                                Name = "Accent",
+                            }),
+                            SetChildren(
+                                SetProps(MakeElement("RoundFrame", TabBoxConfig.Color, 0, 8), {
+                                    Size = UDim2.fromOffset(36, 36),
+                                    Position = UDim2.new(0, 24, 0, 14),
+                                    BackgroundColor3 = TabBoxConfig.Color,
+                                    BackgroundTransparency = 0.12,
+                                    Name = "IconWrap",
+                                }),
+                                {
+                                    OrionLib:AddThemeObject(
+                                        SetProps(MakeElement("Image", TabBoxConfig.Icon), {
+                                            AnchorPoint = Vector2.new(0.5, 0.5),
+                                            Position = UDim2.new(0.5, 0, 0.5, 0),
+                                            Size = UDim2.fromOffset(20, 20),
+                                            Name = "Icon",
+                                        }),
+                                        "Text"
+                                    ),
+                                }
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", TabBoxConfig.Title, 16), {
+                                    Size = UDim2.new(1, -78, 0, 20),
+                                    Position = UDim2.new(0, 70, 0, 12),
+                                    Font = Enum.Font.GothamBold,
+                                    Name = "Title",
+                                    RichText = TabBoxConfig.RichText,
+                                }),
+                                "Text"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", TabBoxConfig.Description, 12), {
+                                    Size = UDim2.new(1, -82, 0, 20),
+                                    Position = UDim2.new(0, 70, 0, 35),
+                                    Font = Enum.Font.GothamSemibold,
+                                    TextWrapped = true,
+                                    TextTransparency = 0.08,
+                                    Name = "Description",
+                                    RichText = TabBoxConfig.RichText,
+                                }),
+                                "TextDark"
+                            ),
+                            OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                        }
+                    ),
+                    "Second"
+                )
+
+                local DescriptionLabel = TabBoxFrame:FindFirstChild("Description")
+                local function UpdateSize()
+                    if DescriptionLabel then
+                        local Height = tostring(DescriptionLabel.Text or "") == "" and 0 or math.max(18, DescriptionLabel.TextBounds.Y)
+                        DescriptionLabel.Visible = Height > 0
+                        DescriptionLabel.Size = UDim2.new(1, -82, 0, Height)
+                        TabBoxFrame.Size = UDim2.new(1, 0, 0, math.max(66, Height + 52))
+                    end
+                end
+
+                AddConnection(DescriptionLabel:GetPropertyChangedSignal("TextBounds"), UpdateSize)
+                task.defer(UpdateSize)
+
+                function TabBox:Set(title, description)
+                    if title ~= nil and TabBoxFrame:FindFirstChild("Title") then
+                        TabBoxFrame.Title.Text = tostring(title)
+                    end
+                    if description ~= nil and DescriptionLabel then
+                        DescriptionLabel.Text = tostring(description)
+                    end
+                    UpdateSize()
+                end
+
+                function TabBox:SetTitle(title)
+                    TabBox:Set(title, nil)
+                end
+
+                function TabBox:SetDescription(description)
+                    TabBox:Set(nil, description)
+                end
+
+                function TabBox:SetVisible(state)
+                    TabBox.Visible = state == true
+                    TabBoxFrame.Visible = TabBox.Visible
+                end
+
+                if TabBoxConfig.Flag then
+                    OrionLib.Flags[TabBoxConfig.Flag] = TabBox
+                end
+                return TabBox
+            end
+
+            function ElementFunction:AddStatCard(StatConfig)
+                StatConfig = TranslateConfig(StatConfig or {})
+                StatConfig.Title = StatConfig.Title or StatConfig.Name or "Statistic"
+                StatConfig.Description = StatConfig.Description or StatConfig.Desc or ""
+                StatConfig.Value = StatConfig.Value or StatConfig.Default or "--"
+                StatConfig.Icon = ResolveIcon(StatConfig.Icon or "activity")
+                StatConfig.Color = StatConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
+                StatConfig.Visible = StatConfig.Visible ~= false
+                StatConfig.Interval = tonumber(StatConfig.Interval or StatConfig.RefreshRate or 1) or 1
+                StatConfig.Realtime = StatConfig.Realtime == true or type(StatConfig.Value) == "function"
+                local Stat = { Type = "StatCard", Visible = StatConfig.Visible, Value = nil }
+
+                local StatFrame = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 7), {
+                            Size = UDim2.new(1, 0, 0, 70),
+                            Parent = ItemParent,
+                            Visible = StatConfig.Visible,
+                            BackgroundTransparency = 0.16,
+                            Name = "StatCard",
+                        }),
+                        {
+                            Create("UIGradient", {
+                                Color = ColorSequence.new({
+                                    ColorSequenceKeypoint.new(0, ColorAdd(StatConfig.Color, -24)),
+                                    ColorSequenceKeypoint.new(1, GetThemeValue("Second", Color3.fromRGB(25, 28, 38))),
+                                }),
+                                Rotation = 0,
+                                Transparency = NumberSequence.new({
+                                    NumberSequenceKeypoint.new(0, 0.55),
+                                    NumberSequenceKeypoint.new(1, 0.02),
+                                }),
+                            }),
+                            SetChildren(
+                                SetProps(MakeElement("RoundFrame", StatConfig.Color, 0, 8), {
+                                    Size = UDim2.fromOffset(34, 34),
+                                    Position = UDim2.new(0, 12, 0, 13),
+                                    BackgroundColor3 = StatConfig.Color,
+                                    BackgroundTransparency = 0.12,
+                                    Name = "IconWrap",
+                                }),
+                                {
+                                    OrionLib:AddThemeObject(
+                                        SetProps(MakeElement("Image", StatConfig.Icon), {
+                                            AnchorPoint = Vector2.new(0.5, 0.5),
+                                            Position = UDim2.new(0.5, 0, 0.5, 0),
+                                            Size = UDim2.fromOffset(18, 18),
+                                            Name = "Icon",
+                                        }),
+                                        "Text"
+                                    ),
+                                }
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", StatConfig.Title, 13), {
+                                    Size = UDim2.new(1, -60, 0, 16),
+                                    Position = UDim2.new(0, 56, 0, 10),
+                                    Font = Enum.Font.GothamBold,
+                                    Name = "Title",
+                                }),
+                                "TextDark"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", "", 21), {
+                                    Size = UDim2.new(1, -62, 0, 26),
+                                    Position = UDim2.new(0, 56, 0, 26),
+                                    Font = Enum.Font.GothamBlack,
+                                    Name = "Value",
+                                }),
+                                "Text"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", StatConfig.Description, 11), {
+                                    Size = UDim2.new(1, -62, 0, 14),
+                                    Position = UDim2.new(0, 56, 0, 51),
+                                    Font = Enum.Font.GothamSemibold,
+                                    TextTransparency = 0.12,
+                                    Name = "Description",
+                                }),
+                                "TextDark"
+                            ),
+                            OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                        }
+                    ),
+                    "Second"
+                )
+
+                function Stat:Set(value, description)
+                    Stat.Value = value
+                    if StatFrame and StatFrame:FindFirstChild("Value") then
+                        StatFrame.Value.Text = tostring(value)
+                    end
+                    if description ~= nil and StatFrame and StatFrame:FindFirstChild("Description") then
+                        StatFrame.Description.Text = tostring(description)
+                    end
+                end
+
+                function Stat:SetValue(value)
+                    Stat:Set(value)
+                end
+
+                function Stat:Refresh()
+                    local value = StatConfig.Value
+                    if type(value) == "function" then
+                        value = OrionLib:SafeScript(value, Stat)
+                    end
+                    Stat:Set(value == nil and "--" or value)
+                end
+
+                function Stat:SetVisible(state)
+                    Stat.Visible = state == true
+                    StatFrame.Visible = Stat.Visible
+                end
+
+                Stat:Refresh()
+                if StatConfig.Realtime then
+                    task.spawn(function()
+                        while StatFrame and StatFrame.Parent and not getgenv().Destroy do
+                            task.wait(math.max(0.15, StatConfig.Interval))
+                            Stat:Refresh()
+                        end
+                    end)
+                end
+
+                if StatConfig.Flag then
+                    OrionLib.Flags[StatConfig.Flag] = Stat
+                end
+                return Stat
+            end
+
+            function ElementFunction:AddTabCard(CardConfig)
+                CardConfig = TranslateConfig(CardConfig or {})
+                CardConfig.Title = CardConfig.Title or CardConfig.Name or CardConfig.TabTitle or "Tab Card"
+                CardConfig.Description = CardConfig.Description or CardConfig.Desc or CardConfig.Content or "Open this tab"
+                CardConfig.Icon = ResolveIcon(CardConfig.Icon or CardConfig.TabIcon or "layout-dashboard")
+                CardConfig.Color = CardConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
+                CardConfig.Visible = CardConfig.Visible ~= false
+                CardConfig.RichText = CardConfig.RichText ~= false
+                local Card = { Type = "TabCard", Visible = CardConfig.Visible, TargetTab = nil, TargetElements = nil }
+
+                local Click = SetProps(MakeElement("Button"), {
+                    Size = UDim2.new(1, 0, 1, 0),
+                    BackgroundTransparency = 1,
+                    AutoButtonColor = false,
+                    Name = "Click",
+                })
+
+                local CardFrame = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 7), {
+                            Size = UDim2.new(1, 0, 0, 86),
+                            Parent = ItemParent,
+                            Visible = CardConfig.Visible,
+                            BackgroundTransparency = 0.1,
+                            ClipsDescendants = true,
+                            Name = "TabCard",
+                        }),
+                        {
+                            Create("UIGradient", {
+                                Color = ColorSequence.new({
+                                    ColorSequenceKeypoint.new(0, ColorAdd(CardConfig.Color, -30)),
+                                    ColorSequenceKeypoint.new(0.45, GetThemeValue("Second", Color3.fromRGB(25, 28, 38))),
+                                    ColorSequenceKeypoint.new(1, GetThemeValue("Main", Color3.fromRGB(18, 20, 27))),
+                                }),
+                                Rotation = 18,
+                                Transparency = NumberSequence.new({
+                                    NumberSequenceKeypoint.new(0, 0.28),
+                                    NumberSequenceKeypoint.new(1, 0.02),
+                                }),
+                            }),
+                            SetProps(MakeElement("Frame", CardConfig.Color), {
+                                Size = UDim2.new(0, 5, 1, -14),
+                                Position = UDim2.new(0, 10, 0, 7),
+                                BackgroundColor3 = CardConfig.Color,
+                                Name = "Accent",
+                            }),
+                            SetChildren(
+                                SetProps(MakeElement("RoundFrame", CardConfig.Color, 0, 10), {
+                                    Size = UDim2.fromOffset(42, 42),
+                                    Position = UDim2.new(0, 25, 0, 17),
+                                    BackgroundColor3 = CardConfig.Color,
+                                    BackgroundTransparency = 0.1,
+                                    Name = "IconWrap",
+                                }),
+                                {
+                                    OrionLib:AddThemeObject(
+                                        SetProps(MakeElement("Image", CardConfig.Icon), {
+                                            AnchorPoint = Vector2.new(0.5, 0.5),
+                                            Position = UDim2.new(0.5, 0, 0.5, 0),
+                                            Size = UDim2.fromOffset(22, 22),
+                                            Name = "Icon",
+                                        }),
+                                        "Text"
+                                    ),
+                                }
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", CardConfig.Title, 15), {
+                                    Size = UDim2.new(1, -120, 0, 20),
+                                    Position = UDim2.new(0, 80, 0, 16),
+                                    Font = Enum.Font.GothamBold,
+                                    Name = "Title",
+                                    RichText = CardConfig.RichText,
+                                }),
+                                "Text"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", CardConfig.Description, 12), {
+                                    Size = UDim2.new(1, -128, 0, 32),
+                                    Position = UDim2.new(0, 80, 0, 39),
+                                    Font = Enum.Font.GothamSemibold,
+                                    TextWrapped = true,
+                                    TextTransparency = 0.08,
+                                    Name = "Description",
+                                    RichText = CardConfig.RichText,
+                                }),
+                                "TextDark"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Image", "arrow-right"), {
+                                    AnchorPoint = Vector2.new(1, 0.5),
+                                    Size = UDim2.fromOffset(18, 18),
+                                    Position = UDim2.new(1, -18, 0.5, 0),
+                                    ImageTransparency = 0.22,
+                                    Name = "Arrow",
+                                }),
+                                "Text"
+                            ),
+                            OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                            Click,
+                        }
+                    ),
+                    "Second"
+                )
+
+                local DescriptionLabel = CardFrame:FindFirstChild("Description")
+                local function UpdateSize()
+                    if DescriptionLabel then
+                        local Height = math.max(26, DescriptionLabel.TextBounds.Y)
+                        DescriptionLabel.Size = UDim2.new(1, -128, 0, Height)
+                        CardFrame.Size = UDim2.new(1, 0, 0, math.max(78, Height + 56))
+                    end
+                end
+
+                local function ResolveTarget()
+                    if Card.TargetTab and type(Card.TargetTab.Select) == "function" then
+                        return Card.TargetElements, Card.TargetTab
+                    end
+                    local Target = CardConfig.Tab or CardConfig.Target or CardConfig.Page
+                    if type(Target) == "string" then
+                        Card.TargetTab = TabName[Target]
+                    elseif type(Target) == "table" then
+                        if type(Target.Select) == "function" then
+                            Card.TargetTab = Target
+                        elseif type(Target.Tab) == "table" and type(Target.Tab.Select) == "function" then
+                            Card.TargetElements = Target
+                            Card.TargetTab = Target.Tab
+                        end
+                    end
+
+                    if not Card.TargetTab and CardConfig.CreateTab ~= false then
+                        local TargetElements, TargetTab = Functions:MakeTab({
+                            Title = CardConfig.TabTitle or CardConfig.Title,
+                            Icon = CardConfig.TabIcon or CardConfig.Icon,
+                            Visible = CardConfig.TabVisible ~= false and CardConfig.ShowTab ~= false,
+                        })
+                        Card.TargetElements = TargetElements
+                        Card.TargetTab = TargetTab
+                        if TargetElements and type(TargetElements.TabBox) == "function" then
+                            TargetElements:TabBox({
+                                Title = CardConfig.TabBoxTitle or CardConfig.Title,
+                                Description = CardConfig.TabBoxDescription or CardConfig.Description,
+                                Icon = CardConfig.Icon,
+                                Color = CardConfig.Color,
+                            })
+                        end
+                        if type(CardConfig.Build) == "function" then
+                            OrionLib:SafeScript(CardConfig.Build, TargetElements, TargetTab, Card)
+                        end
+                    end
+                    return Card.TargetElements, Card.TargetTab
+                end
+
+                AddConnection(DescriptionLabel:GetPropertyChangedSignal("TextBounds"), UpdateSize)
+                AddConnection(Click.MouseEnter, function()
+                    TweenService:Create(CardFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0,
+                    }):Play()
+                    if CardFrame:FindFirstChild("Arrow") then
+                        TweenService:Create(CardFrame.Arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            ImageTransparency = 0,
+                            Position = UDim2.new(1, -14, 0.5, 0),
+                        }):Play()
+                    end
+                end)
+                AddConnection(Click.MouseLeave, function()
+                    TweenService:Create(CardFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0.1,
+                    }):Play()
+                    if CardFrame:FindFirstChild("Arrow") then
+                        TweenService:Create(CardFrame.Arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                            ImageTransparency = 0.22,
+                            Position = UDim2.new(1, -18, 0.5, 0),
+                        }):Play()
+                    end
+                end)
+                AddConnection(Click.MouseButton1Click, function()
+                    if type(CardConfig.Callback) == "function" then
+                        OrionLib:SafeScript(CardConfig.Callback, Card)
+                    end
+                    Card:Select()
+                end)
+
+                function Card:Select()
+                    local _, TargetTab = ResolveTarget()
+                    if TargetTab and type(TargetTab.Select) == "function" then
+                        TargetTab:Select()
+                        return true
+                    end
+                    return false
+                end
+
+                function Card:Set(title, description)
+                    if title ~= nil and CardFrame:FindFirstChild("Title") then
+                        CardFrame.Title.Text = tostring(title)
+                    end
+                    if description ~= nil and DescriptionLabel then
+                        DescriptionLabel.Text = tostring(description)
+                    end
+                    UpdateSize()
+                end
+
+                function Card:SetDescription(description)
+                    Card:Set(nil, description)
+                end
+
+                function Card:SetTarget(target)
+                    CardConfig.Tab = target
+                    Card.TargetTab = nil
+                    Card.TargetElements = nil
+                    ResolveTarget()
+                end
+
+                function Card:SetVisible(state)
+                    Card.Visible = state == true
+                    CardFrame.Visible = Card.Visible
+                end
+
+                task.defer(UpdateSize)
+                ResolveTarget()
+                if CardConfig.Flag then
+                    OrionLib.Flags[CardConfig.Flag] = Card
+                end
+                return Card
             end
 
             function ElementFunction:AddGraph(GraphConfig)
@@ -6885,6 +7453,20 @@ function OrionLib:MakeWindow(WindowConfig)
                 config = TranslateConfig(config or {})
                 return SectionFunction:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "")
             end
+            SectionFunction.TabBox = function(_, config)
+                config = TranslateConfig(config or {})
+                return SectionFunction:AddTabBox(config)
+            end
+            SectionFunction.StatCard = function(_, config)
+                config = TranslateConfig(config or {})
+                return SectionFunction:AddStatCard(config)
+            end
+            SectionFunction.Stat = SectionFunction.StatCard
+            SectionFunction.Metric = SectionFunction.StatCard
+            SectionFunction.TabCard = function(_, config)
+                config = TranslateConfig(config or {})
+                return SectionFunction:AddTabCard(config)
+            end
             SectionFunction.Graph = function(_, config)
                 config = TranslateConfig(config or {})
                 config.Name = config.Name or config.Title or "Graph"
@@ -7000,6 +7582,20 @@ function OrionLib:MakeWindow(WindowConfig)
                 config = TranslateConfig(config or {})
                 return Group:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "")
             end
+            Group.TabBox = function(_, config)
+                config = TranslateConfig(config or {})
+                return Group:AddTabBox(config)
+            end
+            Group.StatCard = function(_, config)
+                config = TranslateConfig(config or {})
+                return Group:AddStatCard(config)
+            end
+            Group.Stat = Group.StatCard
+            Group.Metric = Group.StatCard
+            Group.TabCard = function(_, config)
+                config = TranslateConfig(config or {})
+                return Group:AddTabCard(config)
+            end
             Group.Graph = function(_, config)
                 config = TranslateConfig(config or {})
                 config.Name = config.Name or config.Title or "Graph"
@@ -7080,6 +7676,29 @@ function OrionLib:MakeWindow(WindowConfig)
         function ElementFunction:Paragraph(config)
             config = NormalizeElementConfig(config, "Paragraph")
             return ElementFunction:AddParagraph(config.Title or config.Name or config.Text, config.Content or config.Desc or config.Description or "")
+        end
+
+        function ElementFunction:TabBox(config)
+            config = NormalizeElementConfig(config, "TabBox")
+            return ElementFunction:AddTabBox(config)
+        end
+
+        function ElementFunction:StatCard(config)
+            config = NormalizeElementConfig(config, "Statistic")
+            return ElementFunction:AddStatCard(config)
+        end
+
+        function ElementFunction:Stat(config)
+            return ElementFunction:StatCard(config)
+        end
+
+        function ElementFunction:Metric(config)
+            return ElementFunction:StatCard(config)
+        end
+
+        function ElementFunction:TabCard(config)
+            config = NormalizeElementConfig(config, "Tab Card")
+            return ElementFunction:AddTabCard(config)
         end
 
         function ElementFunction:Graph(config)
@@ -7358,6 +7977,58 @@ function OrionLib:MakeWindow(WindowConfig)
 
     function Functions:Tab(TabConfig)
         return Functions:MakeTab(TabConfig)
+    end
+
+    function Functions:MakeDashboard(DashboardConfig)
+        DashboardConfig = TranslateConfig(DashboardConfig or {})
+        DashboardConfig.Title = DashboardConfig.Title or DashboardConfig.Name or "Dashboard"
+        DashboardConfig.Description = DashboardConfig.Description
+            or DashboardConfig.Desc
+            or DashboardConfig.Content
+            or "Track live hub state and open feature pages from cards."
+        DashboardConfig.Icon = ResolveIcon(DashboardConfig.Icon or "layout-dashboard")
+        DashboardConfig.Color = DashboardConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
+
+        local Dashboard, DashboardTab = Functions:MakeTab({
+            Title = DashboardConfig.Title,
+            Icon = DashboardConfig.Icon,
+            Visible = DashboardConfig.Visible ~= false,
+            Disabled = DashboardConfig.Disabled == true,
+        })
+
+        Dashboard:TabBox({
+            Title = DashboardConfig.Title,
+            Description = DashboardConfig.Description,
+            Icon = DashboardConfig.Icon,
+            Color = DashboardConfig.Color,
+        })
+
+        if type(DashboardConfig.Stats) == "table" then
+            for _, StatConfig in ipairs(DashboardConfig.Stats) do
+                Dashboard:StatCard(StatConfig)
+            end
+        end
+
+        if type(DashboardConfig.Cards) == "table" then
+            for _, CardConfig in ipairs(DashboardConfig.Cards) do
+                Dashboard:TabCard(CardConfig)
+            end
+        end
+
+        if type(DashboardConfig.Build) == "function" then
+            OrionLib:SafeScript(DashboardConfig.Build, Dashboard, DashboardTab)
+        end
+
+        Dashboard.DashboardTab = DashboardTab
+        return Dashboard, DashboardTab
+    end
+
+    function Functions:Dashboard(DashboardConfig)
+        return Functions:MakeDashboard(DashboardConfig)
+    end
+
+    function Functions:DashBoard(DashboardConfig)
+        return Functions:MakeDashboard(DashboardConfig)
     end
 
     function Functions:SelectTab(tab)
