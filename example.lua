@@ -62,6 +62,11 @@ pcall(function()
     Combat:SetBadge("2")
 end)
 
+Main:Paragraph({
+    Title = "Main Page",
+    Desc = "If this text appears, the selected page container is rendering correctly.",
+})
+
 Main:HighlightButton({
     Title = "Highlighted Action",
     Icon = "zap",
@@ -167,3 +172,4 @@ Farming:Paragraph({
 })
 
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })
+Window:RefreshPages()

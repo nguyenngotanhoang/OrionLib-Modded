@@ -292,6 +292,7 @@ end
 
 Orion = Instance.new("ScreenGui")
 Orion.Name = "Orion"
+Orion.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Orion.Parent = PARENT
 
 _currentKey = Enum.KeyCode.RightShift
@@ -429,6 +430,20 @@ local function AddConnection(Signal, Function)
     local SignalConnect = Signal:Connect(Function)
     table.insert(OrionLib.Connections, SignalConnect)
     return SignalConnect
+end
+
+local function SetMinimumZIndex(Root, MinimumZIndex)
+    if not Root then
+        return
+    end
+    if Root:IsA("GuiObject") then
+        Root.ZIndex = math.max(Root.ZIndex, MinimumZIndex)
+    end
+    for _, Descendant in ipairs(Root:GetDescendants()) do
+        if Descendant:IsA("GuiObject") then
+            Descendant.ZIndex = math.max(Descendant.ZIndex, MinimumZIndex)
+        end
+    end
 end
 
 task.spawn(function()
@@ -2662,6 +2677,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     Parent = MainWindow,
                     Visible = false,
                     Name = "ItemContainer",
+                    ZIndex = 4,
                 }),
                 {
                     MakeElement("List", 0, 6),
@@ -2673,6 +2689,12 @@ function OrionLib:MakeWindow(WindowConfig)
         Container:SetAttribute("OrionTabContainer", true)
         Tabs.Button = TabFrame
         Tabs.Container = Container
+        SetMinimumZIndex(Container, 4)
+        AddConnection(Container.DescendantAdded, function(Descendant)
+            if Descendant:IsA("GuiObject") then
+                Descendant.ZIndex = math.max(Descendant.ZIndex, 4)
+            end
+        end)
 
         AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
             Container.CanvasSize = UDim2.new(
@@ -2719,6 +2741,8 @@ function OrionLib:MakeWindow(WindowConfig)
             Tabs.Selected = true
             Window.SelectedTab = Tabs
             Functions.SelectedTab = Tabs
+            Container.Parent = MainWindow
+            SetMinimumZIndex(Container, 4)
             TweenService:Create(
                 TabFrame.Ico,
                 TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
