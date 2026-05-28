@@ -854,15 +854,23 @@ local function TranslateValue(value)
     return current[key] or key
 end
 
-local function TranslateConfig(config)
+local function TranslateConfig(config, Seen)
     if type(config) ~= "table" then
         return config
     end
+    Seen = Seen or {}
+    if Seen[config] then
+        return config
+    end
+    Seen[config] = true
     for key, value in pairs(config) do
-        if type(value) == "string" then
-            config[key] = TranslateValue(value)
-        elseif type(value) == "table" and key ~= "Callback" then
-            TranslateConfig(value)
+        local SkipKey = type(key) == "string" and (key == "Callback" or key:sub(1, 1) == "_")
+        if not SkipKey then
+            if type(value) == "string" then
+                config[key] = TranslateValue(value)
+            elseif type(value) == "table" then
+                TranslateConfig(value, Seen)
+            end
         end
     end
     return config
