@@ -252,12 +252,14 @@ local function GetIconifyData(IconName: string, Size: number?)
         return nil
     end
     local iconSize = tonumber(Size or 48) or 48
-    local imageUrl = string.format("%s/%s/%s.svg?color=white&width=%d&height=%d", IconifyURL, prefix, name, iconSize, iconSize)
+    local svgUrl = string.format("%s/%s/%s.svg?color=white&width=%d&height=%d", IconifyURL, prefix, name, iconSize, iconSize)
+    local imageUrl = string.format("https://images.weserv.nl/?url=%s&output=png", HttpService:UrlEncode(svgUrl))
     local cachedImage = ResolveExternalAssetSource
         and ResolveExternalAssetSource(imageUrl, {
             Root = "OrionLibSave",
             Folder = "Iconify",
             Key = prefix .. "_" .. name .. "_" .. tostring(iconSize),
+            Extension = "png",
             MinSize = 10,
         })
     return {
@@ -267,6 +269,7 @@ local function GetIconifyData(IconName: string, Size: number?)
         Name = prefix .. ":" .. name,
         Source = "Iconify",
         IconSet = prefix,
+        Svg = svgUrl,
     }
 end
 

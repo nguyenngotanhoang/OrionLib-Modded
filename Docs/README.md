@@ -277,7 +277,7 @@ local tabler = OrionLib:GetIcon("tabler:settings", 48)
 
 Supported icon names are normalized, so values like `lucide-home`, `lucide:home`, `home`, and some WindUI-style names resolve consistently. Use `OrionLib:SetIconSet("solar")` to make unprefixed names load from another Iconify set by default.
 
-External HTTP images and Iconify SVGs are cached through `writefile`/`readfile` and then passed through `getcustomasset`/`getsynasset` when the executor supports those APIs. Local file paths are also accepted directly:
+External HTTP images and Iconify icons are cached through `writefile`/`readfile` and then passed through `getcustomasset`/`getsynasset` when the executor supports those APIs. Iconify SVGs are requested through a PNG render proxy first because Roblox `ImageLabel` does not render raw SVG files reliably. Local file paths are also accepted directly:
 
 ```lua
 local cached = OrionLib:ResolveAsset("https://example.com/icon.png", {

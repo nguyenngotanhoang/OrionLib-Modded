@@ -1,69 +1,83 @@
 -- OrionLib x WindUI style example
 local TweenService = game:GetService("TweenService")
-local BootstrapGui = Instance.new("ScreenGui")
-BootstrapGui.Name = "OrionBootstrapLoader"
-BootstrapGui.ResetOnSpawn = false
-BootstrapGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-BootstrapGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
 
-local BootstrapBackdrop = Instance.new("Frame")
-BootstrapBackdrop.Size = UDim2.fromScale(1, 1)
-BootstrapBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BootstrapBackdrop.BackgroundTransparency = 0.25
-BootstrapBackdrop.Parent = BootstrapGui
+local function CreateBootstrapLoader()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "OrionBootstrapLoader"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
 
-local BootstrapCard = Instance.new("Frame")
-BootstrapCard.AnchorPoint = Vector2.new(0.5, 0.5)
-BootstrapCard.Position = UDim2.fromScale(0.5, 0.5)
-BootstrapCard.Size = UDim2.fromOffset(320, 112)
-BootstrapCard.BackgroundColor3 = Color3.fromRGB(18, 20, 27)
-BootstrapCard.BorderSizePixel = 0
-BootstrapCard.Parent = BootstrapBackdrop
-Instance.new("UICorner", BootstrapCard).CornerRadius = UDim.new(0, 14)
+    local backdrop = Instance.new("Frame")
+    backdrop.Size = UDim2.fromScale(1, 1)
+    backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    backdrop.BackgroundTransparency = 0.25
+    backdrop.Parent = gui
 
-local BootstrapTitle = Instance.new("TextLabel")
-BootstrapTitle.BackgroundTransparency = 1
-BootstrapTitle.Position = UDim2.fromOffset(18, 18)
-BootstrapTitle.Size = UDim2.new(1, -36, 0, 24)
-BootstrapTitle.Font = Enum.Font.GothamBlack
-BootstrapTitle.Text = "Loading OrionLib"
-BootstrapTitle.TextColor3 = Color3.fromRGB(245, 247, 252)
-BootstrapTitle.TextSize = 18
-BootstrapTitle.TextXAlignment = Enum.TextXAlignment.Left
-BootstrapTitle.Parent = BootstrapCard
+    local card = Instance.new("Frame")
+    card.AnchorPoint = Vector2.new(0.5, 0.5)
+    card.Position = UDim2.fromScale(0.5, 0.5)
+    card.Size = UDim2.fromOffset(320, 112)
+    card.BackgroundColor3 = Color3.fromRGB(18, 20, 27)
+    card.BorderSizePixel = 0
+    card.Parent = backdrop
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
 
-local BootstrapStatus = Instance.new("TextLabel")
-BootstrapStatus.BackgroundTransparency = 1
-BootstrapStatus.Position = UDim2.fromOffset(18, 46)
-BootstrapStatus.Size = UDim2.new(1, -36, 0, 20)
-BootstrapStatus.Font = Enum.Font.Gotham
-BootstrapStatus.Text = "Fetching library source..."
-BootstrapStatus.TextColor3 = Color3.fromRGB(156, 164, 181)
-BootstrapStatus.TextSize = 13
-BootstrapStatus.TextXAlignment = Enum.TextXAlignment.Left
-BootstrapStatus.Parent = BootstrapCard
+    local title = Instance.new("TextLabel")
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.fromOffset(18, 18)
+    title.Size = UDim2.new(1, -36, 0, 24)
+    title.Font = Enum.Font.GothamBlack
+    title.Text = "Loading OrionLib"
+    title.TextColor3 = Color3.fromRGB(245, 247, 252)
+    title.TextSize = 18
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = card
 
-local BootstrapBarBack = Instance.new("Frame")
-BootstrapBarBack.Position = UDim2.new(0, 18, 1, -24)
-BootstrapBarBack.Size = UDim2.new(1, -36, 0, 7)
-BootstrapBarBack.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
-BootstrapBarBack.BorderSizePixel = 0
-BootstrapBarBack.Parent = BootstrapCard
-Instance.new("UICorner", BootstrapBarBack).CornerRadius = UDim.new(1, 0)
+    local status = Instance.new("TextLabel")
+    status.BackgroundTransparency = 1
+    status.Position = UDim2.fromOffset(18, 46)
+    status.Size = UDim2.new(1, -36, 0, 20)
+    status.Font = Enum.Font.Gotham
+    status.Text = "Fetching library source..."
+    status.TextColor3 = Color3.fromRGB(156, 164, 181)
+    status.TextSize = 13
+    status.TextXAlignment = Enum.TextXAlignment.Left
+    status.Parent = card
 
-local BootstrapBar = Instance.new("Frame")
-BootstrapBar.Size = UDim2.fromScale(0.35, 1)
-BootstrapBar.BackgroundColor3 = Color3.fromRGB(96, 165, 250)
-BootstrapBar.BorderSizePixel = 0
-BootstrapBar.Parent = BootstrapBarBack
-Instance.new("UICorner", BootstrapBar).CornerRadius = UDim.new(1, 0)
-TweenService:Create(BootstrapBar, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(0.65, 1) }):Play()
+    local barBack = Instance.new("Frame")
+    barBack.Position = UDim2.new(0, 18, 1, -24)
+    barBack.Size = UDim2.new(1, -36, 0, 7)
+    barBack.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
+    barBack.BorderSizePixel = 0
+    barBack.Parent = card
+    Instance.new("UICorner", barBack).CornerRadius = UDim.new(1, 0)
 
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua?cache=" .. tostring(os.time())))()
-BootstrapStatus.Text = "Library loaded"
-TweenService:Create(BootstrapBar, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(1, 1) }):Play()
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.fromScale(0.35, 1)
+    bar.BackgroundColor3 = Color3.fromRGB(96, 165, 250)
+    bar.BorderSizePixel = 0
+    bar.Parent = barBack
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+    local loader = {}
+    function loader:Set(progress, text)
+        status.Text = text or status.Text
+        TweenService:Create(bar, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(progress, 1) }):Play()
+    end
+    function loader:Close()
+        gui:Destroy()
+    end
+    loader:Set(0.65)
+    return loader
+end
+
+local BootstrapLoader = CreateBootstrapLoader()
+local OrionSource = game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua?cache=" .. tostring(os.time()))
+local OrionLib = loadstring(OrionSource, "OrionLib")()
+BootstrapLoader:Set(1, "Library loaded")
 task.delay(0.2, function()
-    BootstrapGui:Destroy()
+    BootstrapLoader:Close()
 end)
 
 OrionLib:AddTheme({
