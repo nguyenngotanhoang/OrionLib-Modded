@@ -1,5 +1,5 @@
 -- OrionLib x WindUI style example
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua"))()
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua?cache=" .. tostring(os.time())))()
 
 OrionLib:AddTheme({
     Name = "Ocean",

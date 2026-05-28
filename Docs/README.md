@@ -7,7 +7,7 @@ This repo now keeps the main library source in [`scr/Orion.lua`](../scr/Orion.lu
 `scr/Orion.lua` now returns the library only; it does not auto-create a demo window. This is important for key systems because the protected window is not built until the key check passes.
 
 ```lua
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua"))()
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua?cache=" .. tostring(os.time())))()
 
 local Window = OrionLib:CreateWindow({
     Title = "Demo UI",
