@@ -78,11 +78,9 @@ local Window = OrionLib:CreateWindow({
 })
 
 Window:AddTopbarButton({
-    Icon = "message-circle-question",
-    Title = "Ask",
-    Callback = function()
-        Window:Dialog({ Title = "Confirm", Description = "Run this action?" })
-    end
+    Icon = "layout-dashboard",
+    Title = "Dash",
+    Tab = "Dashboard" -- or use Callback = function() ... end
 })
 
 Loader:SetProgress(1, "Ready")
@@ -213,7 +211,7 @@ Graph:Button({ Title = "Refresh", Callback = function() Graph:AddPoint(math.rand
 Graph:Toggle({ Title = "Enabled", Value = true })
 ```
 
-`DiscordServer` creates a themed server card with thumbnail, icon, Join button, and Leave button:
+`DiscordServer` creates a highlighted themed server card with thumbnail, icon, and a GroupBox-style copy button:
 
 ```lua
 Main:DiscordServer({
@@ -222,8 +220,7 @@ Main:DiscordServer({
     Invite = "https://discord.gg/example",
     Thumbnail = "https://example.com/banner.png",
     Icon = "message-circle",
-    JoinCallback = function() print("join") end,
-    LeaveCallback = function() print("leave") end
+    CopyCallback = function() print("copied") end
 })
 ```
 

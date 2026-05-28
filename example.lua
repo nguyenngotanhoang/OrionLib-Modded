@@ -220,16 +220,13 @@ Main:WarningBox({
 
 Main:DiscordServer({
     Title = "Orion Community",
-    Description = "Card with thumbnail, icon, invite join button, and leave action.",
+    Description = "Highlighted server card with a GroupBox-style copy button.",
     Invite = "https://discord.gg/orionlib",
     Icon = "message-circle",
     Thumbnail = "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=900&q=80",
     Meta = "Public Discord server",
-    JoinCallback = function()
+    CopyCallback = function()
         print("Discord invite copied")
-    end,
-    LeaveCallback = function()
-        print("Discord leave clicked")
     end,
 })
 
@@ -326,9 +323,7 @@ Window:AddTopbarButton({
     Icon = "layout-dashboard",
     Title = "Dash",
     Width = 76,
-    Callback = function()
-        Window:SelectTab(Dashboard)
-    end,
+    Tab = Dashboard,
 })
 
 Loader:SetProgress(1, "Ready")

@@ -3047,6 +3047,7 @@ function OrionLib:MakeWindow(WindowConfig)
             AnchorPoint = Vector2.new(1, 0),
             AutomaticSize = Enum.AutomaticSize.X,
             Name = "TopbarButtons",
+            ZIndex = 40,
         }),
         {
             Create("UIListLayout", {
@@ -3072,6 +3073,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetProps(MakeElement("TFrame"), {
                         Size = UDim2.new(1, 0, 0, 50),
                         Name = "TopBar",
+                        ZIndex = 35,
                     }),
                     {
                         WindowName,
@@ -3823,6 +3825,16 @@ function OrionLib:MakeWindow(WindowConfig)
                         }
                     ),
                     "Second"
+                )
+                OrionLib:AddThemeObject(
+                    SetProps(MakeElement("Frame"), {
+                        Name = "Accent",
+                        Size = UDim2.new(0, 4, 1, -20),
+                        Position = UDim2.new(0, 0, 0, 10),
+                        Parent = Card,
+                        ZIndex = 4,
+                    }),
+                    "Accent"
                 )
 
                 local LogFunction = {}
@@ -5093,7 +5105,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 local buttonHolder = SetProps(MakeElement("TFrame"), {
                     AnchorPoint = Vector2.new(1, 1),
                     Position = UDim2.new(1, 0, 1, 0),
-                    Size = UDim2.new(0, 180, 0, 32),
+                    Size = UDim2.new(0, 104, 0, 32),
                     Parent = Card,
                     ZIndex = 4,
                 })
@@ -5104,11 +5116,12 @@ function OrionLib:MakeWindow(WindowConfig)
                     Padding = UDim.new(0, 8),
                 })
 
-                local function CreateDiscordButton(text, icon, callback)
+                local copyLabel
+                local function CreateCopyButton(text, icon, callback)
                     local button = OrionLib:AddThemeObject(
                         SetChildren(
                             SetProps(MakeElement("Button"), {
-                                Size = UDim2.fromOffset(86, 32),
+                                Size = UDim2.fromOffset(104, 32),
                                 Parent = buttonHolder,
                                 BackgroundTransparency = 0,
                                 ZIndex = 5,
@@ -5151,30 +5164,30 @@ function OrionLib:MakeWindow(WindowConfig)
                         }):Play()
                     end)
                     AddConnection(button.MouseButton1Click, callback)
+                    copyLabel = button:FindFirstChildOfClass("TextLabel")
                     return button
                 end
 
-                local function JoinAction()
+                local function CopyAction()
                     if DiscordConfig.Invite and type(setclipboard) == "function" then
                         setclipboard(DiscordConfig.Invite)
                     end
-                    if type(DiscordConfig.JoinCallback or DiscordConfig.OnJoin) == "function" then
-                        OrionLib:SafeScript(DiscordConfig.JoinCallback or DiscordConfig.OnJoin, Discord)
+                    if copyLabel then
+                        copyLabel.Text = DiscordConfig.CopiedText or "Copied"
+                        task.delay(1.2, function()
+                            if copyLabel and copyLabel.Parent then
+                                copyLabel.Text = DiscordConfig.CopyText or "Copy"
+                            end
+                        end)
+                    end
+                    if type(DiscordConfig.CopyCallback or DiscordConfig.OnCopy or DiscordConfig.JoinCallback or DiscordConfig.OnJoin) == "function" then
+                        OrionLib:SafeScript(DiscordConfig.CopyCallback or DiscordConfig.OnCopy or DiscordConfig.JoinCallback or DiscordConfig.OnJoin, Discord)
                     elseif DiscordConfig.Invite then
                         OrionLib:Notify({ Title = "Discord", Content = "Invite copied to clipboard.", Icon = "message-circle", Duration = 3 })
                     end
                 end
 
-                local function LeaveAction()
-                    if type(DiscordConfig.LeaveCallback or DiscordConfig.OnLeave) == "function" then
-                        OrionLib:SafeScript(DiscordConfig.LeaveCallback or DiscordConfig.OnLeave, Discord)
-                    else
-                        OrionLib:Notify({ Title = "Discord", Content = "Leave action clicked.", Icon = "log-out", Duration = 3 })
-                    end
-                end
-
-                CreateDiscordButton(DiscordConfig.JoinText or "Join", DiscordConfig.JoinIcon or "log-in", JoinAction)
-                CreateDiscordButton(DiscordConfig.LeaveText or "Leave", DiscordConfig.LeaveIcon or "log-out", LeaveAction)
+                CreateCopyButton(DiscordConfig.CopyText or "Copy", DiscordConfig.CopyIcon or "copy", CopyAction)
 
                 function Discord:SetTitle(value)
                     title.Text = tostring(value or "")
@@ -5189,11 +5202,12 @@ function OrionLib:MakeWindow(WindowConfig)
                     Discord.Visible = state == true
                     Card.Visible = Discord.Visible
                 end
-                function Discord:Join()
-                    JoinAction()
+                function Discord:Copy()
+                    CopyAction()
                 end
+                Discord.Join = Discord.Copy
                 function Discord:Leave()
-                    LeaveAction()
+                    CopyAction()
                 end
                 if DiscordConfig.Flag then
                     OrionLib.Flags[DiscordConfig.Flag] = Discord
@@ -9050,6 +9064,9 @@ function OrionLib:MakeWindow(WindowConfig)
                     BackgroundTransparency = ButtonConfig.Transparency or 0,
                     LayoutOrder = ButtonConfig.Order or #TopbarButtonHolder:GetChildren(),
                     Name = ButtonConfig.Name or ButtonConfig.Title or "TopbarButton",
+                    Active = true,
+                    AutoButtonColor = false,
+                    ZIndex = 41,
                 }),
                 {
                     MakeElement("Corner", 0, 8),
@@ -9069,6 +9086,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     ImageTransparency = 0.08,
                     Parent = button,
                     Name = "Ico",
+                    ZIndex = 42,
                 }),
                 "Text"
             )
@@ -9084,6 +9102,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Parent = button,
                     Name = "Title",
+                    ZIndex = 42,
                 }),
                 "Text"
             )
@@ -9106,9 +9125,30 @@ function OrionLib:MakeWindow(WindowConfig)
         function api:Destroy()
             button:Destroy()
         end
+        function api:SetTarget(target)
+            ButtonConfig.Tab = target
+            ButtonConfig.Target = target
+        end
 
+        AddConnection(button.MouseEnter, function()
+            TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+                BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 5),
+            }):Play()
+        end)
+        AddConnection(button.MouseLeave, function()
+            TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+                BackgroundColor3 = GetThemeValue("Second", OrionLib.Themes.Default.Second),
+            }):Play()
+        end)
         AddConnection(button.MouseButton1Click, function()
-            OrionLib:SafeScript(ButtonConfig.Callback or ButtonConfig.OnClick, api)
+            local target = ButtonConfig.Tab or ButtonConfig.Target or ButtonConfig.Page
+            if target ~= nil then
+                Functions:SelectTab(target)
+            end
+            local callback = ButtonConfig.Callback or ButtonConfig.OnClick
+            if type(callback) == "function" then
+                OrionLib:SafeScript(callback, api)
+            end
         end)
         return api
     end
