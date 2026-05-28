@@ -1,5 +1,70 @@
 -- OrionLib x WindUI style example
+local TweenService = game:GetService("TweenService")
+local BootstrapGui = Instance.new("ScreenGui")
+BootstrapGui.Name = "OrionBootstrapLoader"
+BootstrapGui.ResetOnSpawn = false
+BootstrapGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+BootstrapGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
+
+local BootstrapBackdrop = Instance.new("Frame")
+BootstrapBackdrop.Size = UDim2.fromScale(1, 1)
+BootstrapBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BootstrapBackdrop.BackgroundTransparency = 0.25
+BootstrapBackdrop.Parent = BootstrapGui
+
+local BootstrapCard = Instance.new("Frame")
+BootstrapCard.AnchorPoint = Vector2.new(0.5, 0.5)
+BootstrapCard.Position = UDim2.fromScale(0.5, 0.5)
+BootstrapCard.Size = UDim2.fromOffset(320, 112)
+BootstrapCard.BackgroundColor3 = Color3.fromRGB(18, 20, 27)
+BootstrapCard.BorderSizePixel = 0
+BootstrapCard.Parent = BootstrapBackdrop
+Instance.new("UICorner", BootstrapCard).CornerRadius = UDim.new(0, 14)
+
+local BootstrapTitle = Instance.new("TextLabel")
+BootstrapTitle.BackgroundTransparency = 1
+BootstrapTitle.Position = UDim2.fromOffset(18, 18)
+BootstrapTitle.Size = UDim2.new(1, -36, 0, 24)
+BootstrapTitle.Font = Enum.Font.GothamBlack
+BootstrapTitle.Text = "Loading OrionLib"
+BootstrapTitle.TextColor3 = Color3.fromRGB(245, 247, 252)
+BootstrapTitle.TextSize = 18
+BootstrapTitle.TextXAlignment = Enum.TextXAlignment.Left
+BootstrapTitle.Parent = BootstrapCard
+
+local BootstrapStatus = Instance.new("TextLabel")
+BootstrapStatus.BackgroundTransparency = 1
+BootstrapStatus.Position = UDim2.fromOffset(18, 46)
+BootstrapStatus.Size = UDim2.new(1, -36, 0, 20)
+BootstrapStatus.Font = Enum.Font.Gotham
+BootstrapStatus.Text = "Fetching library source..."
+BootstrapStatus.TextColor3 = Color3.fromRGB(156, 164, 181)
+BootstrapStatus.TextSize = 13
+BootstrapStatus.TextXAlignment = Enum.TextXAlignment.Left
+BootstrapStatus.Parent = BootstrapCard
+
+local BootstrapBarBack = Instance.new("Frame")
+BootstrapBarBack.Position = UDim2.new(0, 18, 1, -24)
+BootstrapBarBack.Size = UDim2.new(1, -36, 0, 7)
+BootstrapBarBack.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
+BootstrapBarBack.BorderSizePixel = 0
+BootstrapBarBack.Parent = BootstrapCard
+Instance.new("UICorner", BootstrapBarBack).CornerRadius = UDim.new(1, 0)
+
+local BootstrapBar = Instance.new("Frame")
+BootstrapBar.Size = UDim2.fromScale(0.35, 1)
+BootstrapBar.BackgroundColor3 = Color3.fromRGB(96, 165, 250)
+BootstrapBar.BorderSizePixel = 0
+BootstrapBar.Parent = BootstrapBarBack
+Instance.new("UICorner", BootstrapBar).CornerRadius = UDim.new(1, 0)
+TweenService:Create(BootstrapBar, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(0.65, 1) }):Play()
+
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua?cache=" .. tostring(os.time())))()
+BootstrapStatus.Text = "Library loaded"
+TweenService:Create(BootstrapBar, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(1, 1) }):Play()
+task.delay(0.2, function()
+    BootstrapGui:Destroy()
+end)
 
 OrionLib:AddTheme({
     Name = "Ocean",
@@ -19,6 +84,14 @@ OrionLib:SetStyle({
     ElementHeight = 40,
 })
 
+local Loader = OrionLib:LoadingScreen({
+    Title = "Loading Orion",
+    Content = "Caching icons and preparing UI...",
+    Icon = "solar:stars-bold-duotone",
+    AutoClose = false,
+})
+Loader:SetProgress(0.25, "Resolving local/custom assets")
+
 local StartedAt = os.clock()
 local Window = OrionLib:CreateWindow({
     Title = "Orion x WindUI Demo",
@@ -28,6 +101,20 @@ local Window = OrionLib:CreateWindow({
     Size = UDim2.fromOffset(650, 390),
     SidebarCompact = true,
     SidebarCompactWidth = 48,
+    TopbarButtons = {
+        {
+            Icon = "bell",
+            Callback = function()
+                OrionLib:Popup({
+                    Title = "Topbar Popup",
+                    Description = "This popup came from an optional topbar button.",
+                    Icon = "bell",
+                    Duration = 4,
+                })
+            end,
+        },
+    },
+    --[[
     KeySystem = {
         Enabled = true,
         Title = "Demo Key System",
@@ -38,7 +125,11 @@ local Window = OrionLib:CreateWindow({
         SaveKey = false,
         Link = "https://github.com/Footagesus/WindUI",
     },
+    ]]
+    --
 })
+
+Loader:SetProgress(0.55, "Building window and dashboard")
 
 local Dashboard = Window:Dashboard({
     Title = "Dashboard",
@@ -152,6 +243,40 @@ Main:HighlightButton({
     end,
 })
 
+Main:Button({
+    Title = "Open Dialog",
+    Icon = "message-circle-question",
+    Callback = function()
+        OrionLib:Dialog({
+            Title = "Confirm Action",
+            Description = "Dialog uses the same Orion theme and supports custom buttons.",
+            Icon = "circle-help",
+            ConfirmText = "Run",
+            CancelText = "Cancel",
+            OnConfirm = function()
+                OrionLib:Notify({
+                    Title = "Dialog",
+                    Content = "Confirmed from dialog.",
+                    Icon = "check",
+                })
+            end,
+        })
+    end,
+})
+
+Main:Button({
+    Title = "Open Popup",
+    Icon = "panel-top-open",
+    Callback = function()
+        Window:Popup({
+            Title = "Popup",
+            Description = "Popup can auto-close or stay until a button is pressed.",
+            Icon = "sparkles",
+            Duration = 5,
+        })
+    end,
+})
+
 Main:WarningBox({
     Title = "Mobile ready",
     Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px.",
@@ -245,3 +370,17 @@ Farming:Paragraph({
 
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })
 Window:RefreshPages()
+
+Window:AddTopbarButton({
+    Icon = "layout-dashboard",
+    Title = "Dash",
+    Width = 76,
+    Callback = function()
+        Window:SelectTab(Dashboard)
+    end,
+})
+
+Loader:SetProgress(1, "Ready")
+task.delay(0.35, function()
+    Loader:Close()
+end)

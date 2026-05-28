@@ -17,6 +17,63 @@ local PARENT = (gethui and gethui()) or cloneref(game:GetService("CoreGui"))
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request) or function() end
 local getcustomasset = getcustomasset or getsynasset or function() end
 local makefolder = makefolder or function() end
+local ResolveExternalAssetSource
+
+local function IsHttpUrl(value)
+    return type(value) == "string" and value:match("^https?://") ~= nil
+end
+
+local function IsRobloxAssetUrl(value)
+    return type(value) == "string"
+        and (
+            value:find("^rbxassetid://")
+            or value:find("^rbxthumb://")
+            or value:find("^https?://www%.roblox%.com/")
+            or value:find("^https?://assetdelivery%.roblox%.com/")
+            or value:find("^https?://tr%.rbxcdn%.com/")
+        )
+end
+
+local function TryGetCustomAsset(path)
+    if type(path) ~= "string" or path == "" then
+        return nil
+    end
+    if type(getcustomasset) ~= "function" then
+        return nil
+    end
+    local ok, asset = pcall(getcustomasset, path)
+    if ok and type(asset) == "string" and asset ~= "" then
+        return asset
+    end
+    return nil
+end
+
+local function ResolveLocalFileAsset(path)
+    if type(path) ~= "string" or type(isfile) ~= "function" then
+        return nil
+    end
+    local ok, exists = pcall(isfile, path)
+    if not ok or not exists then
+        return nil
+    end
+    if type(readfile) == "function" then
+        local readOk, content = pcall(readfile, path)
+        if readOk and type(content) == "string" and #content == 0 then
+            return nil
+        end
+    end
+    return TryGetCustomAsset(path) or path
+end
+
+local function SanitizeAssetName(value)
+    value = tostring(value or "asset")
+    value = value:gsub("^https?://", "")
+    value = value:gsub("[^%w%-%_%.]", "_")
+    if #value > 80 then
+        value = value:sub(#value - 79)
+    end
+    return value ~= "" and value or "asset"
+end
 
 local function LoadBundleModule(path)
     if not (readfile and isfile and loadstring and isfile(path)) then
@@ -195,8 +252,16 @@ local function GetIconifyData(IconName: string, Size: number?)
         return nil
     end
     local iconSize = tonumber(Size or 48) or 48
+    local imageUrl = string.format("%s/%s/%s.svg?color=white&width=%d&height=%d", IconifyURL, prefix, name, iconSize, iconSize)
+    local cachedImage = ResolveExternalAssetSource
+        and ResolveExternalAssetSource(imageUrl, {
+            Root = "OrionLibSave",
+            Folder = "Iconify",
+            Key = prefix .. "_" .. name .. "_" .. tostring(iconSize),
+            MinSize = 10,
+        })
     return {
-        Image = string.format("%s/%s/%s.svg?color=white&width=%d&height=%d", IconifyURL, prefix, name, iconSize, iconSize),
+        Image = cachedImage or imageUrl,
         ImageRectOffset = Vector2.new(0, 0),
         ImageRectSize = Vector2.new(0, 0),
         Name = prefix .. ":" .. name,
@@ -218,13 +283,40 @@ local function GetDirectImageData(IconName: any)
     if type(IconName) ~= "string" then
         return nil
     end
-    if IconName:find("^rbxassetid://") or IconName:find("^rbxthumb://") or IconName:find("^https?://") or IconName:find("^http://www%.roblox%.com/asset") then
+    local localAsset = ResolveLocalFileAsset(IconName)
+    if localAsset then
+        return {
+            Image = localAsset,
+            ImageRectOffset = Vector2.new(0, 0),
+            ImageRectSize = Vector2.new(0, 0),
+            Name = IconName,
+            Source = "LocalFile",
+        }
+    end
+    if IsRobloxAssetUrl(IconName) then
         return {
             Image = IconName,
             ImageRectOffset = Vector2.new(0, 0),
             ImageRectSize = Vector2.new(0, 0),
             Name = IconName,
             Source = "Direct",
+        }
+    end
+    if IsHttpUrl(IconName) then
+        local cachedImage = ResolveExternalAssetSource
+            and ResolveExternalAssetSource(IconName, {
+                Root = "OrionLibSave",
+                Folder = "Images",
+                Key = SanitizeAssetName(IconName),
+                Extension = "png",
+                MinSize = 10,
+            })
+        return {
+            Image = cachedImage or IconName,
+            ImageRectOffset = Vector2.new(0, 0),
+            ImageRectSize = Vector2.new(0, 0),
+            Name = IconName,
+            Source = cachedImage and "CachedHttp" or "Direct",
         }
     end
     if IconName:match("^%d+$") then
@@ -640,37 +732,59 @@ function OrionLib:MakeAsset(list, options)
     local minSize = options.MinSize or 100
     local proxy = options.Proxy or ""
 
-    if not isfolder(root) then
-        makefolder(root)
+    if type(list) ~= "table" then
+        return {}
     end
-    if not isfolder(folder) then
-        makefolder(folder)
+
+    if type(makefolder) == "function" and (type(isfolder) ~= "function" or not isfolder(root)) then
+        pcall(makefolder, root)
+    end
+    if type(makefolder) == "function" and (type(isfolder) ~= "function" or not isfolder(folder)) then
+        pcall(makefolder, folder)
     end
 
     local assets = {}
     local preloadBatch = {}
 
     for id, url in pairs(list) do
-        local cleanId = tostring(id):gsub("[^%w%-%_]", "_")
-        local ext = url:match("^[^%?]+"):match("%.([%w]+)$") or "webm"
+        if type(url) ~= "string" or url == "" then
+            continue
+        end
+        local localAsset = ResolveLocalFileAsset(url)
+        if localAsset then
+            assets[id] = localAsset
+            continue
+        end
+        if IsRobloxAssetUrl(url) or (not IsHttpUrl(url)) then
+            assets[id] = url
+            continue
+        end
+        if type(writefile) ~= "function" or type(readfile) ~= "function" or type(isfile) ~= "function" then
+            assets[id] = url
+            continue
+        end
+
+        local cleanId = SanitizeAssetName(options.Key or id)
+        local ext = (url:match("^[^%?]+") or ""):match("%.([%w]+)$") or options.Extension or "webm"
         local path = folder .. "/" .. cleanId .. "." .. ext
         local success, content = pcall(readfile, path)
-        if not success or #content < minSize then
+        if not success or type(content) ~= "string" or #content < minSize then
             for _ = 1, retries do
-                local response = request({
+                local ok, response = pcall(request, {
                     Url = proxy .. url,
                     Method = "GET",
                 })
+                response = ok and response or nil
                 if response and response.Body and #response.Body >= minSize then
                     content = response.Body
-                    writefile(path, content)
+                    pcall(writefile, path, content)
                     break
                 end
                 task.wait(0.2)
             end
         end
         if isfile(path) then
-            local assetId = getcustomasset(path)
+            local assetId = TryGetCustomAsset(path) or path
             assets[id] = assetId
 
             if not ext:find("mp4") and not ext:find("webm") and not ext:find("mkv") then
@@ -686,6 +800,32 @@ function OrionLib:MakeAsset(list, options)
         end)
     end
     return assets
+end
+
+ResolveExternalAssetSource = function(asset, options)
+    if typeof(asset) == "number" then
+        return "rbxassetid://" .. tostring(asset)
+    end
+    if type(asset) ~= "string" or asset == "" then
+        return asset
+    end
+    local localAsset = ResolveLocalFileAsset(asset)
+    if localAsset then
+        return localAsset
+    end
+    if IsRobloxAssetUrl(asset) or asset:match("^%d+$") then
+        return asset:match("^%d+$") and ("rbxassetid://" .. asset) or asset
+    end
+    if not IsHttpUrl(asset) then
+        return asset
+    end
+    local key = options and options.Key or SanitizeAssetName(asset)
+    local loaded = OrionLib:MakeAsset({ [key] = asset }, options)
+    return loaded and loaded[key] or asset
+end
+
+function OrionLib:ResolveAsset(asset, options)
+    return ResolveExternalAssetSource(asset, options or {})
 end
 
 local function Create(Name, Properties, Children)
@@ -971,13 +1111,8 @@ local function ResolveImageLikeAsset(asset)
         return asset
     end
     asset = TranslateValue(asset)
-    if asset:find("^rbxassetid://") or asset:find("^rbxthumb://") or asset:find("^http://www%.roblox%.com/asset") then
-        return asset
-    end
-    if asset:match("^%d+$") then
-        return "rbxassetid://" .. asset
-    end
-    return asset
+    return ResolveExternalAssetSource and ResolveExternalAssetSource(asset, { Root = "OrionLibSave", Folder = "Images", Extension = "png", MinSize = 10 })
+        or asset
 end
 
 local function ResolveExternalMediaAsset(asset, folder)
@@ -985,9 +1120,9 @@ local function ResolveExternalMediaAsset(asset, folder)
     if type(asset) ~= "string" then
         return asset
     end
-    if asset:find("^https?://") and not asset:find("roblox%.com") then
-        local loaded = OrionLib:MakeAsset({ Icon = asset }, { Root = "OrionLibSave", Folder = folder or "OrionMedia" })
-        return loaded and loaded.Icon or asset
+    if IsHttpUrl(asset) and not asset:find("roblox%.com") and ResolveExternalAssetSource then
+        return ResolveExternalAssetSource(asset, { Root = "OrionLibSave", Folder = folder or "OrionMedia", Key = SanitizeAssetName(asset), MinSize = 10 })
+            or asset
     end
     return asset
 end
@@ -1033,6 +1168,7 @@ local function NormalizeWindowConfig(config)
         LinkVideo = config.LinkVideo or config.Video,
         Image = config.Image or config.Background,
         KeySystem = config.KeySystem or config.Key or config.KeyAuth,
+        TopbarButtons = config.TopbarButtons or config.Topbar or config.TopbarButton,
     }
 end
 
@@ -1083,6 +1219,324 @@ function OrionLib:Notify(config)
         Image = ResolveIcon(config.Icon or config.Image),
         Time = config.Time or config.Duration or 5,
     })
+end
+
+function OrionLib:LoadingScreen(config)
+    config = TranslateConfig(config or {})
+    local theme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
+    local screen = SetProps(MakeElement("Frame"), {
+        Parent = Orion,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = config.BackgroundTransparency or 0.28,
+        Name = config.Name or "OrionLoadingScreen",
+        ZIndex = 900,
+    })
+
+    local card = OrionLib:AddThemeObject(
+        SetChildren(
+            SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 14), {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = config.Size or UDim2.fromOffset(360, 170),
+                Parent = screen,
+                ZIndex = 901,
+            }),
+            {
+                OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                Create("UIPadding", {
+                    PaddingTop = UDim.new(0, 18),
+                    PaddingBottom = UDim.new(0, 18),
+                    PaddingLeft = UDim.new(0, 18),
+                    PaddingRight = UDim.new(0, 18),
+                }),
+            }
+        ),
+        "Main"
+    )
+
+    local iconWrap = SetChildren(
+        SetProps(MakeElement("RoundFrame", config.Color or theme.Accent or Color3.fromRGB(96, 165, 250), 0, 12), {
+            Size = UDim2.fromOffset(44, 44),
+            Position = UDim2.fromOffset(0, 0),
+            Parent = card,
+            ZIndex = 902,
+        }),
+        {
+            SetProps(MakeElement("Image", ResolveIcon(config.Icon or "sparkles")), {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(24, 24),
+                ImageColor3 = theme.Text or Color3.fromRGB(255, 255, 255),
+                ZIndex = 903,
+            }),
+        }
+    )
+    iconWrap.BackgroundTransparency = 0.08
+
+    local title = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", config.Title or "Loading", 20), {
+            Position = UDim2.fromOffset(58, 0),
+            Size = UDim2.new(1, -58, 0, 26),
+            Font = Enum.Font.GothamBlack,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = card,
+            ZIndex = 902,
+        }),
+        "Text"
+    )
+
+    local content = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", config.Content or config.Description or "Preparing interface...", 13), {
+            Position = UDim2.fromOffset(58, 28),
+            Size = UDim2.new(1, -58, 0, 34),
+            TextWrapped = true,
+            Parent = card,
+            ZIndex = 902,
+        }),
+        "TextDark"
+    )
+
+    local barBack = OrionLib:AddThemeObject(
+        SetChildren(
+            SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
+                Position = UDim2.new(0, 0, 1, -26),
+                Size = UDim2.new(1, 0, 0, 8),
+                Parent = card,
+                ZIndex = 902,
+            }),
+            {}
+        ),
+        "Second"
+    )
+    local bar = SetProps(MakeElement("RoundFrame", config.Color or theme.Accent or Color3.fromRGB(96, 165, 250), 0, 6), {
+        Size = UDim2.fromScale(0, 1),
+        Parent = barBack,
+        ZIndex = 903,
+    })
+
+    local loader = {}
+    function loader:SetProgress(value, text)
+        value = math.clamp(tonumber(value) or 0, 0, 1)
+        if text ~= nil then
+            content.Text = tostring(text)
+        end
+        TweenService:Create(bar, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(value, 1) }):Play()
+    end
+    function loader:SetText(text)
+        content.Text = tostring(text or "")
+    end
+    function loader:Close()
+        if not screen or not screen.Parent then
+            return
+        end
+        local tween = TweenService:Create(screen, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
+        TweenService:Create(card, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = UDim2.fromOffset(0, 0) }):Play()
+        tween:Play()
+        tween.Completed:Wait()
+        screen:Destroy()
+    end
+
+    loader:SetProgress(config.Progress or 0, config.Content or config.Description)
+    if config.AutoClose ~= false then
+        task.delay(config.Duration or 1.5, function()
+            loader:Close()
+        end)
+    end
+    return loader
+end
+
+function OrionLib:Popup(config)
+    config = TranslateConfig(config or {})
+    local theme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
+    local overlay = SetProps(MakeElement("Frame"), {
+        Parent = Orion,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = config.Modal == false and 1 or (config.BackgroundTransparency or 0.42),
+        Name = config.Name or "OrionPopup",
+        ZIndex = 920,
+    })
+
+    local card = OrionLib:AddThemeObject(
+        SetChildren(
+            SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 14), {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = config.Size or UDim2.fromOffset(380, 210),
+                Parent = overlay,
+                ZIndex = 921,
+            }),
+            {
+                OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                Create("UIPadding", {
+                    PaddingTop = UDim.new(0, 18),
+                    PaddingBottom = UDim.new(0, 18),
+                    PaddingLeft = UDim.new(0, 18),
+                    PaddingRight = UDim.new(0, 18),
+                }),
+            }
+        ),
+        "Main"
+    )
+
+    local closeButton = SetChildren(
+        SetProps(MakeElement("Button"), {
+            Parent = card,
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, 0, 0, 0),
+            Size = UDim2.fromOffset(26, 26),
+            ZIndex = 923,
+        }),
+        {
+            OrionLib:AddThemeObject(
+                SetProps(MakeElement("Image", "x"), {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    Size = UDim2.fromOffset(16, 16),
+                    ImageTransparency = 0.2,
+                    ZIndex = 924,
+                }),
+                "TextDark"
+            ),
+        }
+    )
+
+    local title = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", config.Title or "Popup", 19), {
+            Size = UDim2.new(1, -36, 0, 28),
+            Font = Enum.Font.GothamBlack,
+            Parent = card,
+            ZIndex = 922,
+        }),
+        "Text"
+    )
+
+    local body = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", config.Content or config.Desc or config.Description or "", 14), {
+            Position = UDim2.fromOffset(0, 38),
+            Size = UDim2.new(1, 0, 1, -92),
+            TextWrapped = true,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            Parent = card,
+            ZIndex = 922,
+        }),
+        "TextDark"
+    )
+
+    if config.Icon then
+        title.Position = UDim2.fromOffset(42, 0)
+        title.Size = UDim2.new(1, -78, 0, 28)
+        SetProps(MakeElement("Image", ResolveIcon(config.Icon)), {
+            Parent = card,
+            Position = UDim2.fromOffset(0, 1),
+            Size = UDim2.fromOffset(28, 28),
+            ImageColor3 = config.Color or theme.Accent or Color3.fromRGB(96, 165, 250),
+            ZIndex = 922,
+        })
+    end
+
+    local buttonHolder = SetProps(MakeElement("TFrame"), {
+        Parent = card,
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.fromScale(1, 1),
+        Size = UDim2.new(1, 0, 0, 34),
+        ZIndex = 922,
+    })
+    Create("UIListLayout", {
+        Parent = buttonHolder,
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        Padding = UDim.new(0, 8),
+    })
+
+    local popup = {}
+    function popup:Close()
+        if not overlay or not overlay.Parent then
+            return
+        end
+        local tween = TweenService:Create(card, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = UDim2.fromOffset(0, 0) })
+        tween:Play()
+        tween.Completed:Wait()
+        overlay:Destroy()
+    end
+    function popup:SetContent(text)
+        body.Text = tostring(text or "")
+    end
+    function popup:SetTitle(text)
+        title.Text = tostring(text or "")
+    end
+
+    AddConnection(closeButton.MouseButton1Click, function()
+        popup:Close()
+    end)
+
+    local buttons = config.Buttons
+        or {
+            {
+                Title = config.ButtonText or "OK",
+                Callback = config.Callback or config.OnClick,
+            },
+        }
+    for _, buttonConfig in ipairs(buttons) do
+        local isSecondary = buttonConfig.Secondary == true or buttonConfig.Variant == "Secondary"
+        local button = OrionLib:AddThemeObject(
+            SetChildren(
+                SetProps(MakeElement("Button"), {
+                    Parent = buttonHolder,
+                    Size = UDim2.fromOffset(buttonConfig.Width or 96, 34),
+                    BackgroundTransparency = 0,
+                    BackgroundColor3 = isSecondary and (theme.Second or Color3.fromRGB(25, 28, 38))
+                        or (buttonConfig.Color or theme.Accent or Color3.fromRGB(96, 165, 250)),
+                    ZIndex = 923,
+                }),
+                {
+                    MakeElement("Corner", 0, 9),
+                    OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), isSecondary and "Stroke" or "AccentDark"),
+                    SetProps(MakeElement("Label", buttonConfig.Title or buttonConfig.Text or "OK", 13), {
+                        Size = UDim2.fromScale(1, 1),
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Center,
+                        ZIndex = 924,
+                    }),
+                }
+            ),
+            isSecondary and "Second" or "Accent"
+        )
+        AddConnection(button.MouseButton1Click, function()
+            OrionLib:SafeScript(buttonConfig.Callback or buttonConfig.OnClick, popup)
+            if buttonConfig.Close ~= false then
+                popup:Close()
+            end
+        end)
+    end
+
+    if config.Duration and config.Duration > 0 then
+        task.delay(config.Duration, function()
+            popup:Close()
+        end)
+    end
+    return popup
+end
+
+function OrionLib:Dialog(config)
+    config = TranslateConfig(config or {})
+    if not config.Buttons then
+        config.Buttons = {
+            {
+                Title = config.ConfirmText or "Confirm",
+                Callback = config.Callback or config.OnConfirm,
+            },
+            {
+                Title = config.CancelText or "Cancel",
+                Variant = "Secondary",
+                Callback = config.OnCancel,
+            },
+        }
+    end
+    config.Duration = config.Duration or 0
+    config.Modal = config.Modal ~= false
+    return OrionLib:Popup(config)
 end
 
 function OrionLib:MakeKeySystem(KeyConfig)
@@ -2405,6 +2859,23 @@ function OrionLib:MakeWindow(WindowConfig)
             ),
         }
     )
+    local TopbarButtonHolder = SetChildren(
+        SetProps(MakeElement("TFrame"), {
+            Size = UDim2.new(0, 0, 0, 30),
+            Position = UDim2.new(1, -168, 0, 10),
+            AnchorPoint = Vector2.new(1, 0),
+            AutomaticSize = Enum.AutomaticSize.X,
+            Name = "TopbarButtons",
+        }),
+        {
+            Create("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = Enum.HorizontalAlignment.Right,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 8),
+            }),
+        }
+    )
     local MainWindow = OrionLib:AddThemeObject(
         SetChildren(
             SetProps(MainElementGui, {
@@ -2433,6 +2904,7 @@ function OrionLib:MakeWindow(WindowConfig)
                             }),
                             "Accent"
                         ),
+                        TopbarButtonHolder,
                         OrionLib:AddThemeObject(
                             SetChildren(
                                 SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 7), {
@@ -8159,6 +8631,96 @@ function OrionLib:MakeWindow(WindowConfig)
         end
     end
 
+    function Functions:AddTopbarButton(ButtonConfig)
+        ButtonConfig = TranslateConfig(ButtonConfig or {})
+        local width = ButtonConfig.Width or (ButtonConfig.Title and 104 or 30)
+        local button = OrionLib:AddThemeObject(
+            SetChildren(
+                SetProps(MakeElement("Button"), {
+                    Parent = TopbarButtonHolder,
+                    Size = UDim2.fromOffset(width, 30),
+                    BackgroundTransparency = ButtonConfig.Transparency or 0,
+                    LayoutOrder = ButtonConfig.Order or #TopbarButtonHolder:GetChildren(),
+                    Name = ButtonConfig.Name or ButtonConfig.Title or "TopbarButton",
+                }),
+                {
+                    MakeElement("Corner", 0, 8),
+                    OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                }
+            ),
+            "Second"
+        )
+
+        local iconImage
+        if ButtonConfig.Icon or not ButtonConfig.Title then
+            iconImage = OrionLib:AddThemeObject(
+                SetProps(MakeElement("Image", ResolveIcon(ButtonConfig.Icon or "sparkles")), {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Position = UDim2.new(0, ButtonConfig.Title and 10 or 7, 0.5, 0),
+                    Size = UDim2.fromOffset(16, 16),
+                    ImageTransparency = 0.08,
+                    Parent = button,
+                    Name = "Ico",
+                }),
+                "Text"
+            )
+        end
+
+        local label
+        if ButtonConfig.Title then
+            label = OrionLib:AddThemeObject(
+                SetProps(MakeElement("Label", ButtonConfig.Title, 12), {
+                    Size = UDim2.new(1, iconImage and -32 or -16, 1, 0),
+                    Position = UDim2.new(0, iconImage and 32 or 8, 0, 0),
+                    Font = Enum.Font.GothamBold,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = button,
+                    Name = "Title",
+                }),
+                "Text"
+            )
+        end
+
+        local api = { Button = button }
+        function api:SetVisible(state)
+            button.Visible = state == true
+        end
+        function api:SetIcon(icon)
+            if iconImage then
+                ApplyIconToObject(iconImage, ResolveIcon(icon), 32)
+            end
+        end
+        function api:SetTitle(title)
+            if label then
+                label.Text = tostring(title or "")
+            end
+        end
+        function api:Destroy()
+            button:Destroy()
+        end
+
+        AddConnection(button.MouseButton1Click, function()
+            OrionLib:SafeScript(ButtonConfig.Callback or ButtonConfig.OnClick, api)
+        end)
+        return api
+    end
+
+    function Functions:TopbarButton(ButtonConfig)
+        return Functions:AddTopbarButton(ButtonConfig)
+    end
+
+    function Functions:Popup(config)
+        return OrionLib:Popup(config)
+    end
+
+    function Functions:Dialog(config)
+        return OrionLib:Dialog(config)
+    end
+
+    function Functions:LoadingScreen(config)
+        return OrionLib:LoadingScreen(config)
+    end
+
     function Functions:SetKeyBindMenuVisible(state)
         OrionLib:SetKeyBindVisible(state == true)
     end
@@ -8260,6 +8822,15 @@ function OrionLib:MakeWindow(WindowConfig)
         end
         MainWindow:Destroy()
         MobileIcon:Destroy()
+    end
+    if type(WindowConfig.TopbarButtons) == "table" then
+        if WindowConfig.TopbarButtons.Title or WindowConfig.TopbarButtons.Icon then
+            Functions:AddTopbarButton(WindowConfig.TopbarButtons)
+        else
+            for _, buttonConfig in ipairs(WindowConfig.TopbarButtons) do
+                Functions:AddTopbarButton(buttonConfig)
+            end
+        end
     end
     return Functions
 end

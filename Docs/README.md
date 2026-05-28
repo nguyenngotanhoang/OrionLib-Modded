@@ -59,8 +59,35 @@ Main:Dropdown({
 ### Window API
 
 - `OrionLib:CreateWindow(config)` / `OrionLib:Window(config)` are aliases around Orion's `MakeWindow`.
-- Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, and `HideSearchBar` in addition to existing Orion fields.
-- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
+- Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, `TopbarButtons`, and `HideSearchBar` in addition to existing Orion fields.
+- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `AddTopbarButton`, `Popup`, `Dialog`, `LoadingScreen`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
+
+### Loading, popup, dialog, and topbar buttons
+
+`OrionLib:LoadingScreen()` can be shown before creating the window. `Popup` and `Dialog` use the same themed overlay style, and topbar buttons can be configured up front or added later.
+
+```lua
+local Loader = OrionLib:LoadingScreen({ Title = "Loading", AutoClose = false })
+Loader:SetProgress(0.5, "Building UI")
+
+local Window = OrionLib:CreateWindow({
+    Title = "Demo",
+    TopbarButtons = {
+        { Icon = "bell", Callback = function() OrionLib:Popup({ Title = "Popup", Description = "Hello" }) end }
+    }
+})
+
+Window:AddTopbarButton({
+    Icon = "message-circle-question",
+    Title = "Ask",
+    Callback = function()
+        Window:Dialog({ Title = "Confirm", Description = "Run this action?" })
+    end
+})
+
+Loader:SetProgress(1, "Ready")
+Loader:Close()
+```
 
 ### Tabs
 
@@ -249,6 +276,19 @@ local tabler = OrionLib:GetIcon("tabler:settings", 48)
 ```
 
 Supported icon names are normalized, so values like `lucide-home`, `lucide:home`, `home`, and some WindUI-style names resolve consistently. Use `OrionLib:SetIconSet("solar")` to make unprefixed names load from another Iconify set by default.
+
+External HTTP images and Iconify SVGs are cached through `writefile`/`readfile` and then passed through `getcustomasset`/`getsynasset` when the executor supports those APIs. Local file paths are also accepted directly:
+
+```lua
+local cached = OrionLib:ResolveAsset("https://example.com/icon.png", {
+    Root = "OrionLibSave",
+    Folder = "Images",
+    Key = "example_icon"
+})
+
+Window:SetIcon(cached)
+Main:Image({ Icon = "OrionLibSave/Images/example_icon.png" })
+```
 
 ## Themes, style, and localization
 
