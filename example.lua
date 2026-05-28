@@ -58,7 +58,9 @@ local Farming = Gameplay:Tab({
     Icon = "zap",
 })
 
-Combat:SetBadge("2")
+pcall(function()
+    Combat:SetBadge("2")
+end)
 
 Main:HighlightButton({
     Title = "Highlighted Action",
@@ -76,6 +78,30 @@ Main:HighlightButton({
 Main:WarningBox({
     Title = "Mobile ready",
     Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px.",
+})
+
+local StatsGraph = Main:Graph({
+    Title = "Rich Graph Label",
+    Content = '<b>RichText</b> works here: <font color="#38BDF8">blue text</font>, live stats, and nested controls.',
+    Points = { 12, 24, 18, 34, 29, 46, 40 },
+    GraphHeight = 82,
+    MaxPoints = 10,
+})
+
+StatsGraph:Button({
+    Title = "Add Random Point",
+    Icon = "plus",
+    Callback = function()
+        StatsGraph:AddPoint(math.random(10, 60), 10)
+    end,
+})
+
+StatsGraph:Toggle({
+    Title = "Graph Toggle Inside Label",
+    Value = true,
+    Callback = function(enabled)
+        print("Graph nested toggle:", enabled)
+    end,
 })
 
 local SafeGroup = Main:GroupBox({
@@ -139,7 +165,5 @@ Farming:Paragraph({
     Title = "Grouped tab",
     Desc = "This tab lives inside Window:TabGroup and can still use every normal element.",
 })
-
-Window:ToggleKeyBindMenu()
 
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })

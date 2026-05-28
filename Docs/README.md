@@ -7,7 +7,7 @@ This repo now keeps the main library source in [`scr/Orion.lua`](../scr/Orion.lu
 `scr/Orion.lua` now returns the library only; it does not auto-create a demo window. This is important for key systems because the protected window is not built until the key check passes.
 
 ```lua
-local OrionLib = loadstring(readfile("scr/Orion.lua"))()
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua"))()
 
 local Window = OrionLib:CreateWindow({
     Title = "Demo UI",
@@ -123,6 +123,9 @@ WindUI-style element aliases are available on tabs and sections:
 - `Input`
 - `Colorpicker`
 - `Paragraph`
+- `Graph`
+- `RichLabel`
+- `AdvancedLabel`
 - `Section`
 - `Divider`
 - `Space`
@@ -136,6 +139,20 @@ Main:HighlightButton({
     Color = Color3.fromRGB(255, 180, 80),
     Callback = function() print("clicked") end
 })
+```
+
+`Graph` / `RichLabel` creates a RichText card that can also contain nested controls:
+
+```lua
+local Graph = Main:Graph({
+    Title = "Stats",
+    Content = '<b>RichText</b> label with <font color="#38BDF8">accent text</font>.',
+    Points = {12, 24, 18, 34, 29, 46},
+    GraphHeight = 82
+})
+
+Graph:Button({ Title = "Refresh", Callback = function() Graph:AddPoint(math.random(10, 60), 10) end })
+Graph:Toggle({ Title = "Enabled", Value = true })
 ```
 
 ### Key system

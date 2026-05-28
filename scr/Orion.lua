@@ -116,16 +116,18 @@ local LucideAliases = {
     ["minimize"] = "minus",
     ["maximize"] = "maximize-2",
     ["resize"] = "move-diagonal-2",
-    ["settings"] = "settings",
-    ["setting"] = "settings",
-    ["home"] = "home",
+    ["settings"] = "cog",
+    ["setting"] = "cog",
+    ["home"] = "house",
     ["house"] = "house",
     ["search"] = "search",
     ["user"] = "user",
     ["users"] = "users",
     ["zap"] = "zap",
     ["sparkles"] = "sparkles",
+    ["sparkle"] = "sparkles",
     ["sword"] = "swords",
+    ["box"] = "package",
     ["play"] = "play",
     ["pause"] = "pause",
     ["folder"] = "folder",
@@ -148,6 +150,40 @@ local function NormalizeIconName(IconName: string)
     IconLower = IconLower:gsub("[_%s]+", "-")
     IconLower = IconLower:gsub("%-bold%-duotone$", "")
     return LucideAliases[IconLower] or IconLower
+end
+
+local function GetDirectImageData(IconName: any)
+    if typeof(IconName) == "number" then
+        return {
+            Image = "rbxassetid://" .. tostring(IconName),
+            ImageRectOffset = Vector2.new(0, 0),
+            ImageRectSize = Vector2.new(0, 0),
+            Name = tostring(IconName),
+            Source = "Direct",
+        }
+    end
+    if type(IconName) ~= "string" then
+        return nil
+    end
+    if IconName:find("^rbxassetid://") or IconName:find("^rbxthumb://") or IconName:find("^https?://") or IconName:find("^http://www%.roblox%.com/asset") then
+        return {
+            Image = IconName,
+            ImageRectOffset = Vector2.new(0, 0),
+            ImageRectSize = Vector2.new(0, 0),
+            Name = IconName,
+            Source = "Direct",
+        }
+    end
+    if IconName:match("^%d+$") then
+        return {
+            Image = "rbxassetid://" .. IconName,
+            ImageRectOffset = Vector2.new(0, 0),
+            ImageRectSize = Vector2.new(0, 0),
+            Name = IconName,
+            Source = "Direct",
+        }
+    end
+    return nil
 end
 
 local function LoadLucideProvider()
@@ -196,6 +232,11 @@ local function GetLucideProvider()
 end
 
 local function GetIconData(IconName: string, Size: number?)
+    local direct = GetDirectImageData(IconName)
+    if direct then
+        return direct
+    end
+
     local normalized = NormalizeIconName(IconName)
     if not normalized or normalized == "" then
         return nil
@@ -204,6 +245,11 @@ local function GetIconData(IconName: string, Size: number?)
     local provider = GetLucideProvider()
     if provider then
         local ok, asset = pcall(provider.GetAsset, normalized, Size or 48)
+        if not ok or not asset then
+            ok, asset = pcall(function()
+                return provider:GetAsset(normalized, Size or 48)
+            end)
+        end
         if ok and asset then
             return {
                 Image = asset.Url or (asset.Id and "rbxassetid://" .. tostring(asset.Id)) or asset.Image,
@@ -2624,6 +2670,9 @@ function OrionLib:MakeWindow(WindowConfig)
             ),
             "Divider"
         )
+        Container:SetAttribute("OrionTabContainer", true)
+        Tabs.Button = TabFrame
+        Tabs.Container = Container
 
         AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
             Container.CanvasSize = UDim2.new(
@@ -2664,6 +2713,12 @@ function OrionLib:MakeWindow(WindowConfig)
                     c.Visible = false
                 end
             end
+            for _, tab in ipairs(AllTabs) do
+                tab.Selected = false
+            end
+            Tabs.Selected = true
+            Window.SelectedTab = Tabs
+            Functions.SelectedTab = Tabs
             TweenService:Create(
                 TabFrame.Ico,
                 TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -2685,7 +2740,12 @@ function OrionLib:MakeWindow(WindowConfig)
         AddConnection(TabFrame.MouseButton1Click, SelectTab)
         if FirstTab and TabConfig.Visible and not TabConfig.Disabled then
             FirstTab = false
-            task.defer(SelectTab)
+            Container.Visible = true
+            task.defer(function()
+                if Container and Container.Parent then
+                    SelectTab()
+                end
+            end)
         end
 
         function Tabs:SetDisabled(state)
@@ -2701,6 +2761,16 @@ function OrionLib:MakeWindow(WindowConfig)
             end
             if state then
                 Container.Visible = false
+                Tabs.Selected = false
+                if Functions.SelectedTab == Tabs then
+                    Functions.SelectedTab = nil
+                    for _, tab in ipairs(AllTabs) do
+                        if tab ~= Tabs and tab.Visible and not tab.Disabled and type(tab.Select) == "function" then
+                            tab:Select()
+                            break
+                        end
+                    end
+                end
             end
         end
 
@@ -2709,6 +2779,18 @@ function OrionLib:MakeWindow(WindowConfig)
             TabFrame.Visible = state
             if not state then
                 Container.Visible = false
+                Tabs.Selected = false
+                if Functions.SelectedTab == Tabs then
+                    Functions.SelectedTab = nil
+                    for _, tab in ipairs(AllTabs) do
+                        if tab ~= Tabs and tab.Visible and not tab.Disabled and type(tab.Select) == "function" then
+                            tab:Select()
+                            break
+                        end
+                    end
+                end
+            elseif not Functions.SelectedTab and not Tabs.Disabled then
+                SelectTab()
             end
         end
 
@@ -3164,6 +3246,420 @@ function OrionLib:MakeWindow(WindowConfig)
                     OrionLib.Flags[WarningConfig.Flag] = Warning
                 end
                 return Warning
+            end
+
+            function ElementFunction:AddGraph(GraphConfig)
+                GraphConfig = TranslateConfig(GraphConfig or {})
+                GraphConfig.Name = GraphConfig.Name or GraphConfig.Title or "Graph"
+                GraphConfig.Content = GraphConfig.Content or GraphConfig.Desc or GraphConfig.Description or GraphConfig.Text or ""
+                GraphConfig.Points = GraphConfig.Points or GraphConfig.Values or GraphConfig.Data or {}
+                GraphConfig.Visible = GraphConfig.Visible ~= false
+                GraphConfig.RichText = GraphConfig.RichText ~= false
+                GraphConfig.Height = tonumber(GraphConfig.GraphHeight or GraphConfig.Height or 88) or 88
+                GraphConfig.Color = GraphConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
+                GraphConfig.PointColor = GraphConfig.PointColor or GraphConfig.Color
+                GraphConfig.ShowStats = GraphConfig.ShowStats ~= false
+
+                local Graph = {
+                    Type = "Graph",
+                    Visible = GraphConfig.Visible,
+                    Points = {},
+                }
+
+                local function NormalizePoints(Points)
+                    local Normalized = {}
+                    if type(Points) ~= "table" then
+                        return Normalized
+                    end
+                    for _, Value in ipairs(Points) do
+                        if type(Value) == "table" then
+                            Value = Value.Value or Value.Y or Value[2] or Value[1]
+                        end
+                        local NumberValue = tonumber(Value)
+                        if NumberValue then
+                            table.insert(Normalized, NumberValue)
+                        end
+                    end
+                    return Normalized
+                end
+
+                local GraphFrame = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
+                            Size = UDim2.new(1, 0, 0, 90),
+                            Parent = ItemParent,
+                            Visible = GraphConfig.Visible,
+                            BackgroundTransparency = 0.18,
+                            Name = "GraphLabel",
+                        }),
+                        {
+                            MakeElement("Padding", 12, 12, 12, 12),
+                            SetProps(MakeElement("List", 0, 8), {
+                                Name = "Layout",
+                            }),
+                            OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", GraphConfig.Name, 15), {
+                                    Size = UDim2.new(1, 0, 0, 18),
+                                    Font = Enum.Font.GothamBold,
+                                    Name = "Title",
+                                    RichText = GraphConfig.RichText,
+                                }),
+                                "Text"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", GraphConfig.Content, 13), {
+                                    Size = UDim2.new(1, 0, 0, 18),
+                                    Font = Enum.Font.GothamSemibold,
+                                    TextWrapped = true,
+                                    Name = "Content",
+                                    RichText = GraphConfig.RichText,
+                                }),
+                                "TextDark"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetChildren(
+                                    SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
+                                        Size = UDim2.new(1, 0, 0, GraphConfig.Height),
+                                        BackgroundTransparency = 0.35,
+                                        ClipsDescendants = true,
+                                        Name = "Canvas",
+                                    }),
+                                    {
+                                        OrionLib:AddThemeObject(MakeElement("Stroke"), "Divider"),
+                                    }
+                                ),
+                                "Main"
+                            ),
+                            OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", "", 11), {
+                                    Size = UDim2.new(1, 0, 0, 14),
+                                    Font = Enum.Font.GothamSemibold,
+                                    TextTransparency = 0.2,
+                                    Name = "Stats",
+                                    RichText = GraphConfig.RichText,
+                                }),
+                                "TextDark"
+                            ),
+                            SetChildren(
+                                SetProps(MakeElement("TFrame"), {
+                                    Size = UDim2.new(1, 0, 0, 0),
+                                    Name = "Holder",
+                                }),
+                                {
+                                    MakeElement("List", 0, 6),
+                                }
+                            ),
+                        }
+                    ),
+                    "Second"
+                )
+
+                local ContentLabel = GraphFrame:FindFirstChild("Content")
+                local GraphCanvas = GraphFrame:FindFirstChild("Canvas")
+                local StatsLabel = GraphFrame:FindFirstChild("Stats")
+                local Holder = GraphFrame:FindFirstChild("Holder")
+                Graph.Instance = GraphFrame
+                Graph.Frame = GraphFrame
+                Graph.Canvas = GraphCanvas
+                Graph.Holder = Holder
+
+                local function ClearGraph()
+                    if not GraphCanvas then
+                        return
+                    end
+                    for _, Child in ipairs(GraphCanvas:GetChildren()) do
+                        if Child.Name == "GraphLine" or Child.Name == "GraphDot" then
+                            Child:Destroy()
+                        end
+                    end
+                end
+
+                local function FormatNumber(Value)
+                    if math.abs(Value) >= 100 then
+                        return tostring(math.floor(Value + 0.5))
+                    end
+                    return tostring(math.floor(Value * 10 + 0.5) / 10)
+                end
+
+                local function GetAngle(Y, X)
+                    if math.atan2 then
+                        return math.atan2(Y, X)
+                    end
+                    if X > 0 then
+                        return math.atan(Y / X)
+                    end
+                    if X < 0 then
+                        return math.atan(Y / X) + (Y >= 0 and math.pi or -math.pi)
+                    end
+                    return Y >= 0 and math.pi / 2 or -math.pi / 2
+                end
+
+                local function UpdateStats()
+                    if not StatsLabel then
+                        return
+                    end
+                    if not GraphConfig.ShowStats or #Graph.Points == 0 then
+                        StatsLabel.Text = ""
+                        StatsLabel.Visible = false
+                        StatsLabel.Size = UDim2.new(1, 0, 0, 0)
+                        return
+                    end
+                    local MinValue = Graph.Points[1]
+                    local MaxValue = Graph.Points[1]
+                    for _, Value in ipairs(Graph.Points) do
+                        MinValue = math.min(MinValue, Value)
+                        MaxValue = math.max(MaxValue, Value)
+                    end
+                    StatsLabel.Visible = true
+                    StatsLabel.Size = UDim2.new(1, 0, 0, 14)
+                    StatsLabel.Text = string.format(
+                        "Last %s  •  Min %s  •  Max %s",
+                        FormatNumber(Graph.Points[#Graph.Points]),
+                        FormatNumber(MinValue),
+                        FormatNumber(MaxValue)
+                    )
+                end
+
+                local function UpdateSize()
+                    if not GraphFrame then
+                        return
+                    end
+                    if ContentLabel then
+                        local HasContent = tostring(ContentLabel.Text or "") ~= ""
+                        ContentLabel.Visible = HasContent
+                        ContentLabel.Size = UDim2.new(1, 0, 0, HasContent and math.max(18, ContentLabel.TextBounds.Y) or 0)
+                    end
+                    if GraphCanvas then
+                        local HasGraph = #Graph.Points > 1
+                        GraphCanvas.Visible = HasGraph
+                        GraphCanvas.Size = UDim2.new(1, 0, 0, HasGraph and GraphConfig.Height or 0)
+                    end
+                    if Holder and Holder:FindFirstChildOfClass("UIListLayout") then
+                        local HolderHeight = Holder.UIListLayout.AbsoluteContentSize.Y
+                        Holder.Visible = HolderHeight > 0
+                        Holder.Size = UDim2.new(1, 0, 0, HolderHeight)
+                    end
+                    task.defer(function()
+                        if GraphFrame and GraphFrame.Parent and GraphFrame:FindFirstChild("Layout") then
+                            GraphFrame.Size = UDim2.new(1, 0, 0, GraphFrame.Layout.AbsoluteContentSize.Y + 24)
+                        end
+                    end)
+                end
+
+                local function RenderGraph()
+                    ClearGraph()
+                    UpdateStats()
+                    UpdateSize()
+                    if not GraphCanvas or #Graph.Points < 2 then
+                        return
+                    end
+
+                    local Width = GraphCanvas.AbsoluteSize.X
+                    if Width <= 2 and GraphFrame.AbsoluteSize.X > 24 then
+                        Width = GraphFrame.AbsoluteSize.X - 24
+                    end
+                    Width = math.max(Width, 220)
+                    local Height = GraphConfig.Height
+                    local Padding = 10
+                    local MinValue = Graph.Points[1]
+                    local MaxValue = Graph.Points[1]
+                    for _, Value in ipairs(Graph.Points) do
+                        MinValue = math.min(MinValue, Value)
+                        MaxValue = math.max(MaxValue, Value)
+                    end
+                    local Range = math.max(MaxValue - MinValue, 1)
+                    local PreviousPoint
+
+                    for Index, Value in ipairs(Graph.Points) do
+                        local X = Padding + ((Index - 1) / (#Graph.Points - 1)) * (Width - Padding * 2)
+                        local Y = Padding + (1 - ((Value - MinValue) / Range)) * (Height - Padding * 2)
+                        local Point = Vector2.new(X, Y)
+
+                        if PreviousPoint then
+                            local Delta = Point - PreviousPoint
+                            local Distance = math.sqrt(Delta.X * Delta.X + Delta.Y * Delta.Y)
+                            SetChildren(
+                                SetProps(MakeElement("Frame", GraphConfig.Color), {
+                                    AnchorPoint = Vector2.new(0.5, 0.5),
+                                    Position = UDim2.fromOffset((PreviousPoint.X + Point.X) / 2, (PreviousPoint.Y + Point.Y) / 2),
+                                    Size = UDim2.fromOffset(Distance, 2),
+                                    Rotation = math.deg(GetAngle(Delta.Y, Delta.X)),
+                                    BackgroundColor3 = GraphConfig.Color,
+                                    Parent = GraphCanvas,
+                                    Name = "GraphLine",
+                                    ZIndex = GraphCanvas.ZIndex + 1,
+                                }),
+                                {
+                                    Create("UICorner", {
+                                        CornerRadius = UDim.new(1, 0),
+                                    }),
+                                }
+                            )
+                        end
+
+                        SetChildren(
+                            SetProps(MakeElement("RoundFrame", GraphConfig.PointColor, 1, 0), {
+                                AnchorPoint = Vector2.new(0.5, 0.5),
+                                Position = UDim2.fromOffset(Point.X, Point.Y),
+                                Size = UDim2.fromOffset(6, 6),
+                                BackgroundColor3 = GraphConfig.PointColor,
+                                Parent = GraphCanvas,
+                                Name = "GraphDot",
+                                ZIndex = GraphCanvas.ZIndex + 2,
+                            }),
+                            {
+                                SetProps(MakeElement("Stroke", GetThemeValue("Main", Color3.fromRGB(18, 20, 27)), 1), {
+                                    Transparency = 0.1,
+                                }),
+                            }
+                        )
+                        PreviousPoint = Point
+                    end
+                end
+
+                Graph.Points = NormalizePoints(GraphConfig.Points)
+                AddConnection(ContentLabel:GetPropertyChangedSignal("TextBounds"), UpdateSize)
+                AddConnection(GraphFrame.Layout:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateSize)
+                if Holder and Holder:FindFirstChildOfClass("UIListLayout") then
+                    AddConnection(Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateSize)
+                end
+                if GraphCanvas then
+                    AddConnection(GraphCanvas:GetPropertyChangedSignal("AbsoluteSize"), RenderGraph)
+                end
+
+                function Graph:Set(title, content)
+                    if getgenv().Destroy then
+                        return
+                    end
+                    if title ~= nil and GraphFrame and GraphFrame:FindFirstChild("Title") then
+                        GraphFrame.Title.Text = tostring(title)
+                    end
+                    if content ~= nil and ContentLabel then
+                        ContentLabel.Text = tostring(content)
+                    end
+                    UpdateSize()
+                end
+
+                function Graph:SetTitle(title)
+                    Graph:Set(title, nil)
+                end
+
+                function Graph:SetText(content)
+                    Graph:Set(nil, content)
+                end
+
+                function Graph:SetContent(content)
+                    Graph:SetText(content)
+                end
+
+                function Graph:SetPoints(points)
+                    if getgenv().Destroy then
+                        return
+                    end
+                    Graph.Points = NormalizePoints(points)
+                    RenderGraph()
+                end
+
+                function Graph:AddPoint(value, limit)
+                    if getgenv().Destroy then
+                        return
+                    end
+                    local NumberValue = tonumber(value)
+                    if not NumberValue then
+                        return
+                    end
+                    table.insert(Graph.Points, NumberValue)
+                    limit = tonumber(limit or GraphConfig.MaxPoints)
+                    if limit and limit > 0 then
+                        while #Graph.Points > limit do
+                            table.remove(Graph.Points, 1)
+                        end
+                    end
+                    RenderGraph()
+                end
+
+                function Graph:ClearPoints()
+                    Graph.Points = {}
+                    RenderGraph()
+                end
+
+                function Graph:SetColor(color, pointColor)
+                    if typeof(color) == "Color3" then
+                        GraphConfig.Color = color
+                    end
+                    if typeof(pointColor) == "Color3" then
+                        GraphConfig.PointColor = pointColor
+                    elseif typeof(color) == "Color3" then
+                        GraphConfig.PointColor = color
+                    end
+                    RenderGraph()
+                end
+
+                function Graph:SetVisible(state)
+                    Graph.Visible = state == true
+                    if GraphFrame then
+                        GraphFrame.Visible = Graph.Visible
+                    end
+                end
+
+                for methodName, method in next, GetElements(Holder) do
+                    Graph[methodName] = method
+                end
+                Graph.Button = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Button"
+                    return Graph:AddButton(config)
+                end
+                Graph.HighlightButton = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Highlight Button"
+                    return Graph:AddHighlightButton(config)
+                end
+                Graph.WarningBox = function(_, config)
+                    config = TranslateConfig(config or {})
+                    return Graph:AddWarningBox(config)
+                end
+                Graph.Toggle = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Toggle"
+                    config.Default = config.Default ~= nil and config.Default or config.Value
+                    return Graph:AddToggle(config)
+                end
+                Graph.Slider = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Slider"
+                    config.Default = config.Default ~= nil and config.Default or config.Value
+                    return Graph:AddSlider(config)
+                end
+                Graph.Dropdown = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Dropdown"
+                    config.Default = config.Default ~= nil and config.Default or config.Value
+                    return Graph:AddDropdown(config)
+                end
+                Graph.Input = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Input"
+                    config.Default = config.Default ~= nil and config.Default or config.Value
+                    return Graph:AddTextbox(config)
+                end
+                Graph.Colorpicker = function(_, config)
+                    config = TranslateConfig(config or {})
+                    config.Name = config.Name or config.Title or "Colorpicker"
+                    config.Default = config.Default ~= nil and config.Default or config.Value
+                    return Graph:AddColorpicker(config)
+                end
+                Graph.Paragraph = function(_, config)
+                    config = TranslateConfig(config or {})
+                    return Graph:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "")
+                end
+
+                task.defer(RenderGraph)
+                if GraphConfig.Flag then
+                    OrionLib.Flags[GraphConfig.Flag] = Graph
+                end
+                return Graph
             end
 
             function ElementFunction:AddButton(ButtonConfig)
@@ -6357,6 +6853,17 @@ function OrionLib:MakeWindow(WindowConfig)
                 config = TranslateConfig(config or {})
                 return SectionFunction:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "")
             end
+            SectionFunction.Graph = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Graph"
+                return SectionFunction:AddGraph(config)
+            end
+            SectionFunction.RichLabel = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Rich Label"
+                return SectionFunction:AddGraph(config)
+            end
+            SectionFunction.AdvancedLabel = SectionFunction.RichLabel
             for methodName, method in next, SectionFunction do
                 Section[methodName] = method
             end
@@ -6461,6 +6968,17 @@ function OrionLib:MakeWindow(WindowConfig)
                 config = TranslateConfig(config or {})
                 return Group:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "")
             end
+            Group.Graph = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Graph"
+                return Group:AddGraph(config)
+            end
+            Group.RichLabel = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Rich Label"
+                return Group:AddGraph(config)
+            end
+            Group.AdvancedLabel = Group.RichLabel
             function Group:SetVisible(state)
                 Group.Visible = state == true
                 GroupFrame.Visible = Group.Visible
@@ -6530,6 +7048,20 @@ function OrionLib:MakeWindow(WindowConfig)
         function ElementFunction:Paragraph(config)
             config = NormalizeElementConfig(config, "Paragraph")
             return ElementFunction:AddParagraph(config.Title or config.Name or config.Text, config.Content or config.Desc or config.Description or "")
+        end
+
+        function ElementFunction:Graph(config)
+            config = NormalizeElementConfig(config, "Graph")
+            return ElementFunction:AddGraph(config)
+        end
+
+        function ElementFunction:RichLabel(config)
+            config = NormalizeElementConfig(config, "Rich Label")
+            return ElementFunction:AddGraph(config)
+        end
+
+        function ElementFunction:AdvancedLabel(config)
+            return ElementFunction:RichLabel(config)
         end
 
         function ElementFunction:Section(config)
@@ -6803,6 +7335,25 @@ function OrionLib:MakeWindow(WindowConfig)
         if type(tab) == "table" and type(tab.Select) == "function" then
             tab:Select()
             return true
+        end
+        return false
+    end
+
+    function Functions:RefreshPages()
+        if
+            Functions.SelectedTab
+            and Functions.SelectedTab.Visible
+            and not Functions.SelectedTab.Disabled
+            and type(Functions.SelectedTab.Select) == "function"
+        then
+            Functions.SelectedTab:Select()
+            return true
+        end
+        for _, tab in ipairs(AllTabs) do
+            if tab.Visible and not tab.Disabled and type(tab.Select) == "function" then
+                tab:Select()
+                return true
+            end
         end
         return false
     end
