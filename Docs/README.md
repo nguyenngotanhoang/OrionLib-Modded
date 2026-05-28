@@ -60,14 +60,14 @@ Main:Dropdown({
 
 - `OrionLib:CreateWindow(config)` / `OrionLib:Window(config)` are aliases around Orion's `MakeWindow`.
 - Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, `TopbarButtons`, and `HideSearchBar` in addition to existing Orion fields.
-- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `AddTopbarButton`, `Popup`, `Dialog`, `LoadingScreen`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
+- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `AddTopbarButton`, `Popup`, `Dialog`, `LoadingScreen`, `CreateBootstrapLoader`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
 
 ### Loading, popup, dialog, and topbar buttons
 
-`OrionLib:LoadingScreen()` can be shown before creating the window. `Popup` and `Dialog` use the same themed overlay style, and topbar buttons can be configured up front or added later.
+`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. `Popup` and `Dialog` use the same OrionLib theme objects, rounded cards, strokes, icons, and accent colors as the main UI. Topbar buttons can be configured up front or added later.
 
 ```lua
-local Loader = OrionLib:LoadingScreen({ Title = "Loading", AutoClose = false })
+local Loader = OrionLib:CreateBootstrapLoader({ Title = "Loading", AutoClose = false })
 Loader:SetProgress(0.5, "Building UI")
 
 local Window = OrionLib:CreateWindow({

@@ -1326,6 +1326,9 @@ function OrionLib:LoadingScreen(config)
         end
         TweenService:Create(bar, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(value, 1) }):Play()
     end
+    function loader:Set(value, text)
+        return loader:SetProgress(value, text)
+    end
     function loader:SetText(text)
         content.Text = tostring(text or "")
     end
@@ -1347,6 +1350,19 @@ function OrionLib:LoadingScreen(config)
         end)
     end
     return loader
+end
+
+function OrionLib:CreateBootstrapLoader(config)
+    config = TranslateConfig(config or {})
+    config.Title = config.Title or "Loading OrionLib"
+    config.Content = config.Content or config.Description or "Preparing library..."
+    config.Icon = ResolveIcon(config.Icon or "sparkles")
+    config.AutoClose = config.AutoClose == true
+    return OrionLib:LoadingScreen(config)
+end
+
+function OrionLib:BootstrapLoader(config)
+    return OrionLib:CreateBootstrapLoader(config)
 end
 
 function OrionLib:Popup(config)
@@ -1496,12 +1512,15 @@ function OrionLib:Popup(config)
                 {
                     MakeElement("Corner", 0, 9),
                     OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), isSecondary and "Stroke" or "AccentDark"),
-                    SetProps(MakeElement("Label", buttonConfig.Title or buttonConfig.Text or "OK", 13), {
-                        Size = UDim2.fromScale(1, 1),
-                        Font = Enum.Font.GothamBold,
-                        TextXAlignment = Enum.TextXAlignment.Center,
-                        ZIndex = 924,
-                    }),
+                    OrionLib:AddThemeObject(
+                        SetProps(MakeElement("Label", buttonConfig.Title or buttonConfig.Text or "OK", 13), {
+                            Size = UDim2.fromScale(1, 1),
+                            Font = Enum.Font.GothamBold,
+                            TextXAlignment = Enum.TextXAlignment.Center,
+                            ZIndex = 924,
+                        }),
+                        "Text"
+                    ),
                 }
             ),
             isSecondary and "Second" or "Accent"
@@ -8722,6 +8741,10 @@ function OrionLib:MakeWindow(WindowConfig)
 
     function Functions:LoadingScreen(config)
         return OrionLib:LoadingScreen(config)
+    end
+
+    function Functions:CreateBootstrapLoader(config)
+        return OrionLib:CreateBootstrapLoader(config)
     end
 
     function Functions:SetKeyBindMenuVisible(state)
