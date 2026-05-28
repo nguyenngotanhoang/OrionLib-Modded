@@ -64,7 +64,7 @@ Main:Dropdown({
 
 ### Loading, popup, dialog, and topbar buttons
 
-`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. `Popup` and `Dialog` use the same OrionLib theme objects, rounded cards, strokes, icons, and accent colors as the main UI. Topbar buttons can be configured up front or added later.
+`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. Loading hides the existing Orion UI by default, uses a rotating loader icon, and keeps the background transparent. `Popup` and `Dialog` use the same OrionLib theme objects, rounded cards, strokes, icons, and resized Orion-style buttons as the main UI; pass `Dim = true` only if you want a darkened backdrop. Topbar buttons can be configured up front or added later.
 
 ```lua
 local Loader = OrionLib:CreateBootstrapLoader({ Title = "Loading", AutoClose = false })
@@ -180,6 +180,7 @@ WindUI-style element aliases are available on tabs and sections:
 - `TabBox`
 - `TabCard`
 - `StatCard`
+- `DiscordServer`
 - `Graph`
 - `RichLabel`
 - `AdvancedLabel`
@@ -210,6 +211,20 @@ local Graph = Main:Graph({
 
 Graph:Button({ Title = "Refresh", Callback = function() Graph:AddPoint(math.random(10, 60), 10) end })
 Graph:Toggle({ Title = "Enabled", Value = true })
+```
+
+`DiscordServer` creates a themed server card with thumbnail, icon, Join button, and Leave button:
+
+```lua
+Main:DiscordServer({
+    Title = "Community",
+    Description = "Join the hub Discord server.",
+    Invite = "https://discord.gg/example",
+    Thumbnail = "https://example.com/banner.png",
+    Icon = "message-circle",
+    JoinCallback = function() print("join") end,
+    LeaveCallback = function() print("leave") end
+})
 ```
 
 ### Key system

@@ -218,6 +218,21 @@ Main:WarningBox({
     Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px.",
 })
 
+Main:DiscordServer({
+    Title = "Orion Community",
+    Description = "Card with thumbnail, icon, invite join button, and leave action.",
+    Invite = "https://discord.gg/orionlib",
+    Icon = "message-circle",
+    Thumbnail = "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=900&q=80",
+    Meta = "Public Discord server",
+    JoinCallback = function()
+        print("Discord invite copied")
+    end,
+    LeaveCallback = function()
+        print("Discord leave clicked")
+    end,
+})
+
 local StatsGraph = Main:Graph({
     Title = "Rich Graph Label",
     Content = '<b>RichText</b> works here: <font color="#38BDF8">blue text</font>, live stats, and nested controls.',

@@ -27,6 +27,7 @@ local function IsRobloxAssetUrl(value)
     return type(value) == "string"
         and (
             value:find("^rbxassetid://")
+            or value:find("^rbxasset://")
             or value:find("^rbxthumb://")
             or value:find("^https?://www%.roblox%.com/")
             or value:find("^https?://assetdelivery%.roblox%.com/")
@@ -205,6 +206,28 @@ local LucideAliases = {
     ["alert"] = "triangle-alert",
     ["info"] = "info",
 }
+local IconifyFallbackAliases = {
+    ["home"] = "house",
+    ["house"] = "house",
+    ["widget"] = "layout-dashboard",
+    ["dashboard"] = "layout-dashboard",
+    ["layout"] = "layout-dashboard",
+    ["user"] = "user",
+    ["users"] = "users",
+    ["group"] = "users",
+    ["clock"] = "clock",
+    ["time"] = "clock",
+    ["sword"] = "swords",
+    ["combat"] = "swords",
+    ["plant"] = "leaf",
+    ["sprout"] = "leaf",
+    ["farm"] = "leaf",
+    ["stars"] = "sparkles",
+    ["star"] = "sparkles",
+    ["settings"] = "cog",
+    ["bell"] = "bell",
+    ["discord"] = "message-circle",
+}
 
 local function NormalizeIconifyName(iconName: string)
     iconName = iconName:lower()
@@ -246,6 +269,19 @@ local function NormalizeIconName(IconName: string)
     return LucideAliases[IconLower] or IconLower
 end
 
+local function GetIconifyFallbackName(iconName: string)
+    iconName = NormalizeIconifyName(iconName or "")
+    if IconifyFallbackAliases[iconName] then
+        return IconifyFallbackAliases[iconName]
+    end
+    for token in iconName:gmatch("[^%-]+") do
+        if IconifyFallbackAliases[token] then
+            return IconifyFallbackAliases[token]
+        end
+    end
+    return LucideAliases[iconName] or "sparkles"
+end
+
 local function GetIconifyData(IconName: string, Size: number?)
     local prefix, name = SplitIconifyName(IconName)
     if not prefix or not name then
@@ -262,14 +298,16 @@ local function GetIconifyData(IconName: string, Size: number?)
             Extension = "png",
             MinSize = 10,
         })
+    local canRender = cachedImage and cachedImage ~= imageUrl and not IsHttpUrl(cachedImage)
     return {
-        Image = cachedImage or imageUrl,
+        Image = canRender and cachedImage or nil,
         ImageRectOffset = Vector2.new(0, 0),
         ImageRectSize = Vector2.new(0, 0),
         Name = prefix .. ":" .. name,
         Source = "Iconify",
         IconSet = prefix,
         Svg = svgUrl,
+        Fallback = GetIconifyFallbackName(name),
     }
 end
 
@@ -379,18 +417,8 @@ local function GetLucideProvider()
     return LoadLucideProvider()
 end
 
-local function GetIconData(IconName: string, Size: number?)
-    local direct = GetDirectImageData(IconName)
-    if direct then
-        return direct
-    end
-
-    local iconify = GetIconifyData(IconName, Size)
-    if iconify then
-        return iconify
-    end
-
-    local normalized = NormalizeIconName(IconName)
+local function GetLucideIconData(iconName: string, Size: number?)
+    local normalized = NormalizeIconName(iconName)
     if not normalized or normalized == "" then
         return nil
     end
@@ -414,6 +442,28 @@ local function GetIconData(IconName: string, Size: number?)
         end
     end
     return nil
+end
+
+local function GetIconData(IconName: string, Size: number?)
+    local direct = GetDirectImageData(IconName)
+    if direct then
+        return direct
+    end
+
+    local iconify = GetIconifyData(IconName, Size)
+    if iconify then
+        if iconify.Image then
+            return iconify
+        end
+        local fallback = GetLucideIconData(iconify.Fallback, Size)
+        if fallback then
+            fallback.Source = "IconifyFallback"
+            fallback.IconSet = iconify.IconSet
+            return fallback
+        end
+    end
+
+    return GetLucideIconData(IconName, Size)
 end
 
 local function GetIcon(IconName: string)
@@ -787,10 +837,10 @@ function OrionLib:MakeAsset(list, options)
             end
         end
         if isfile(path) then
-            local assetId = TryGetCustomAsset(path) or path
-            assets[id] = assetId
+            local assetId = TryGetCustomAsset(path)
+            assets[id] = assetId or url
 
-            if not ext:find("mp4") and not ext:find("webm") and not ext:find("mkv") then
+            if assetId and not ext:find("mp4") and not ext:find("webm") and not ext:find("mkv") then
                 table.insert(preloadBatch, assetId)
             end
         end
@@ -1124,8 +1174,10 @@ local function ResolveExternalMediaAsset(asset, folder)
         return asset
     end
     if IsHttpUrl(asset) and not asset:find("roblox%.com") and ResolveExternalAssetSource then
-        return ResolveExternalAssetSource(asset, { Root = "OrionLibSave", Folder = folder or "OrionMedia", Key = SanitizeAssetName(asset), MinSize = 10 })
-            or asset
+        return ResolveExternalAssetSource(
+            asset,
+            { Root = "OrionLibSave", Folder = folder or "OrionMedia", Key = SanitizeAssetName(asset), Extension = "png", MinSize = 10 }
+        ) or asset
     end
     return asset
 end
@@ -1230,18 +1282,29 @@ function OrionLib:LoadingScreen(config)
     local screen = SetProps(MakeElement("Frame"), {
         Parent = Orion,
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = config.BackgroundTransparency or 0.28,
+        BackgroundColor3 = theme.Main or Color3.fromRGB(18, 20, 27),
+        BackgroundTransparency = config.BackgroundTransparency or 1,
         Name = config.Name or "OrionLoadingScreen",
+        Active = true,
         ZIndex = 900,
     })
+
+    local hiddenObjects = {}
+    if config.HideUI ~= false then
+        for _, child in ipairs(Orion:GetChildren()) do
+            if child ~= screen and child:IsA("GuiObject") and child.Visible then
+                table.insert(hiddenObjects, child)
+                child.Visible = false
+            end
+        end
+    end
 
     local card = OrionLib:AddThemeObject(
         SetChildren(
             SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 14), {
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.fromScale(0.5, 0.5),
-                Size = config.Size or UDim2.fromOffset(360, 170),
+                Size = config.Size or UDim2.fromOffset(438, 184),
                 Parent = screen,
                 ZIndex = 901,
             }),
@@ -1258,58 +1321,129 @@ function OrionLib:LoadingScreen(config)
         "Main"
     )
 
+    local visualPane = OrionLib:AddThemeObject(
+        SetChildren(
+            SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 12), {
+                Size = UDim2.new(0, 130, 1, 0),
+                Parent = card,
+                ZIndex = 902,
+                BackgroundTransparency = 0.2,
+            }),
+            {
+                OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+            }
+        ),
+        "Second"
+    )
+
+    local spinner = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Image", "loader-circle"), {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(82, 82),
+            Parent = visualPane,
+            ImageTransparency = 0.16,
+            ZIndex = 904,
+        }),
+        "Accent"
+    )
+
     local iconWrap = SetChildren(
-        SetProps(MakeElement("RoundFrame", config.Color or theme.Accent or Color3.fromRGB(96, 165, 250), 0, 12), {
-            Size = UDim2.fromOffset(44, 44),
-            Position = UDim2.fromOffset(0, 0),
-            Parent = card,
-            ZIndex = 902,
+        SetProps(MakeElement("RoundFrame", config.Color or theme.Accent or Color3.fromRGB(96, 165, 250), 0, 14), {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Size = UDim2.fromOffset(58, 58),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Parent = visualPane,
+            ZIndex = 905,
         }),
         {
             SetProps(MakeElement("Image", ResolveIcon(config.Icon or "sparkles")), {
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.fromScale(0.5, 0.5),
-                Size = UDim2.fromOffset(24, 24),
+                Size = UDim2.fromOffset(30, 30),
                 ImageColor3 = theme.Text or Color3.fromRGB(255, 255, 255),
-                ZIndex = 903,
+                ZIndex = 906,
             }),
         }
     )
     iconWrap.BackgroundTransparency = 0.08
 
+    local infoBar = OrionLib:AddThemeObject(
+        SetChildren(
+            SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 12), {
+                Position = UDim2.new(0, 146, 0, 0),
+                Size = UDim2.new(1, -146, 1, 0),
+                Parent = card,
+                ZIndex = 902,
+                BackgroundTransparency = 0.32,
+            }),
+            {
+                OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                Create("UIPadding", {
+                    PaddingTop = UDim.new(0, 18),
+                    PaddingBottom = UDim.new(0, 18),
+                    PaddingLeft = UDim.new(0, 18),
+                    PaddingRight = UDim.new(0, 18),
+                }),
+            }
+        ),
+        "Second"
+    )
+
     local title = OrionLib:AddThemeObject(
         SetProps(MakeElement("Label", config.Title or "Loading", 20), {
-            Position = UDim2.fromOffset(58, 0),
             Size = UDim2.new(1, -58, 0, 26),
             Font = Enum.Font.GothamBlack,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = card,
-            ZIndex = 902,
+            Parent = infoBar,
+            ZIndex = 903,
         }),
         "Text"
     )
 
+    local percent = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", "0%", 13), {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, 0, 0, 4),
+            Size = UDim2.fromOffset(50, 18),
+            Font = Enum.Font.GothamBold,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            Parent = infoBar,
+            ZIndex = 903,
+        }),
+        "Accent"
+    )
+
     local content = OrionLib:AddThemeObject(
         SetProps(MakeElement("Label", config.Content or config.Description or "Preparing interface...", 13), {
-            Position = UDim2.fromOffset(58, 28),
-            Size = UDim2.new(1, -58, 0, 34),
+            Position = UDim2.fromOffset(0, 36),
+            Size = UDim2.new(1, 0, 0, 46),
             TextWrapped = true,
-            Parent = card,
-            ZIndex = 902,
+            Parent = infoBar,
+            ZIndex = 903,
+        }),
+        "TextDark"
+    )
+
+    local status = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", config.Status or "OrionLib themed loader", 12), {
+            Position = UDim2.new(0, 0, 1, -46),
+            Size = UDim2.new(1, 0, 0, 18),
+            Font = Enum.Font.GothamSemibold,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = infoBar,
+            ZIndex = 903,
         }),
         "TextDark"
     )
 
     local barBack = OrionLib:AddThemeObject(
-        SetChildren(
-            SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
-                Position = UDim2.new(0, 0, 1, -26),
-                Size = UDim2.new(1, 0, 0, 8),
-                Parent = card,
-                ZIndex = 902,
-            }),
-            {}
-        ),
+        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
+            Position = UDim2.new(0, 0, 1, -16),
+            Size = UDim2.new(1, 0, 0, 8),
+            Parent = infoBar,
+            ZIndex = 902,
+        }),
         "Second"
     )
     local bar = SetProps(MakeElement("RoundFrame", config.Color or theme.Accent or Color3.fromRGB(96, 165, 250), 0, 6), {
@@ -1317,6 +1451,9 @@ function OrionLib:LoadingScreen(config)
         Parent = barBack,
         ZIndex = 903,
     })
+    local spinTween =
+        TweenService:Create(spinner, TweenInfo.new(config.RotationSpeed or 1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), { Rotation = 360 })
+    spinTween:Play()
 
     local loader = {}
     function loader:SetProgress(value, text)
@@ -1324,6 +1461,7 @@ function OrionLib:LoadingScreen(config)
         if text ~= nil then
             content.Text = tostring(text)
         end
+        percent.Text = tostring(math.floor(value * 100 + 0.5)) .. "%"
         TweenService:Create(bar, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = UDim2.fromScale(value, 1) }):Play()
     end
     function loader:Set(value, text)
@@ -1332,14 +1470,25 @@ function OrionLib:LoadingScreen(config)
     function loader:SetText(text)
         content.Text = tostring(text or "")
     end
+    function loader:SetStatus(text)
+        status.Text = tostring(text or "")
+    end
     function loader:Close()
         if not screen or not screen.Parent then
             return
         end
+        pcall(function()
+            spinTween:Cancel()
+        end)
         local tween = TweenService:Create(screen, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
         TweenService:Create(card, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = UDim2.fromOffset(0, 0) }):Play()
         tween:Play()
         tween.Completed:Wait()
+        for _, object in ipairs(hiddenObjects) do
+            if object and object.Parent then
+                object.Visible = true
+            end
+        end
         screen:Destroy()
     end
 
@@ -1371,9 +1520,10 @@ function OrionLib:Popup(config)
     local overlay = SetProps(MakeElement("Frame"), {
         Parent = Orion,
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = config.Modal == false and 1 or (config.BackgroundTransparency or 0.42),
+        BackgroundColor3 = theme.Main or Color3.fromRGB(18, 20, 27),
+        BackgroundTransparency = config.Dim == true and (config.BackgroundTransparency or 0.72) or 1,
         Name = config.Name or "OrionPopup",
+        Active = config.Modal ~= false,
         ZIndex = 920,
     })
 
@@ -1498,22 +1648,21 @@ function OrionLib:Popup(config)
             },
         }
     for _, buttonConfig in ipairs(buttons) do
-        local isSecondary = buttonConfig.Secondary == true or buttonConfig.Variant == "Secondary"
+        local titleText = tostring(buttonConfig.Title or buttonConfig.Text or "OK")
+        local buttonWidth = buttonConfig.Width or math.clamp(#titleText * 9 + 32, 86, 150)
         local button = OrionLib:AddThemeObject(
             SetChildren(
                 SetProps(MakeElement("Button"), {
                     Parent = buttonHolder,
-                    Size = UDim2.fromOffset(buttonConfig.Width or 96, 34),
+                    Size = UDim2.fromOffset(buttonWidth, 34),
                     BackgroundTransparency = 0,
-                    BackgroundColor3 = isSecondary and (theme.Second or Color3.fromRGB(25, 28, 38))
-                        or (buttonConfig.Color or theme.Accent or Color3.fromRGB(96, 165, 250)),
                     ZIndex = 923,
                 }),
                 {
                     MakeElement("Corner", 0, 9),
-                    OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), isSecondary and "Stroke" or "AccentDark"),
+                    OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
                     OrionLib:AddThemeObject(
-                        SetProps(MakeElement("Label", buttonConfig.Title or buttonConfig.Text or "OK", 13), {
+                        SetProps(MakeElement("Label", titleText, 13), {
                             Size = UDim2.fromScale(1, 1),
                             Font = Enum.Font.GothamBold,
                             TextXAlignment = Enum.TextXAlignment.Center,
@@ -1523,8 +1672,18 @@ function OrionLib:Popup(config)
                     ),
                 }
             ),
-            isSecondary and "Second" or "Accent"
+            "Second"
         )
+        AddConnection(button.MouseEnter, function()
+            TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 5),
+            }):Play()
+        end)
+        AddConnection(button.MouseLeave, function()
+            TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                BackgroundColor3 = GetThemeValue("Second", OrionLib.Themes.Default.Second),
+            }):Play()
+        end)
         AddConnection(button.MouseButton1Click, function()
             OrionLib:SafeScript(buttonConfig.Callback or buttonConfig.OnClick, popup)
             if buttonConfig.Close ~= false then
@@ -3075,7 +3234,7 @@ function OrionLib:MakeWindow(WindowConfig)
             MainWindow.ClipsDescendants = true
             MainWindow.SizeDragging.Visible = false
             WindowTopBarLine.Visible = false
-            MinimizeBtn.Ico.Image = "maximize-2"
+            ApplyIconToObject(MinimizeBtn.Ico, "maximize-2", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = GetCollapsedSize() })
             tween:Play()
             task.delay(0.08, function()
@@ -3089,7 +3248,7 @@ function OrionLib:MakeWindow(WindowConfig)
             WindowStuff.Visible = true
             WindowTopBarLine.Visible = true
             MainWindow.SizeDragging.Visible = true
-            MinimizeBtn.Ico.Image = "minus"
+            ApplyIconToObject(MinimizeBtn.Ico, "minus", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = Window.Size })
             tween:Play()
             tween.Completed:Connect(function()
@@ -4826,6 +4985,220 @@ function OrionLib:MakeWindow(WindowConfig)
                     OrionLib.Flags[GraphConfig.Flag] = Graph
                 end
                 return Graph
+            end
+
+            function ElementFunction:AddDiscordServer(DiscordConfig)
+                DiscordConfig = TranslateConfig(DiscordConfig or {})
+                DiscordConfig.Name = DiscordConfig.Name or DiscordConfig.Title or "Discord Server"
+                DiscordConfig.Description = DiscordConfig.Description or DiscordConfig.Desc or DiscordConfig.Content or "Join the community server."
+                DiscordConfig.Invite = DiscordConfig.Invite or DiscordConfig.Link or DiscordConfig.Url
+                DiscordConfig.Icon = ResolveImageLikeAsset(ResolveIcon(DiscordConfig.Icon or "message-circle"))
+                DiscordConfig.Thumbnail = ResolveExternalMediaAsset(DiscordConfig.Thumbnail or DiscordConfig.Banner or DiscordConfig.Image, "Discord")
+                DiscordConfig.Visible = DiscordConfig.Visible ~= false
+
+                local Discord = { Visible = DiscordConfig.Visible, Type = "DiscordServer" }
+                local height = DiscordConfig.Thumbnail and 172 or 118
+                local Card = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 8), {
+                            Size = UDim2.new(1, 0, 0, height),
+                            Parent = ItemParent,
+                            Visible = DiscordConfig.Visible,
+                            BackgroundTransparency = 0,
+                        }),
+                        {
+                            OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                            Create("UIPadding", {
+                                PaddingTop = UDim.new(0, 10),
+                                PaddingBottom = UDim.new(0, 10),
+                                PaddingLeft = UDim.new(0, 10),
+                                PaddingRight = UDim.new(0, 10),
+                            }),
+                        }
+                    ),
+                    "Second"
+                )
+
+                local contentY = 0
+                if DiscordConfig.Thumbnail then
+                    SetChildren(
+                        SetProps(MakeElement("RoundImage", 0, 8, DiscordConfig.Thumbnail), {
+                            Size = UDim2.new(1, 0, 0, 58),
+                            Parent = Card,
+                            ScaleType = Enum.ScaleType.Crop,
+                            ZIndex = 4,
+                        }),
+                        {
+                            OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                        }
+                    )
+                    contentY = 68
+                end
+
+                local iconWrap = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", DiscordConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)), 0, 10), {
+                            Size = UDim2.fromOffset(42, 42),
+                            Position = UDim2.fromOffset(0, contentY),
+                            Parent = Card,
+                            BackgroundTransparency = 0.08,
+                            ZIndex = 4,
+                        }),
+                        {
+                            SetProps(MakeElement("Image", DiscordConfig.Icon), {
+                                AnchorPoint = Vector2.new(0.5, 0.5),
+                                Position = UDim2.fromScale(0.5, 0.5),
+                                Size = UDim2.fromOffset(24, 24),
+                                ZIndex = 5,
+                            }),
+                        }
+                    ),
+                    "Accent"
+                )
+
+                local title = OrionLib:AddThemeObject(
+                    SetProps(MakeElement("Label", DiscordConfig.Name, 15), {
+                        Position = UDim2.fromOffset(54, contentY - 1),
+                        Size = UDim2.new(1, -60, 0, 20),
+                        Font = Enum.Font.GothamBlack,
+                        Parent = Card,
+                        ZIndex = 4,
+                    }),
+                    "Text"
+                )
+
+                local description = OrionLib:AddThemeObject(
+                    SetProps(MakeElement("Label", DiscordConfig.Description, 12), {
+                        Position = UDim2.fromOffset(54, contentY + 21),
+                        Size = UDim2.new(1, -60, 0, 35),
+                        TextWrapped = true,
+                        Parent = Card,
+                        ZIndex = 4,
+                    }),
+                    "TextDark"
+                )
+
+                local metaText = DiscordConfig.Meta or DiscordConfig.Members or DiscordConfig.Online or (DiscordConfig.Invite and "Invite ready") or "Community"
+                local meta = OrionLib:AddThemeObject(
+                    SetProps(MakeElement("Label", tostring(metaText), 12), {
+                        Position = UDim2.fromOffset(0, contentY + 55),
+                        Size = UDim2.new(1, -190, 0, 24),
+                        Font = Enum.Font.GothamSemibold,
+                        Parent = Card,
+                        ZIndex = 4,
+                    }),
+                    "TextDark"
+                )
+
+                local buttonHolder = SetProps(MakeElement("TFrame"), {
+                    AnchorPoint = Vector2.new(1, 1),
+                    Position = UDim2.new(1, 0, 1, 0),
+                    Size = UDim2.new(0, 180, 0, 32),
+                    Parent = Card,
+                    ZIndex = 4,
+                })
+                Create("UIListLayout", {
+                    Parent = buttonHolder,
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Right,
+                    Padding = UDim.new(0, 8),
+                })
+
+                local function CreateDiscordButton(text, icon, callback)
+                    local button = OrionLib:AddThemeObject(
+                        SetChildren(
+                            SetProps(MakeElement("Button"), {
+                                Size = UDim2.fromOffset(86, 32),
+                                Parent = buttonHolder,
+                                BackgroundTransparency = 0,
+                                ZIndex = 5,
+                            }),
+                            {
+                                MakeElement("Corner", 0, 8),
+                                OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
+                                OrionLib:AddThemeObject(
+                                    SetProps(MakeElement("Image", ResolveIcon(icon)), {
+                                        Position = UDim2.fromOffset(10, 8),
+                                        Size = UDim2.fromOffset(16, 16),
+                                        ZIndex = 6,
+                                    }),
+                                    "TextDark"
+                                ),
+                                OrionLib:AddThemeObject(
+                                    SetProps(MakeElement("Label", text, 12), {
+                                        Position = UDim2.fromOffset(30, 0),
+                                        Size = UDim2.new(1, -34, 1, 0),
+                                        Font = Enum.Font.GothamBold,
+                                        TextXAlignment = Enum.TextXAlignment.Left,
+                                        ZIndex = 6,
+                                    }),
+                                    "Text"
+                                ),
+                            }
+                        ),
+                        "Second"
+                    )
+                    AddConnection(button.MouseEnter, function()
+                        TweenService
+                            :Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+                                BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 5),
+                            })
+                            :Play()
+                    end)
+                    AddConnection(button.MouseLeave, function()
+                        TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+                            BackgroundColor3 = GetThemeValue("Second", OrionLib.Themes.Default.Second),
+                        }):Play()
+                    end)
+                    AddConnection(button.MouseButton1Click, callback)
+                    return button
+                end
+
+                local function JoinAction()
+                    if DiscordConfig.Invite and type(setclipboard) == "function" then
+                        setclipboard(DiscordConfig.Invite)
+                    end
+                    if type(DiscordConfig.JoinCallback or DiscordConfig.OnJoin) == "function" then
+                        OrionLib:SafeScript(DiscordConfig.JoinCallback or DiscordConfig.OnJoin, Discord)
+                    elseif DiscordConfig.Invite then
+                        OrionLib:Notify({ Title = "Discord", Content = "Invite copied to clipboard.", Icon = "message-circle", Duration = 3 })
+                    end
+                end
+
+                local function LeaveAction()
+                    if type(DiscordConfig.LeaveCallback or DiscordConfig.OnLeave) == "function" then
+                        OrionLib:SafeScript(DiscordConfig.LeaveCallback or DiscordConfig.OnLeave, Discord)
+                    else
+                        OrionLib:Notify({ Title = "Discord", Content = "Leave action clicked.", Icon = "log-out", Duration = 3 })
+                    end
+                end
+
+                CreateDiscordButton(DiscordConfig.JoinText or "Join", DiscordConfig.JoinIcon or "log-in", JoinAction)
+                CreateDiscordButton(DiscordConfig.LeaveText or "Leave", DiscordConfig.LeaveIcon or "log-out", LeaveAction)
+
+                function Discord:SetTitle(value)
+                    title.Text = tostring(value or "")
+                end
+                function Discord:SetDescription(value)
+                    description.Text = tostring(value or "")
+                end
+                function Discord:SetMeta(value)
+                    meta.Text = tostring(value or "")
+                end
+                function Discord:SetVisible(state)
+                    Discord.Visible = state == true
+                    Card.Visible = Discord.Visible
+                end
+                function Discord:Join()
+                    JoinAction()
+                end
+                function Discord:Leave()
+                    LeaveAction()
+                end
+                if DiscordConfig.Flag then
+                    OrionLib.Flags[DiscordConfig.Flag] = Discord
+                end
+                return Discord
             end
 
             function ElementFunction:AddButton(ButtonConfig)
@@ -8270,6 +8643,19 @@ function OrionLib:MakeWindow(WindowConfig)
         function ElementFunction:Graph(config)
             config = NormalizeElementConfig(config, "Graph")
             return ElementFunction:AddGraph(config)
+        end
+
+        function ElementFunction:DiscordServer(config)
+            config = NormalizeElementConfig(config, "Discord Server")
+            return ElementFunction:AddDiscordServer(config)
+        end
+
+        function ElementFunction:Discord(config)
+            return ElementFunction:DiscordServer(config)
+        end
+
+        function ElementFunction:ServerCard(config)
+            return ElementFunction:DiscordServer(config)
         end
 
         function ElementFunction:RichLabel(config)
