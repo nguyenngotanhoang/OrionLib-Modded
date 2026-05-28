@@ -3236,6 +3236,7 @@ function OrionLib:MakeWindow(WindowConfig)
             MainWindow.ClipsDescendants = true
             MainWindow.SizeDragging.Visible = false
             WindowTopBarLine.Visible = false
+            TopbarButtonHolder.Visible = false
             ApplyIconToObject(MinimizeBtn.Ico, "maximize-2", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = GetCollapsedSize() })
             tween:Play()
@@ -3249,6 +3250,7 @@ function OrionLib:MakeWindow(WindowConfig)
             MobileReopenButton.Visible = false
             WindowStuff.Visible = true
             WindowTopBarLine.Visible = true
+            TopbarButtonHolder.Visible = true
             MainWindow.SizeDragging.Visible = true
             ApplyIconToObject(MinimizeBtn.Ico, "minus", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = Window.Size })
