@@ -64,7 +64,7 @@ Main:Dropdown({
 
 ### Liquid glass and topbar navigation
 
-`TopbarTabs = true` moves navigation from the sidebar into a compact topbar row. `Glass = true` applies Liquid Glass styling to the window, topbar navigation, pages, `TabBox`, and `GroupBox`. The implementation is inspired by the public Roblox glass UI patterns in [`satyanto/rblxGlassUI`](https://github.com/satyanto/rblxGlassUI), [`boatbomber/GlassmorphicUI`](https://github.com/boatbomber/GlassmorphicUI), and [`Furrycalin/liquid-glass-luau`](https://gitcode.com/Furrycalin/liquid-glass-luau), but is implemented locally without importing their source.
+`TopbarTabs = true` moves navigation from the sidebar into a compact topbar row. `Glass = true` applies Liquid Glass styling to the window, topbar navigation, pages, `TabBox`, and `GroupBox`. The glass renderer uses subtle gradients, soft highlight strokes, optional `UIShadow`, and per-corner `UICorner` probes where the Roblox beta API is available, while safely falling back on normal `UIGradient`/`UIStroke`/`UICorner` modifiers elsewhere. The implementation is inspired by the public Roblox glass UI patterns in [`satyanto/rblxGlassUI`](https://github.com/satyanto/rblxGlassUI), [`boatbomber/GlassmorphicUI`](https://github.com/boatbomber/GlassmorphicUI), and [`Furrycalin/liquid-glass-luau`](https://gitcode.com/Furrycalin/liquid-glass-luau), but is implemented locally without importing their source.
 
 ```lua
 local Window = OrionLib:CreateWindow({
@@ -72,9 +72,12 @@ local Window = OrionLib:CreateWindow({
     TopbarTabs = true,
     Glass = true,
     GlassConfig = {
-        BackgroundTransparency = 0.22,
-        PageTransparency = 0.38,
-        NavTransparency = 0.3,
+        BackgroundTransparency = 0.32,
+        PageTransparency = 0.5,
+        NavTransparency = 0.48,
+        StrokeTransparency = 0.76,
+        ShadowTransparency = 0.72,
+        ShadowBlur = 24,
         Accent = Color3.fromRGB(125, 211, 252)
     }
 })
@@ -94,7 +97,7 @@ Glass:GlassColorpicker({ Title = "Glass Color", Default = Color3.fromRGB(125, 21
 
 ### Loading, popup, dialog, and topbar buttons
 
-`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. Loading hides the existing Orion UI by default, uses a rotating loader icon, and keeps the background transparent. `Popup` and `Dialog` use the same OrionLib theme objects, rounded cards, strokes, icons, and resized Orion-style buttons as the main UI; pass `Dim = true` only if you want a darkened backdrop. Topbar buttons can be configured up front or added later.
+`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. Loading hides the existing Orion UI by default, uses the same Liquid Glass card styling, uses a rotating loader icon, and keeps the background transparent unless you pass a backdrop value. Pass `Glass = false` only if you want the old flat loader. `Popup` and `Dialog` use the same OrionLib theme objects, rounded cards, strokes, icons, and resized Orion-style buttons as the main UI; pass `Dim = true` only if you want a darkened backdrop. Topbar buttons can be configured up front or added later.
 
 ```lua
 local Loader = OrionLib:CreateBootstrapLoader({ Title = "Loading", AutoClose = false })

@@ -1019,17 +1019,57 @@ function OrionLib:AddThemeObject(Object, Type)
 end
 
 local LiquidGlassDefaults = {
-    BackgroundTransparency = 0.18,
-    StrokeTransparency = 0.28,
-    HighlightTransparency = 0.74,
-    EdgeTransparency = 0.42,
-    Radius = 12,
-    BlurRadius = 10,
+    BackgroundTransparency = 0.34,
+    StrokeTransparency = 0.74,
+    HighlightTransparency = 0.88,
+    EdgeTransparency = 0.86,
+    Radius = 14,
+    BlurRadius = 16,
     EdgeIntensity = 1,
+    ShadowTransparency = 0.68,
+    ShadowBlur = 18,
+    ShadowSpread = 2,
 }
+
+local function MergeLiquidGlassConfig(base, override)
+    base = type(base) == "table" and base or {}
+    override = type(override) == "table" and override or {}
+    local merged = {}
+    for key, value in pairs(base) do
+        merged[key] = value
+    end
+    for key, value in pairs(override) do
+        merged[key] = value
+    end
+    return merged
+end
+
+local function ResolveGlassUDim(value, fallback)
+    if typeof(value) == "UDim" then
+        return value
+    end
+    if type(value) == "number" then
+        return UDim.new(0, value)
+    end
+    if typeof(fallback) == "UDim" then
+        return fallback
+    end
+    return UDim.new(0, tonumber(fallback) or 0)
+end
+
+local function ResolveGlassUDim2(value, fallbackX, fallbackY)
+    if typeof(value) == "UDim2" then
+        return value
+    end
+    if typeof(value) == "Vector2" then
+        return UDim2.fromOffset(value.X, value.Y)
+    end
+    return UDim2.fromOffset(tonumber(fallbackX) or 0, tonumber(fallbackY) or 0)
+end
 
 local function ResolveLiquidGlassConfig(config, fallbackColor)
     config = config == true and {} or config or {}
+    local radius = config.Radius or config.CornerRadius or LiquidGlassDefaults.Radius
     return {
         Color = config.Color or config.Tint or fallbackColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
         Accent = config.Accent or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
@@ -1037,11 +1077,23 @@ local function ResolveLiquidGlassConfig(config, fallbackColor)
         StrokeTransparency = config.StrokeTransparency or LiquidGlassDefaults.StrokeTransparency,
         HighlightTransparency = config.HighlightTransparency or LiquidGlassDefaults.HighlightTransparency,
         EdgeTransparency = config.EdgeTransparency or LiquidGlassDefaults.EdgeTransparency,
-        Radius = config.Radius or config.CornerRadius or LiquidGlassDefaults.Radius,
+        Radius = radius,
+        TopLeftRadius = config.TopLeftRadius or config.LeftTopRadius or radius,
+        TopRightRadius = config.TopRightRadius or config.RightTopRadius or radius,
+        BottomLeftRadius = config.BottomLeftRadius or config.LeftBottomRadius or radius,
+        BottomRightRadius = config.BottomRightRadius or config.RightBottomRadius or radius,
         BlurRadius = config.BlurRadius or config.Blur or LiquidGlassDefaults.BlurRadius,
         EdgeIntensity = config.EdgeIntensity or LiquidGlassDefaults.EdgeIntensity,
         ClipsDescendants = config.ClipsDescendants,
         Decorations = config.Decorations,
+        GradientRotation = config.GradientRotation or config.Rotation or 112,
+        Shadow = config.Shadow == true or config.DropShadow == true,
+        NativeShadow = config.NativeShadow ~= false,
+        ShadowColor = config.ShadowColor or Color3.fromRGB(0, 0, 0),
+        ShadowTransparency = config.ShadowTransparency or LiquidGlassDefaults.ShadowTransparency,
+        ShadowBlur = config.ShadowBlur or config.BlurRadius or LiquidGlassDefaults.ShadowBlur,
+        ShadowSpread = config.ShadowSpread or LiquidGlassDefaults.ShadowSpread,
+        ShadowOffset = ResolveGlassUDim2(config.ShadowOffset, 0, config.ShadowYOffset or 8),
     }
 end
 
@@ -1064,7 +1116,9 @@ local function ApplyLiquidGlass(guiObject, config)
     pcall(function()
         guiObject.BackgroundColor3 = glassConfig.Color
         guiObject.BackgroundTransparency = glassConfig.BackgroundTransparency
-        guiObject.ClipsDescendants = glassConfig.ClipsDescendants ~= false
+        if glassConfig.ClipsDescendants ~= nil then
+            guiObject.ClipsDescendants = glassConfig.ClipsDescendants
+        end
         guiObject:SetAttribute("OrionLiquidGlass", true)
         guiObject:SetAttribute("BlurRadius", glassConfig.BlurRadius)
     end)
@@ -1073,90 +1127,70 @@ local function ApplyLiquidGlass(guiObject, config)
     if not corner then
         corner = Create("UICorner", {
             Name = "OrionLiquidGlassCorner",
-            CornerRadius = UDim.new(0, glassConfig.Radius),
+            CornerRadius = ResolveGlassUDim(glassConfig.Radius, LiquidGlassDefaults.Radius),
         })
         corner.Parent = guiObject
     else
-        corner.CornerRadius = UDim.new(0, glassConfig.Radius)
+        corner.CornerRadius = ResolveGlassUDim(glassConfig.Radius, LiquidGlassDefaults.Radius)
     end
+    pcall(function()
+        corner.TopLeftRadius = ResolveGlassUDim(glassConfig.TopLeftRadius, glassConfig.Radius)
+        corner.TopRightRadius = ResolveGlassUDim(glassConfig.TopRightRadius, glassConfig.Radius)
+        corner.BottomLeftRadius = ResolveGlassUDim(glassConfig.BottomLeftRadius, glassConfig.Radius)
+        corner.BottomRightRadius = ResolveGlassUDim(glassConfig.BottomRightRadius, glassConfig.Radius)
+    end)
 
     local gradient = Create("UIGradient", {
         Name = "OrionLiquidGlassGradient",
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, ColorAdd(glassConfig.Color, 26)),
-            ColorSequenceKeypoint.new(0.42, glassConfig.Color),
-            ColorSequenceKeypoint.new(1, ColorAdd(glassConfig.Color, -28)),
+            ColorSequenceKeypoint.new(0, ColorAdd(glassConfig.Color, 34)),
+            ColorSequenceKeypoint.new(0.36, ColorAdd(glassConfig.Color, 8)),
+            ColorSequenceKeypoint.new(0.68, glassConfig.Color),
+            ColorSequenceKeypoint.new(1, ColorAdd(glassConfig.Color, -20)),
         }),
         Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.02),
-            NumberSequenceKeypoint.new(0.55, 0.26),
-            NumberSequenceKeypoint.new(1, 0.08),
+            NumberSequenceKeypoint.new(0, 0.05),
+            NumberSequenceKeypoint.new(0.42, 0.2),
+            NumberSequenceKeypoint.new(1, 0.12),
         }),
-        Rotation = 116,
+        Rotation = glassConfig.GradientRotation,
     })
     gradient.Parent = guiObject
 
     local stroke = Create("UIStroke", {
         Name = "OrionLiquidGlassStroke",
-        Color = ColorAdd(glassConfig.Accent, 24),
+        Color = ColorAdd(glassConfig.Accent, 18),
         Thickness = 1,
         Transparency = glassConfig.StrokeTransparency,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     })
     stroke.Parent = guiObject
 
-    if glassConfig.Decorations ~= false then
-        local shine = Create("Frame", {
-            Name = "OrionLiquidGlassShine",
-            Size = UDim2.new(1, 0, 0.44, 0),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = glassConfig.HighlightTransparency,
-            BorderSizePixel = 0,
-            ZIndex = math.max(guiObject.ZIndex, 1),
-        })
-        Create("UIGradient", {
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0.3),
-                NumberSequenceKeypoint.new(0.58, 0.88),
-                NumberSequenceKeypoint.new(1, 1),
-            }),
-            Rotation = 90,
-            Parent = shine,
-        })
-        shine.Parent = guiObject
+    local highlight = Create("UIStroke", {
+        Name = "OrionLiquidGlassHighlight",
+        Color = Color3.fromRGB(255, 255, 255),
+        Thickness = 1,
+        Transparency = glassConfig.HighlightTransparency,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    })
+    highlight.Parent = guiObject
 
-        local leftEdge = Create("Frame", {
-            Name = "OrionLiquidGlassEdgeLeft",
-            Size = UDim2.new(0, math.max(1, glassConfig.EdgeIntensity), 1, -8),
-            Position = UDim2.new(0, 4, 0, 4),
-            BackgroundColor3 = ColorAdd(glassConfig.Accent, 34),
-            BackgroundTransparency = glassConfig.EdgeTransparency,
-            BorderSizePixel = 0,
-            ZIndex = math.max(guiObject.ZIndex, 1),
-        })
-        Create("UIGradient", {
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 1),
-                NumberSequenceKeypoint.new(0.25, 0.15),
-                NumberSequenceKeypoint.new(0.75, 0.15),
-                NumberSequenceKeypoint.new(1, 1),
-            }),
-            Rotation = 90,
-            Parent = leftEdge,
-        })
-        leftEdge.Parent = guiObject
-
-        local rightEdge = Create("Frame", {
-            Name = "OrionLiquidGlassEdgeRight",
-            AnchorPoint = Vector2.new(1, 0),
-            Size = UDim2.new(0, 1, 1, -8),
-            Position = UDim2.new(1, -4, 0, 4),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = math.clamp(glassConfig.EdgeTransparency + 0.18, 0, 1),
-            BorderSizePixel = 0,
-            ZIndex = math.max(guiObject.ZIndex, 1),
-        })
-        rightEdge.Parent = guiObject
+    local nativeShadow
+    if glassConfig.Shadow and glassConfig.NativeShadow then
+        local success, shadowObject = pcall(Instance.new, "UIShadow")
+        if success and shadowObject then
+            nativeShadow = shadowObject
+            nativeShadow.Name = "OrionLiquidGlassNativeShadow"
+            pcall(function()
+                nativeShadow.Color = glassConfig.ShadowColor
+                nativeShadow.Transparency = glassConfig.ShadowTransparency
+                nativeShadow.BlurRadius = ResolveGlassUDim(glassConfig.ShadowBlur, LiquidGlassDefaults.ShadowBlur)
+                nativeShadow.Offset = glassConfig.ShadowOffset
+                nativeShadow.Spread = UDim2.fromOffset(glassConfig.ShadowSpread, glassConfig.ShadowSpread)
+                nativeShadow.Enabled = true
+            end)
+            nativeShadow.Parent = guiObject
+        end
     end
 
     local controller = {
@@ -1171,9 +1205,10 @@ local function ApplyLiquidGlass(guiObject, config)
         glassConfig.Color = color
         guiObject.BackgroundColor3 = color
         gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, ColorAdd(color, 26)),
-            ColorSequenceKeypoint.new(0.42, color),
-            ColorSequenceKeypoint.new(1, ColorAdd(color, -28)),
+            ColorSequenceKeypoint.new(0, ColorAdd(color, 34)),
+            ColorSequenceKeypoint.new(0.36, ColorAdd(color, 8)),
+            ColorSequenceKeypoint.new(0.68, color),
+            ColorSequenceKeypoint.new(1, ColorAdd(color, -20)),
         })
     end
 
@@ -1182,6 +1217,13 @@ local function ApplyLiquidGlass(guiObject, config)
         glassConfig.BackgroundTransparency = value
         if guiObject.Parent then
             guiObject.BackgroundTransparency = value
+        end
+    end
+
+    function controller:SetShadow(enabled)
+        glassConfig.Shadow = enabled == true
+        if nativeShadow then
+            nativeShadow.Enabled = glassConfig.Shadow
         end
     end
 
@@ -1686,6 +1728,59 @@ function OrionLib:LoadingScreen(config)
         Parent = barBack,
         ZIndex = 903,
     })
+
+    if config.Glass ~= false then
+        local accent = config.Color or theme.Accent or Color3.fromRGB(96, 165, 250)
+        local loaderGlass = MergeLiquidGlassConfig(config.GlassConfig or config.LiquidGlassConfig, {
+            Color = theme.Main or Color3.fromRGB(18, 20, 27),
+            Accent = accent,
+            BackgroundTransparency = config.CardTransparency or 0.28,
+            Radius = config.Radius or 18,
+            Shadow = true,
+            ShadowTransparency = config.ShadowTransparency or 0.72,
+            ShadowBlur = config.ShadowBlur or 22,
+            HighlightTransparency = 0.9,
+            StrokeTransparency = 0.76,
+        })
+        ApplyLiquidGlass(card, loaderGlass)
+        ApplyLiquidGlass(visualPane, {
+            Color = theme.Second or Color3.fromRGB(25, 28, 38),
+            Accent = accent,
+            BackgroundTransparency = 0.48,
+            Radius = 14,
+            StrokeTransparency = 0.84,
+            HighlightTransparency = 0.94,
+            Shadow = false,
+        })
+        ApplyLiquidGlass(infoBar, {
+            Color = theme.Second or Color3.fromRGB(25, 28, 38),
+            Accent = accent,
+            BackgroundTransparency = 0.54,
+            Radius = 14,
+            StrokeTransparency = 0.86,
+            HighlightTransparency = 0.94,
+            Shadow = false,
+        })
+        ApplyLiquidGlass(iconWrap, {
+            Color = accent,
+            Accent = ColorAdd(accent, 36),
+            BackgroundTransparency = 0.22,
+            Radius = 16,
+            StrokeTransparency = 0.72,
+            HighlightTransparency = 0.88,
+            Shadow = false,
+        })
+        ApplyLiquidGlass(barBack, {
+            Color = theme.Second or Color3.fromRGB(25, 28, 38),
+            Accent = accent,
+            BackgroundTransparency = 0.52,
+            Radius = 8,
+            StrokeTransparency = 0.9,
+            HighlightTransparency = 0.96,
+            Shadow = false,
+        })
+    end
+
     local spinTween =
         TweenService:Create(spinner, TweenInfo.new(config.RotationSpeed or 1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), { Rotation = 360 })
     spinTween:Play()
@@ -3449,13 +3544,23 @@ function OrionLib:MakeWindow(WindowConfig)
     )
 
     if WindowConfig.Glass then
-        ApplyLiquidGlass(MainWindow, WindowConfig.GlassConfig)
+        ApplyLiquidGlass(
+            MainWindow,
+            MergeLiquidGlassConfig(WindowConfig.GlassConfig, {
+                Shadow = WindowConfig.GlassConfig.Shadow ~= false,
+                ShadowTransparency = WindowConfig.GlassConfig.ShadowTransparency or 0.72,
+                ShadowBlur = WindowConfig.GlassConfig.ShadowBlur or 24,
+                Radius = WindowConfig.GlassConfig.Radius or (OrionLib.Style.WindowRadius or 14),
+            })
+        )
         ApplyLiquidGlass(WindowStuff, {
             Color = WindowConfig.GlassConfig.NavColor or WindowConfig.GlassConfig.Color or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
             Accent = WindowConfig.GlassConfig.Accent,
-            BackgroundTransparency = WindowConfig.GlassConfig.NavTransparency or 0.22,
+            BackgroundTransparency = WindowConfig.GlassConfig.NavTransparency or 0.46,
             Radius = WindowConfig.TopbarTabs and 14 or (OrionLib.Style.WindowRadius or 12),
-            EdgeTransparency = 0.52,
+            StrokeTransparency = WindowConfig.GlassConfig.NavStrokeTransparency or 0.8,
+            HighlightTransparency = 0.92,
+            Shadow = false,
         })
     end
 
@@ -3811,9 +3916,12 @@ function OrionLib:MakeWindow(WindowConfig)
             ApplyLiquidGlass(TabFrame, {
                 Color = GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
                 Accent = GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
-                BackgroundTransparency = 0.42,
+                BackgroundTransparency = 0.54,
                 Radius = 12,
                 Decorations = false,
+                StrokeTransparency = 0.78,
+                HighlightTransparency = 0.94,
+                Shadow = false,
             })
         end
 
@@ -3846,10 +3954,12 @@ function OrionLib:MakeWindow(WindowConfig)
             ApplyLiquidGlass(Container, {
                 Color = WindowConfig.GlassConfig.PageColor or WindowConfig.GlassConfig.Color or GetThemeValue("Main", Color3.fromRGB(18, 20, 27)),
                 Accent = WindowConfig.GlassConfig.Accent,
-                BackgroundTransparency = WindowConfig.GlassConfig.PageTransparency or 0.36,
+                BackgroundTransparency = WindowConfig.GlassConfig.PageTransparency or 0.5,
                 Radius = WindowConfig.GlassConfig.PageRadius or 12,
-                EdgeTransparency = 0.58,
                 Decorations = false,
+                StrokeTransparency = WindowConfig.GlassConfig.PageStrokeTransparency or 0.84,
+                HighlightTransparency = 0.94,
+                Shadow = false,
             })
         end
         Tabs.Button = TabFrame
@@ -4538,9 +4648,11 @@ function OrionLib:MakeWindow(WindowConfig)
                     TabBox.Glass = ApplyLiquidGlass(TabBoxFrame, TabBoxConfig.GlassConfig or {
                         Color = TabBoxConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
                         Accent = TabBoxConfig.Color,
-                        BackgroundTransparency = 0.25,
+                        BackgroundTransparency = 0.38,
                         Radius = 13,
-                        EdgeTransparency = 0.54,
+                        StrokeTransparency = 0.8,
+                        HighlightTransparency = 0.92,
+                        Shadow = false,
                     })
                 end
 
@@ -5632,8 +5744,11 @@ function OrionLib:MakeWindow(WindowConfig)
                     Button.Glass = ApplyLiquidGlass(ButtonFrame, ButtonConfig.GlassConfig or ButtonConfig.LiquidGlassConfig or {
                         Color = ButtonConfig.Color or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
                         Accent = ButtonConfig.Accent or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
-                        BackgroundTransparency = 0.24,
+                        BackgroundTransparency = 0.36,
                         Radius = 10,
+                        StrokeTransparency = 0.8,
+                        HighlightTransparency = 0.92,
+                        Shadow = false,
                     })
                     Click.ZIndex = 40
                 end
@@ -6678,15 +6793,20 @@ function OrionLib:MakeWindow(WindowConfig)
                     Toggle.Glass = ApplyLiquidGlass(ToggleFrame, ToggleConfig.GlassConfig or ToggleConfig.LiquidGlassConfig or {
                         Color = ToggleConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
                         Accent = ToggleConfig.Color,
-                        BackgroundTransparency = 0.26,
+                        BackgroundTransparency = 0.38,
                         Radius = 11,
+                        StrokeTransparency = 0.8,
+                        HighlightTransparency = 0.92,
+                        Shadow = false,
                     })
                     ApplyLiquidGlass(ToggleBox, {
                         Color = ToggleConfig.Color,
                         Accent = ToggleConfig.Color,
-                        BackgroundTransparency = 0.42,
+                        BackgroundTransparency = 0.48,
                         Radius = ToggleConfig.Type == "Switch" and 12 or 6,
-                        EdgeTransparency = 0.7,
+                        StrokeTransparency = 0.82,
+                        HighlightTransparency = 0.93,
+                        Shadow = false,
                     })
                     Click.ZIndex = 40
                 end
@@ -8492,23 +8612,30 @@ function OrionLib:MakeWindow(WindowConfig)
                     Colorpicker.Glass = ApplyLiquidGlass(ColorpickerFrame, ColorpickerConfig.GlassConfig or ColorpickerConfig.LiquidGlassConfig or {
                         Color = ColorpickerConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
                         Accent = Colorpicker.Value,
-                        BackgroundTransparency = 0.24,
+                        BackgroundTransparency = 0.38,
                         Radius = 12,
+                        StrokeTransparency = 0.8,
+                        HighlightTransparency = 0.92,
+                        Shadow = false,
                     })
                     ApplyLiquidGlass(ColorpickerBox, {
                         Color = Colorpicker.Value,
                         Accent = Colorpicker.Value,
-                        BackgroundTransparency = 0.2,
+                        BackgroundTransparency = 0.28,
                         Radius = 7,
-                        EdgeTransparency = 0.64,
+                        StrokeTransparency = 0.78,
+                        HighlightTransparency = 0.9,
+                        Shadow = false,
                     })
                     ApplyLiquidGlass(ColorP, {
                         Color = Colorpicker.Value,
                         Accent = Colorpicker.Value,
-                        BackgroundTransparency = 0.12,
+                        BackgroundTransparency = 0.2,
                         Radius = 10,
-                        EdgeTransparency = 0.7,
                         Decorations = false,
+                        StrokeTransparency = 0.78,
+                        HighlightTransparency = 0.9,
+                        Shadow = false,
                     })
                     Click.ZIndex = 40
                 end
@@ -8916,9 +9043,11 @@ function OrionLib:MakeWindow(WindowConfig)
                 Group.Glass = ApplyLiquidGlass(GroupFrame, GroupConfig.GlassConfig or {
                     Color = GroupConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
                     Accent = GroupConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
-                    BackgroundTransparency = 0.3,
+                    BackgroundTransparency = 0.42,
                     Radius = 12,
-                    EdgeTransparency = 0.6,
+                    StrokeTransparency = 0.82,
+                    HighlightTransparency = 0.92,
+                    Shadow = false,
                 })
             end
             AddConnection(GroupFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
@@ -8933,6 +9062,16 @@ function OrionLib:MakeWindow(WindowConfig)
                 config.Name = config.Name or config.Title or "Button"
                 return Group:AddButton(config)
             end
+            Group.GlassButton = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Glass Button"
+                config.Glass = true
+                config.LiquidGlass = config.LiquidGlass ~= false
+                return Group:AddButton(config)
+            end
+            Group.ButtonGlass = Group.GlassButton
+            Group.LiquidButton = Group.GlassButton
+            Group.ButtonGlassLiquid = Group.GlassButton
             Group.HighlightButton = function(_, config)
                 config = TranslateConfig(config or {})
                 config.Name = config.Name or config.Title or "Highlight Button"
@@ -8948,6 +9087,18 @@ function OrionLib:MakeWindow(WindowConfig)
                 config.Default = config.Default ~= nil and config.Default or config.Value
                 return Group:AddToggle(config)
             end
+            Group.GlassToggle = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Glass Toggle"
+                config.Default = config.Default ~= nil and config.Default or config.Value
+                config.Type = config.Type or "Switch"
+                config.Glass = true
+                config.LiquidGlass = config.LiquidGlass ~= false
+                return Group:AddToggle(config)
+            end
+            Group.ToggleGlass = Group.GlassToggle
+            Group.LiquidToggle = Group.GlassToggle
+            Group.ToggleGlassLiquid = Group.GlassToggle
             Group.Slider = function(_, config)
                 config = TranslateConfig(config or {})
                 config.Name = config.Name or config.Title or "Slider"
@@ -8966,6 +9117,17 @@ function OrionLib:MakeWindow(WindowConfig)
                 config.Default = config.Default ~= nil and config.Default or config.Value
                 return Group:AddTextbox(config)
             end
+            Group.GlassColorpicker = function(_, config)
+                config = TranslateConfig(config or {})
+                config.Name = config.Name or config.Title or "Glass Colorpicker"
+                config.Default = config.Default ~= nil and config.Default or config.Value
+                config.Glass = true
+                config.GlassMorph = true
+                return Group:AddColorpicker(config)
+            end
+            Group.GlassColorPicker = Group.GlassColorpicker
+            Group.ColorpickerGlass = Group.GlassColorpicker
+            Group.ColorPickerGlass = Group.GlassColorpicker
             Group.Paragraph = function(_, config)
                 config = TranslateConfig(config or {})
                 return Group:AddParagraph(config.Title or config.Name or "Paragraph", config.Content or config.Desc or config.Description or "")

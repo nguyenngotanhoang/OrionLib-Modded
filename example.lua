@@ -25,6 +25,12 @@ local Loader = OrionLib:CreateBootstrapLoader({
     Content = "Caching icons and preparing Orion UI...",
     Icon = "solar:stars-bold-duotone",
     AutoClose = false,
+    GlassConfig = {
+        BackgroundTransparency = 0.3,
+        StrokeTransparency = 0.78,
+        ShadowTransparency = 0.72,
+        ShadowBlur = 22,
+    },
 })
 Loader:SetProgress(0.25, "Resolving local/custom assets")
 
@@ -38,9 +44,15 @@ local Window = OrionLib:CreateWindow({
     TopbarTabs = true,
     Glass = true,
     GlassConfig = {
-        BackgroundTransparency = 0.22,
-        PageTransparency = 0.38,
-        NavTransparency = 0.3,
+        BackgroundTransparency = 0.32,
+        PageTransparency = 0.5,
+        NavTransparency = 0.48,
+        StrokeTransparency = 0.76,
+        PageStrokeTransparency = 0.84,
+        NavStrokeTransparency = 0.8,
+        ShadowTransparency = 0.72,
+        ShadowBlur = 24,
+        Radius = 14,
         Accent = Color3.fromRGB(125, 211, 252),
     },
     TopbarButtons = {
