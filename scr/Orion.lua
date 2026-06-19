@@ -165,10 +165,12 @@ local BundleFactory = type(BundleFactoryModule) == "function"
             Color3 = Color3,
         })
     or nil
-    
+
 -- Service KeySystem by WindUI and no Orion/Feather fallback, thank WindUI!
 local function UrlKeySystem(apiConfig)
-    if not apiConfig or not apiConfig.Type then return nil end
+    if not apiConfig or not apiConfig.Type then
+        return nil
+    end
     local ServiceKey = loadstring(game:HttpGet("https://raw.githubusercontent.com/Articles-Hub/ROBLOXScript/refs/heads/main/Library/Orion/service.luau"))()
     local apiType = apiConfig.Type:lower()
     local init = {
@@ -177,7 +179,7 @@ local function UrlKeySystem(apiConfig)
         end,
         luarmor = function()
             return ServiceKey:Luarmor(apiConfig.ScriptId, apiConfig.Discord)
-        end
+        end,
     }
     local initializer = init[apiType]
     if initializer then
@@ -1016,6 +1018,197 @@ function OrionLib:AddThemeObject(Object, Type)
     return Object
 end
 
+local LiquidGlassDefaults = {
+    BackgroundTransparency = 0.18,
+    StrokeTransparency = 0.28,
+    HighlightTransparency = 0.74,
+    EdgeTransparency = 0.42,
+    Radius = 12,
+    BlurRadius = 10,
+    EdgeIntensity = 1,
+}
+
+local function ResolveLiquidGlassConfig(config, fallbackColor)
+    config = config == true and {} or config or {}
+    return {
+        Color = config.Color or config.Tint or fallbackColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+        Accent = config.Accent or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+        BackgroundTransparency = config.BackgroundTransparency or config.Transparency or LiquidGlassDefaults.BackgroundTransparency,
+        StrokeTransparency = config.StrokeTransparency or LiquidGlassDefaults.StrokeTransparency,
+        HighlightTransparency = config.HighlightTransparency or LiquidGlassDefaults.HighlightTransparency,
+        EdgeTransparency = config.EdgeTransparency or LiquidGlassDefaults.EdgeTransparency,
+        Radius = config.Radius or config.CornerRadius or LiquidGlassDefaults.Radius,
+        BlurRadius = config.BlurRadius or config.Blur or LiquidGlassDefaults.BlurRadius,
+        EdgeIntensity = config.EdgeIntensity or LiquidGlassDefaults.EdgeIntensity,
+        ClipsDescendants = config.ClipsDescendants,
+        Decorations = config.Decorations,
+    }
+end
+
+local function RemoveLiquidGlassChildren(guiObject)
+    for _, child in ipairs(guiObject:GetChildren()) do
+        if type(child.Name) == "string" and child.Name:find("^OrionLiquidGlass") then
+            child:Destroy()
+        end
+    end
+end
+
+local function ApplyLiquidGlass(guiObject, config)
+    if typeof(guiObject) ~= "Instance" or not guiObject:IsA("GuiObject") then
+        return nil
+    end
+
+    local glassConfig = ResolveLiquidGlassConfig(config, guiObject.BackgroundColor3)
+    RemoveLiquidGlassChildren(guiObject)
+
+    pcall(function()
+        guiObject.BackgroundColor3 = glassConfig.Color
+        guiObject.BackgroundTransparency = glassConfig.BackgroundTransparency
+        guiObject.ClipsDescendants = glassConfig.ClipsDescendants ~= false
+        guiObject:SetAttribute("OrionLiquidGlass", true)
+        guiObject:SetAttribute("BlurRadius", glassConfig.BlurRadius)
+    end)
+
+    local corner = guiObject:FindFirstChildOfClass("UICorner")
+    if not corner then
+        corner = Create("UICorner", {
+            Name = "OrionLiquidGlassCorner",
+            CornerRadius = UDim.new(0, glassConfig.Radius),
+        })
+        corner.Parent = guiObject
+    else
+        corner.CornerRadius = UDim.new(0, glassConfig.Radius)
+    end
+
+    local gradient = Create("UIGradient", {
+        Name = "OrionLiquidGlassGradient",
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, ColorAdd(glassConfig.Color, 26)),
+            ColorSequenceKeypoint.new(0.42, glassConfig.Color),
+            ColorSequenceKeypoint.new(1, ColorAdd(glassConfig.Color, -28)),
+        }),
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.02),
+            NumberSequenceKeypoint.new(0.55, 0.26),
+            NumberSequenceKeypoint.new(1, 0.08),
+        }),
+        Rotation = 116,
+    })
+    gradient.Parent = guiObject
+
+    local stroke = Create("UIStroke", {
+        Name = "OrionLiquidGlassStroke",
+        Color = ColorAdd(glassConfig.Accent, 24),
+        Thickness = 1,
+        Transparency = glassConfig.StrokeTransparency,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    })
+    stroke.Parent = guiObject
+
+    if glassConfig.Decorations ~= false then
+        local shine = Create("Frame", {
+            Name = "OrionLiquidGlassShine",
+            Size = UDim2.new(1, 0, 0.44, 0),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = glassConfig.HighlightTransparency,
+            BorderSizePixel = 0,
+            ZIndex = math.max(guiObject.ZIndex, 1),
+        })
+        Create("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.3),
+                NumberSequenceKeypoint.new(0.58, 0.88),
+                NumberSequenceKeypoint.new(1, 1),
+            }),
+            Rotation = 90,
+            Parent = shine,
+        })
+        shine.Parent = guiObject
+
+        local leftEdge = Create("Frame", {
+            Name = "OrionLiquidGlassEdgeLeft",
+            Size = UDim2.new(0, math.max(1, glassConfig.EdgeIntensity), 1, -8),
+            Position = UDim2.new(0, 4, 0, 4),
+            BackgroundColor3 = ColorAdd(glassConfig.Accent, 34),
+            BackgroundTransparency = glassConfig.EdgeTransparency,
+            BorderSizePixel = 0,
+            ZIndex = math.max(guiObject.ZIndex, 1),
+        })
+        Create("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(0.25, 0.15),
+                NumberSequenceKeypoint.new(0.75, 0.15),
+                NumberSequenceKeypoint.new(1, 1),
+            }),
+            Rotation = 90,
+            Parent = leftEdge,
+        })
+        leftEdge.Parent = guiObject
+
+        local rightEdge = Create("Frame", {
+            Name = "OrionLiquidGlassEdgeRight",
+            AnchorPoint = Vector2.new(1, 0),
+            Size = UDim2.new(0, 1, 1, -8),
+            Position = UDim2.new(1, -4, 0, 4),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = math.clamp(glassConfig.EdgeTransparency + 0.18, 0, 1),
+            BorderSizePixel = 0,
+            ZIndex = math.max(guiObject.ZIndex, 1),
+        })
+        rightEdge.Parent = guiObject
+    end
+
+    local controller = {
+        Object = guiObject,
+        Config = glassConfig,
+    }
+
+    function controller:SetTint(color)
+        if typeof(color) ~= "Color3" or not guiObject.Parent then
+            return
+        end
+        glassConfig.Color = color
+        guiObject.BackgroundColor3 = color
+        gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, ColorAdd(color, 26)),
+            ColorSequenceKeypoint.new(0.42, color),
+            ColorSequenceKeypoint.new(1, ColorAdd(color, -28)),
+        })
+    end
+
+    function controller:SetTransparency(value)
+        value = math.clamp(tonumber(value) or glassConfig.BackgroundTransparency, 0, 1)
+        glassConfig.BackgroundTransparency = value
+        if guiObject.Parent then
+            guiObject.BackgroundTransparency = value
+        end
+    end
+
+    function controller:Destroy()
+        if guiObject.Parent then
+            RemoveLiquidGlassChildren(guiObject)
+            guiObject:SetAttribute("OrionLiquidGlass", nil)
+        end
+    end
+
+    return controller
+end
+
+function OrionLib:SetGlassDefaults(config)
+    if type(config) ~= "table" then
+        return LiquidGlassDefaults
+    end
+    for key, value in pairs(config) do
+        LiquidGlassDefaults[key] = value
+    end
+    return LiquidGlassDefaults
+end
+
+function OrionLib:ApplyGlass(guiObject, config)
+    return ApplyLiquidGlass(guiObject, config)
+end
+
 function OrionLib:SetTheme(themeName)
     if not OrionLib.Themes[themeName] then
         return
@@ -1071,19 +1264,19 @@ function OrionLib:GetThemes()
 end
 
 function OrionLib:SetColor(typeName, color)
-	local theme = OrionLib.Themes[OrionLib.SelectedTheme]
-	theme[typeName] = color
-	local objects = OrionLib.ThemeObjects[typeName]
-	if objects then
-		for _, obj in ipairs(objects) do
-			if obj and obj.Parent then
-				local prop = ReturnProperty(obj)
-				if prop then
-					obj[prop] = color
-				end
-			end
-		end
-	end
+    local theme = OrionLib.Themes[OrionLib.SelectedTheme]
+    theme[typeName] = color
+    local objects = OrionLib.ThemeObjects[typeName]
+    if objects then
+        for _, obj in ipairs(objects) do
+            if obj and obj.Parent then
+                local prop = ReturnProperty(obj)
+                if prop then
+                    obj[prop] = color
+                end
+            end
+        end
+    end
 end
 
 function OrionLib:GetCurrentTheme()
@@ -1228,9 +1421,15 @@ local function NormalizeWindowConfig(config)
     end
     config = TranslateConfig(config or {})
     local sidebarCompact = config.SidebarCompact or config.IconOnly or config.CompactSidebar or config.SidebarCompacted or false
+    local topbarTabs = config.TopbarTabs
+        or config.TopbarNavigation
+        or config.Navigation == "Topbar"
+        or config.Navigation == "topbar"
+        or config.Navbar == "Topbar"
+        or config.Navbar == "topbar"
     local searchBar = config.SearchBar
         or (config.HideSearchBar and nil or { Default = "Search Tabs", DefaultMain = "Search Elements", ClearTextOnFocus = true, Tabs = true, Mains = true })
-    if sidebarCompact then
+    if sidebarCompact or topbarTabs then
         searchBar = nil
     end
     return {
@@ -1248,6 +1447,8 @@ local function NormalizeWindowConfig(config)
         IntroToggleIcon = ResolveIcon(config.IntroToggleIcon or (config.OpenButton and config.OpenButton.Icon) or config.Icon or "panel-top-open"),
         Size = config.Size or UDim2.fromOffset(615, 344),
         SidebarCompact = sidebarCompact,
+        TopbarTabs = topbarTabs,
+        Navigation = topbarTabs and "Topbar" or "Sidebar",
         SidebarWidth = config.SidebarWidth,
         SidebarCompactWidth = config.SidebarCompactWidth or config.CompactWidth or 48,
         SearchBar = searchBar,
@@ -1256,6 +1457,8 @@ local function NormalizeWindowConfig(config)
         Image = config.Image or config.Background,
         KeySystem = config.KeySystem or config.Key or config.KeyAuth,
         TopbarButtons = config.TopbarButtons or config.Topbar or config.TopbarButton,
+        Glass = config.Glass or config.LiquidGlass or config.GlassLiquid,
+        GlassConfig = config.GlassConfig or config.LiquidGlassConfig,
     }
 end
 
@@ -1760,7 +1963,7 @@ function OrionLib:MakeKeySystem(KeyConfig)
         if apiSystem then
             KeyConfig.Callback = function(input)
                 if tostring(input) == tostring(apiSystem.Verify) then
-	                return true
+                    return true
                 end
                 return false
             end
@@ -1781,16 +1984,18 @@ function OrionLib:MakeKeySystem(KeyConfig)
     KeyConfig.SaveKey = KeyConfig.SaveKey == true
     KeyConfig.FileName = KeyConfig.FileName or "OrionLibKey.txt"
     KeyConfig.Keys = KeyConfig.Keys or KeyConfig.ValidKeys or {}
-    KeyConfig.Callback = KeyConfig.Callback or KeyConfig.Validate or function(input)
-        if type(KeyConfig.Keys) == "table" then
-            for _, key in ipairs(KeyConfig.Keys) do
-                if tostring(input) == tostring(key) then
-                    return true
+    KeyConfig.Callback = KeyConfig.Callback
+        or KeyConfig.Validate
+        or function(input)
+            if type(KeyConfig.Keys) == "table" then
+                for _, key in ipairs(KeyConfig.Keys) do
+                    if tostring(input) == tostring(key) then
+                        return true
+                    end
                 end
             end
+            return false
         end
-        return false
-    end
     KeyConfig.Icon = ResolveIcon(KeyConfig.Icon or "key-round")
     local KeyTheme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
     local KeyMain = KeyTheme.Main or Color3.fromRGB(18, 20, 27)
@@ -1811,12 +2016,12 @@ function OrionLib:MakeKeySystem(KeyConfig)
     end
 
     local unlocked = false
-    local KeyGui = Create("ScreenGui", {Name = "OrionKeySystem", Parent = PARENT, ResetOnSpawn = false})
+    local KeyGui = Create("ScreenGui", { Name = "OrionKeySystem", Parent = PARENT, ResetOnSpawn = false })
     local Backdrop = Create("Frame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundColor3 = KeyMain,
         BackgroundTransparency = 0.16,
-        Parent = KeyGui
+        Parent = KeyGui,
     })
 
     local Card = Create("Frame", {
@@ -1825,10 +2030,10 @@ function OrionLib:MakeKeySystem(KeyConfig)
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundColor3 = KeyMain,
         ClipsDescendants = true,
-        Parent = Backdrop
+        Parent = Backdrop,
     }, {
-        Create("UICorner", {CornerRadius = UDim.new(0, 12)}),
-        Create("UIStroke", {Color = KeyStroke, Thickness = 1.5}),
+        Create("UICorner", { CornerRadius = UDim.new(0, 12) }),
+        Create("UIStroke", { Color = KeyStroke, Thickness = 1.5 }),
         Create("UIGradient", {
             Rotation = 24,
             Color = ColorSequence.new({
@@ -1839,13 +2044,13 @@ function OrionLib:MakeKeySystem(KeyConfig)
             Transparency = NumberSequence.new({
                 NumberSequenceKeypoint.new(0, 0.72),
                 NumberSequenceKeypoint.new(1, 0.03),
-            })
+            }),
         }),
         Create("Frame", {
             Size = UDim2.new(1, 0, 0, 3),
             BackgroundColor3 = KeyAccent,
-            BorderSizePixel = 0
-        })
+            BorderSizePixel = 0,
+        }),
     })
 
     local IconWrap = Create("Frame", {
@@ -1853,8 +2058,8 @@ function OrionLib:MakeKeySystem(KeyConfig)
         Position = UDim2.new(0, 18, 0, 18),
         BackgroundColor3 = KeyAccent,
         BackgroundTransparency = 0.12,
-        Parent = Card
-    }, { Create("UICorner", {CornerRadius = UDim.new(0, 10)}) })
+        Parent = Card,
+    }, { Create("UICorner", { CornerRadius = UDim.new(0, 10) }) })
 
     local IconImage = Create("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1862,7 +2067,7 @@ function OrionLib:MakeKeySystem(KeyConfig)
         Size = UDim2.new(0, 23, 0, 23),
         BackgroundTransparency = 1,
         ImageColor3 = KeyText,
-        Parent = IconWrap
+        Parent = IconWrap,
     })
     ApplyIconToObject(IconImage, KeyConfig.Icon, 48)
 
@@ -1875,7 +2080,7 @@ function OrionLib:MakeKeySystem(KeyConfig)
         TextColor3 = KeyText,
         Text = KeyConfig.Title or "Key System",
         TextXAlignment = "Left",
-        Parent = Card
+        Parent = Card,
     })
 
     local Subtitle = Create("TextLabel", {
@@ -1887,7 +2092,7 @@ function OrionLib:MakeKeySystem(KeyConfig)
         TextColor3 = KeyTextDark,
         Text = KeyConfig.Subtitle or "Enter your key to continue",
         TextXAlignment = "Left",
-        Parent = Card
+        Parent = Card,
     })
 
     local Input = Create("TextBox", {
@@ -1899,10 +2104,10 @@ function OrionLib:MakeKeySystem(KeyConfig)
         Text = savedKey or "",
         Font = Enum.Font.GothamSemibold,
         TextSize = 14,
-        Parent = Card
+        Parent = Card,
     }, {
-        Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
-        Create("UIStroke", {Color = KeyStroke, Thickness = 1})
+        Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+        Create("UIStroke", { Color = KeyStroke, Thickness = 1 }),
     })
 
     local Status = Create("TextLabel", {
@@ -1916,13 +2121,17 @@ function OrionLib:MakeKeySystem(KeyConfig)
         TextXAlignment = "Left",
         TextYAlignment = "Top",
         TextWrapped = true,
-        Parent = Card
+        Parent = Card,
     })
 
     local btnList = {}
     table.insert(btnList, "Submit")
-    if KeyConfig.Link then table.insert(btnList, "GetKey") end
-    if KeyConfig.Discord then table.insert(btnList, "Discord") end
+    if KeyConfig.Link then
+        table.insert(btnList, "GetKey")
+    end
+    if KeyConfig.Discord then
+        table.insert(btnList, "Discord")
+    end
     local totalBtns = #btnList
     local btnWidthScale = (1 / totalBtns)
     local padding = 12
@@ -1934,16 +2143,16 @@ function OrionLib:MakeKeySystem(KeyConfig)
         Text = KeyConfig.SubmitText or "Unlock",
         Font = Enum.Font.GothamBold,
         TextSize = 14,
-        Parent = Card
+        Parent = Card,
     }, {
-        Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
-        Create("UIStroke", {Color = ColorAdd(KeyAccent, 22), Thickness = 1, Transparency = 0.35}),
+        Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+        Create("UIStroke", { Color = ColorAdd(KeyAccent, 22), Thickness = 1, Transparency = 0.35 }),
         Create("UIGradient", {
             Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, ColorAdd(KeyAccent, 18)),
                 ColorSequenceKeypoint.new(1, ColorAdd(KeyAccent, -24)),
-            })
-        })
+            }),
+        }),
     })
 
     if KeyConfig.Link then
@@ -1955,20 +2164,20 @@ function OrionLib:MakeKeySystem(KeyConfig)
             Text = KeyConfig.GetKeyText or "Get Key",
             Font = Enum.Font.GothamBold,
             TextSize = 14,
-            Parent = Card
+            Parent = Card,
         }, {
-            Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
-            Create("UIStroke", {Color = KeyStroke, Thickness = 1})
+            Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+            Create("UIStroke", { Color = KeyStroke, Thickness = 1 }),
         })
         AddConnection(GetKey.MouseButton1Click, function()
-	        local Copylink = KeyConfig.Link
-			if Copylink then
-				if type(Copylink) == "function" then
-					Copylink()
-				elseif type(Copylink) == "string" then
-					setclipboard(Copylink)
-				end
-			end
+            local Copylink = KeyConfig.Link
+            if Copylink then
+                if type(Copylink) == "function" then
+                    Copylink()
+                elseif type(Copylink) == "string" then
+                    setclipboard(Copylink)
+                end
+            end
             Status.Text = "Key link copied to clipboard"
             Status.TextColor3 = Color3.fromRGB(90, 220, 140)
         end)
@@ -1983,10 +2192,10 @@ function OrionLib:MakeKeySystem(KeyConfig)
             Text = "Discord",
             Font = Enum.Font.GothamBold,
             TextSize = 14,
-            Parent = Card
+            Parent = Card,
         }, {
-            Create("UICorner", {CornerRadius = UDim.new(0, 8)}),
-            Create("UIStroke", {Color = Color3.fromRGB(114, 137, 218), Thickness = 1})
+            Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+            Create("UIStroke", { Color = Color3.fromRGB(114, 137, 218), Thickness = 1 }),
         })
         AddConnection(DiscordBtn.MouseButton1Click, function()
             setclipboard(tostring(KeyConfig.Discord))
@@ -2778,10 +2987,27 @@ function OrionLib:MakeWindow(WindowConfig)
     WindowConfig.Theme = WindowConfig.Theme or "Default"
     WindowConfig.IntroIcon = ResolveIcon(WindowConfig.IntroIcon or WindowConfig.Icon or "sparkles")
     WindowConfig.Size = mobileScaleSize(WindowConfig.Size or UDim2.fromOffset(615, 344))
+    WindowConfig.TopbarTabs = WindowConfig.TopbarTabs
+        or WindowConfig.TopbarNavigation
+        or WindowConfig.Navigation == "Topbar"
+        or WindowConfig.Navigation == "topbar"
+        or WindowConfig.Navbar == "Topbar"
+        or WindowConfig.Navbar == "topbar"
+        or false
+    WindowConfig.Navigation = WindowConfig.TopbarTabs and "Topbar" or "Sidebar"
+    WindowConfig.Glass = WindowConfig.Glass or WindowConfig.LiquidGlass or WindowConfig.GlassLiquid or false
+    WindowConfig.GlassConfig = WindowConfig.GlassConfig or WindowConfig.LiquidGlassConfig or {}
+    if type(WindowConfig.GlassConfig) ~= "table" then
+        WindowConfig.GlassConfig = {}
+    end
     WindowConfig.SidebarCompact = WindowConfig.SidebarCompact or WindowConfig.IconOnly or WindowConfig.CompactSidebar or WindowConfig.SidebarCompacted or false
     WindowConfig.SidebarCompactWidth = WindowConfig.SidebarCompactWidth or WindowConfig.CompactWidth or 48
     WindowConfig.SidebarWidth = WindowConfig.SidebarCompact and WindowConfig.SidebarCompactWidth or (WindowConfig.SidebarWidth or 150)
-    if WindowConfig.SidebarCompact then
+    if WindowConfig.TopbarTabs then
+        WindowConfig.SidebarWidth = 0
+        WindowConfig.SidebarCompact = false
+        WindowConfig.SearchBar = nil
+    elseif WindowConfig.SidebarCompact then
         WindowConfig.SearchBar = nil
     elseif WindowConfig.SearchBar == nil then
         WindowConfig.SearchBar = WindowConfig.HideSearchBar and nil or WindowConfig.Search
@@ -2804,21 +3030,42 @@ function OrionLib:MakeWindow(WindowConfig)
         end
     end
 
-    Window = { Size = WindowConfig.Size, SidebarCompact = WindowConfig.SidebarCompact, SidebarWidth = WindowConfig.SidebarWidth }
+    Window = {
+        Size = WindowConfig.Size,
+        SidebarCompact = WindowConfig.SidebarCompact,
+        SidebarWidth = WindowConfig.SidebarWidth,
+        TopbarTabs = WindowConfig.TopbarTabs,
+        Navigation = WindowConfig.Navigation,
+    }
+
+    local tabHolderProps = WindowConfig.TopbarTabs
+            and {
+                Size = UDim2.new(1, -18, 1, 0),
+                Position = UDim2.new(0, 9, 0, 0),
+                ScrollingDirection = Enum.ScrollingDirection.X,
+                ScrollBarThickness = 0,
+                AutomaticCanvasSize = Enum.AutomaticSize.X,
+            }
+        or WindowConfig.SearchBar and WindowConfig.SearchBar.Tabs == true and {
+            Size = UDim2.new(1, 0, 1, WindowConfig.SidebarCompact and -50 or -90),
+            Position = UDim2.new(0, 0, 0, WindowConfig.SidebarCompact and 0 or 40),
+        }
+        or {
+            Size = UDim2.new(1, 0, 1, WindowConfig.SidebarCompact and 0 or -50),
+        }
+
+    local tabHolderLayout = MakeElement("List")
+    if WindowConfig.TopbarTabs then
+        tabHolderLayout.FillDirection = Enum.FillDirection.Horizontal
+        tabHolderLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+        tabHolderLayout.Padding = UDim.new(0, 8)
+    end
 
     local TabHolder = OrionLib:AddThemeObject(
-        SetChildren(
-            SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 4), WindowConfig.SearchBar and WindowConfig.SearchBar.Tabs == true and {
-                Size = UDim2.new(1, 0, 1, WindowConfig.SidebarCompact and -50 or -90),
-                Position = UDim2.new(0, 0, 0, WindowConfig.SidebarCompact and 0 or 40),
-            } or {
-                Size = UDim2.new(1, 0, 1, WindowConfig.SidebarCompact and 0 or -50),
-            }),
-            {
-                MakeElement("List"),
-                MakeElement("Padding", 8, 0, 0, 8),
-            }
-        ),
+        SetChildren(SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), WindowConfig.TopbarTabs and 0 or 4), tabHolderProps), {
+            tabHolderLayout,
+            MakeElement("Padding", WindowConfig.TopbarTabs and 0 or 8, WindowConfig.TopbarTabs and 0 or 0, 0, WindowConfig.TopbarTabs and 0 or 8),
+        }),
         "Divider"
     )
 
@@ -2827,7 +3074,11 @@ function OrionLib:MakeWindow(WindowConfig)
     end
 
     AddConnection(TabHolder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        TabHolder.CanvasSize = UDim2.new(0, 0, 0, TabHolder.UIListLayout.AbsoluteContentSize.Y + 16)
+        if WindowConfig.TopbarTabs then
+            TabHolder.CanvasSize = UDim2.new(0, TabHolder.UIListLayout.AbsoluteContentSize.X + 18, 0, 0)
+        else
+            TabHolder.CanvasSize = UDim2.new(0, 0, 0, TabHolder.UIListLayout.AbsoluteContentSize.Y + 16)
+        end
     end)
 
     local CloseBtn = SetChildren(
@@ -2874,34 +3125,36 @@ function OrionLib:MakeWindow(WindowConfig)
     })
 
     local hasLinkVideo = typeof(WindowConfig.LinkVideo) == "string"
+    local navigationSize = WindowConfig.TopbarTabs and UDim2.new(1, -20, 0, 38) or UDim2.new(0, WindowConfig.SidebarWidth, 1, -50)
+    local navigationPosition = WindowConfig.TopbarTabs and UDim2.new(0, 10, 0, 50) or UDim2.new(0, 0, 0, 50)
     local WindowStuff = OrionLib:AddThemeObject(
         SetChildren(
             SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, OrionLib.Style.WindowRadius or 12), {
-                Size = UDim2.new(0, WindowConfig.SidebarWidth, 1, -50),
-                Position = UDim2.new(0, 0, 0, 50),
+                Size = navigationSize,
+                Position = navigationPosition,
                 BackgroundTransparency = hasLinkVideo and 1 or 0,
             }),
             {
                 OrionLib:AddThemeObject(
                     SetProps(MakeElement("Frame"), {
-                        Size = UDim2.new(1, 0, 0, 10),
+                        Size = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 0) or UDim2.new(1, 0, 0, 10),
                         Position = UDim2.new(0, 0, 0, 0),
-                        Visible = not hasLinkVideo,
+                        Visible = not hasLinkVideo and not WindowConfig.TopbarTabs,
                     }),
                     "Second"
                 ),
                 OrionLib:AddThemeObject(
                     SetProps(MakeElement("Frame"), {
-                        Size = UDim2.new(0, 10, 1, 0),
+                        Size = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 0) or UDim2.new(0, 10, 1, 0),
                         Position = UDim2.new(1, -10, 0, 0),
-                        Visible = not hasLinkVideo,
+                        Visible = not hasLinkVideo and not WindowConfig.TopbarTabs,
                     }),
                     "Second"
                 ),
                 OrionLib:AddThemeObject(
                     SetProps(MakeElement("Frame"), {
-                        Size = UDim2.new(0, 1, 1, 0),
-                        Position = UDim2.new(1, -1, 0, 0),
+                        Size = WindowConfig.TopbarTabs and UDim2.new(1, 0, 0, 1) or UDim2.new(0, 1, 1, 0),
+                        Position = WindowConfig.TopbarTabs and UDim2.new(0, 0, 1, -1) or UDim2.new(1, -1, 0, 0),
                     }),
                     "Stroke"
                 ),
@@ -2910,7 +3163,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetProps(MakeElement("TFrame"), {
                         Size = UDim2.new(1, 0, 0, 50),
                         Position = UDim2.new(0, 0, 1, -50),
-                        Visible = not WindowConfig.SidebarCompact,
+                        Visible = not WindowConfig.SidebarCompact and not WindowConfig.TopbarTabs,
                     }),
                     {
                         OrionLib:AddThemeObject(
@@ -3194,6 +3447,17 @@ function OrionLib:MakeWindow(WindowConfig)
         ),
         "Main"
     )
+
+    if WindowConfig.Glass then
+        ApplyLiquidGlass(MainWindow, WindowConfig.GlassConfig)
+        ApplyLiquidGlass(WindowStuff, {
+            Color = WindowConfig.GlassConfig.NavColor or WindowConfig.GlassConfig.Color or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+            Accent = WindowConfig.GlassConfig.Accent,
+            BackgroundTransparency = WindowConfig.GlassConfig.NavTransparency or 0.22,
+            Radius = WindowConfig.TopbarTabs and 14 or (OrionLib.Style.WindowRadius or 12),
+            EdgeTransparency = 0.52,
+        })
+    end
 
     MakeResizable(MainWindow, SizeDrag, function()
         local size = MainWindow.AbsoluteSize
@@ -3486,6 +3750,7 @@ function OrionLib:MakeWindow(WindowConfig)
         local TabParent = TabConfig._Parent or TabHolder
         local TabIndent = tonumber(TabConfig._Indent or 0) or 0
         local TabWidthOffset = tonumber(TabConfig._WidthOffset or 0) or 0
+        local topbarTabWidth = math.clamp((#tostring(TabConfig.Name) * 8) + (TabConfig.Icon and 46 or 24), 82, 168)
 
         local Tabs = {
             Disabled = TabConfig.Disabled,
@@ -3497,7 +3762,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
         local TabFrame = SetChildren(
             SetProps(MakeElement("Button"), {
-                Size = UDim2.new(1, -TabWidthOffset, 0, 30),
+                Size = WindowConfig.TopbarTabs and UDim2.fromOffset(topbarTabWidth, 30) or UDim2.new(1, -TabWidthOffset, 0, 30),
                 Parent = TabParent,
                 Visible = TabConfig.Visible,
                 AutoButtonColor = not TabConfig.Disabled,
@@ -3506,9 +3771,9 @@ function OrionLib:MakeWindow(WindowConfig)
             {
                 OrionLib:AddThemeObject(
                     SetProps(MakeElement("Frame"), {
-                        Size = UDim2.new(0, 3, 0, 0),
-                        AnchorPoint = Vector2.new(0, 0.5),
-                        Position = UDim2.new(0, 0, 0.5, 0),
+                        Size = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 3) or UDim2.new(0, 3, 0, 0),
+                        AnchorPoint = WindowConfig.TopbarTabs and Vector2.new(0.5, 1) or Vector2.new(0, 0.5),
+                        Position = WindowConfig.TopbarTabs and UDim2.new(0.5, 0, 1, -2) or UDim2.new(0, 0, 0.5, 0),
                         BackgroundTransparency = 1,
                         Name = "Highlight",
                     }),
@@ -3518,7 +3783,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetProps(MakeElement("Image", TabConfig.Icon), {
                         AnchorPoint = TabConfig.IconOnly and Vector2.new(0.5, 0.5) or Vector2.new(0, 0.5),
                         Size = UDim2.new(0, TabConfig.IconOnly and 22 or 18, 0, TabConfig.IconOnly and 22 or 18),
-                        Position = TabConfig.IconOnly and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0, 10 + TabIndent, 0.5, 0),
+                        Position = TabConfig.IconOnly and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0, WindowConfig.TopbarTabs and 12 or 10 + TabIndent, 0.5, 0),
                         ImageTransparency = TabConfig.Disabled and 0.7 or 0.4,
                         Name = "Ico",
                     }),
@@ -3528,7 +3793,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetChildren(
                         SetProps(MakeElement("Label", TabConfig.Name, 14), {
                             Size = UDim2.new(1, -(35 + TabIndent), 1, 0),
-                            Position = UDim2.new(0, 35 + TabIndent, 0, 0),
+                            Position = UDim2.new(0, WindowConfig.TopbarTabs and 38 or 35 + TabIndent, 0, 0),
                             Font = Enum.Font.GothamSemibold,
                             Visible = not TabConfig.IconOnly,
                             TextTransparency = TabConfig.Disabled and 0.7 or 0.4,
@@ -3542,6 +3807,15 @@ function OrionLib:MakeWindow(WindowConfig)
         )
         TabFrame:SetAttribute("OrionTabButton", true)
         TabFrame:SetAttribute("IconOnly", TabConfig.IconOnly == true)
+        if WindowConfig.TopbarTabs and WindowConfig.Glass then
+            ApplyLiquidGlass(TabFrame, {
+                Color = GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                Accent = GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+                BackgroundTransparency = 0.42,
+                Radius = 12,
+                Decorations = false,
+            })
+        end
 
         AddItemTable(Tabs, TabConfig.Name, TabFrame)
         table.insert(AllTabs, Tabs)
@@ -3551,8 +3825,10 @@ function OrionLib:MakeWindow(WindowConfig)
         local Container = OrionLib:AddThemeObject(
             SetChildren(
                 SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
-                    Size = UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
-                    Position = UDim2.new(0, WindowConfig.SidebarWidth, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
+                    Size = WindowConfig.TopbarTabs and UDim2.new(1, 0, 1, -92)
+                        or UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
+                    Position = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 92)
+                        or UDim2.new(0, WindowConfig.SidebarWidth, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
                     Parent = MainWindow,
                     Visible = false,
                     Name = "ItemContainer",
@@ -3566,6 +3842,16 @@ function OrionLib:MakeWindow(WindowConfig)
             "Divider"
         )
         Container:SetAttribute("OrionTabContainer", true)
+        if WindowConfig.Glass then
+            ApplyLiquidGlass(Container, {
+                Color = WindowConfig.GlassConfig.PageColor or WindowConfig.GlassConfig.Color or GetThemeValue("Main", Color3.fromRGB(18, 20, 27)),
+                Accent = WindowConfig.GlassConfig.Accent,
+                BackgroundTransparency = WindowConfig.GlassConfig.PageTransparency or 0.36,
+                Radius = WindowConfig.GlassConfig.PageRadius or 12,
+                EdgeTransparency = 0.58,
+                Decorations = false,
+            })
+        end
         Tabs.Button = TabFrame
         Tabs.Container = Container
         SetMinimumZIndex(Container, 4)
@@ -3601,11 +3887,13 @@ function OrionLib:MakeWindow(WindowConfig)
                         TweenService:Create(Tab.Title, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { TextTransparency = 0.4 }):Play()
                     end
                     if Tab:FindFirstChild("Highlight") then
-                        TweenService:Create(
-                            Tab.Highlight,
-                            TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                            { Size = UDim2.new(0, 3, 0, 0), BackgroundTransparency = 1 }
-                        ):Play()
+                        TweenService
+                            :Create(
+                                Tab.Highlight,
+                                TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                                { Size = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 3) or UDim2.new(0, 3, 0, 0), BackgroundTransparency = 1 }
+                            )
+                            :Play()
                     end
                 end
             end
@@ -3634,7 +3922,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 TweenService:Create(
                     TabFrame.Highlight,
                     TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    { Size = UDim2.new(0, 3, 0, 22), BackgroundTransparency = 0 }
+                    { Size = WindowConfig.TopbarTabs and UDim2.new(1, -18, 0, 3) or UDim2.new(0, 3, 0, 22), BackgroundTransparency = 0 }
                 ):Play()
             end
             Container.Visible = true
@@ -3659,7 +3947,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 TabFrame.Title.TextTransparency = state and 0.7 or 0.4
             end
             if state and TabFrame:FindFirstChild("Highlight") then
-                TabFrame.Highlight.Size = UDim2.new(0, 3, 0, 0)
+                TabFrame.Highlight.Size = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 3) or UDim2.new(0, 3, 0, 0)
                 TabFrame.Highlight.BackgroundTransparency = 1
             end
             if state then
@@ -4245,6 +4533,16 @@ function OrionLib:MakeWindow(WindowConfig)
                     ),
                     "Second"
                 )
+                TabBox.Frame = TabBoxFrame
+                if TabBoxConfig.Glass or TabBoxConfig.LiquidGlass or WindowConfig.Glass then
+                    TabBox.Glass = ApplyLiquidGlass(TabBoxFrame, TabBoxConfig.GlassConfig or {
+                        Color = TabBoxConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                        Accent = TabBoxConfig.Color,
+                        BackgroundTransparency = 0.25,
+                        Radius = 13,
+                        EdgeTransparency = 0.54,
+                    })
+                end
 
                 local DescriptionLabel = TabBoxFrame:FindFirstChild("Description")
                 local function UpdateSize()
@@ -5328,6 +5626,17 @@ function OrionLib:MakeWindow(WindowConfig)
                     ),
                     "Second"
                 )
+                Button.Frame = ButtonFrame
+                Button.ClickArea = Click
+                if ButtonConfig.Glass or ButtonConfig.LiquidGlass or WindowConfig.GlassElements then
+                    Button.Glass = ApplyLiquidGlass(ButtonFrame, ButtonConfig.GlassConfig or ButtonConfig.LiquidGlassConfig or {
+                        Color = ButtonConfig.Color or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                        Accent = ButtonConfig.Accent or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+                        BackgroundTransparency = 0.24,
+                        Radius = 10,
+                    })
+                    Click.ZIndex = 40
+                end
 
                 AddConnection(Click.MouseEnter, function()
                     if ButtonConfig.Disabled then
@@ -5360,7 +5669,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
                         { BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 3) }
                     ):Play()
-                    spawn(function()
+                    task.spawn(function()
                         Button:Click()
                     end)
                 end)
@@ -6363,6 +6672,24 @@ function OrionLib:MakeWindow(WindowConfig)
                     ),
                     "Second"
                 )
+                Toggle.Frame = ToggleFrame
+                Toggle.ClickArea = Click
+                if ToggleConfig.Glass or ToggleConfig.LiquidGlass or WindowConfig.GlassElements then
+                    Toggle.Glass = ApplyLiquidGlass(ToggleFrame, ToggleConfig.GlassConfig or ToggleConfig.LiquidGlassConfig or {
+                        Color = ToggleConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                        Accent = ToggleConfig.Color,
+                        BackgroundTransparency = 0.26,
+                        Radius = 11,
+                    })
+                    ApplyLiquidGlass(ToggleBox, {
+                        Color = ToggleConfig.Color,
+                        Accent = ToggleConfig.Color,
+                        BackgroundTransparency = 0.42,
+                        Radius = ToggleConfig.Type == "Switch" and 12 or 6,
+                        EdgeTransparency = 0.7,
+                    })
+                    Click.ZIndex = 40
+                end
 
                 function Toggle:UpdateTweenKeyBindToggles(Object, bool)
                     if Object:FindFirstChild("Switch") and Object.Switch:FindFirstChild("Knob") then
@@ -8159,6 +8486,32 @@ function OrionLib:MakeWindow(WindowConfig)
                     ),
                     "Second"
                 )
+                Colorpicker.Frame = ColorpickerFrame
+                Colorpicker.Preview = ColorpickerBox
+                if ColorpickerConfig.Glass or ColorpickerConfig.LiquidGlass or ColorpickerConfig.GlassMorph or WindowConfig.GlassElements then
+                    Colorpicker.Glass = ApplyLiquidGlass(ColorpickerFrame, ColorpickerConfig.GlassConfig or ColorpickerConfig.LiquidGlassConfig or {
+                        Color = ColorpickerConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                        Accent = Colorpicker.Value,
+                        BackgroundTransparency = 0.24,
+                        Radius = 12,
+                    })
+                    ApplyLiquidGlass(ColorpickerBox, {
+                        Color = Colorpicker.Value,
+                        Accent = Colorpicker.Value,
+                        BackgroundTransparency = 0.2,
+                        Radius = 7,
+                        EdgeTransparency = 0.64,
+                    })
+                    ApplyLiquidGlass(ColorP, {
+                        Color = Colorpicker.Value,
+                        Accent = Colorpicker.Value,
+                        BackgroundTransparency = 0.12,
+                        Radius = 10,
+                        EdgeTransparency = 0.7,
+                        Decorations = false,
+                    })
+                    Click.ZIndex = 40
+                end
 
                 local function AddRecentColor(Col)
                     local found = false
@@ -8207,6 +8560,9 @@ function OrionLib:MakeWindow(WindowConfig)
                     ColorP.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
 
                     Colorpicker.Value = ColorpickerBox.BackgroundColor3
+                    if Colorpicker.Glass and type(Colorpicker.Glass.SetTint) == "function" then
+                        Colorpicker.Glass:SetTint(ColorAdd(Colorpicker.Value, -80))
+                    end
 
                     if not BlockCallback then
                         OrionLib:SafeScript(ColorpickerConfig.Callback, Colorpicker.Value, AlphaValue)
@@ -8555,6 +8911,16 @@ function OrionLib:MakeWindow(WindowConfig)
                 ),
                 "Second"
             )
+            Group.Frame = GroupFrame
+            if GroupConfig.Glass or GroupConfig.LiquidGlass or WindowConfig.Glass then
+                Group.Glass = ApplyLiquidGlass(GroupFrame, GroupConfig.GlassConfig or {
+                    Color = GroupConfig.GlassColor or GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                    Accent = GroupConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+                    BackgroundTransparency = 0.3,
+                    Radius = 12,
+                    EdgeTransparency = 0.6,
+                })
+            end
             AddConnection(GroupFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
                 GroupFrame.Holder.Size = UDim2.new(1, -20, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y)
                 GroupFrame.Size = UDim2.new(1, 0, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y + 46)
@@ -8654,6 +9020,17 @@ function OrionLib:MakeWindow(WindowConfig)
             return ElementFunction:AddButton(config)
         end
 
+        function ElementFunction:GlassButton(config)
+            config = NormalizeElementConfig(config, "Glass Button")
+            config.Glass = true
+            config.LiquidGlass = config.LiquidGlass ~= false
+            return ElementFunction:AddButton(config)
+        end
+
+        ElementFunction.ButtonGlass = ElementFunction.GlassButton
+        ElementFunction.LiquidButton = ElementFunction.GlassButton
+        ElementFunction.ButtonGlassLiquid = ElementFunction.GlassButton
+
         function ElementFunction:WarningBox(config)
             config = NormalizeElementConfig(config, "Warning")
             return ElementFunction:AddWarningBox(config)
@@ -8673,6 +9050,18 @@ function OrionLib:MakeWindow(WindowConfig)
             config = NormalizeElementConfig(config, "Toggle")
             return ElementFunction:AddToggle(config)
         end
+
+        function ElementFunction:GlassToggle(config)
+            config = NormalizeElementConfig(config, "Glass Toggle")
+            config.Type = config.Type or "Switch"
+            config.Glass = true
+            config.LiquidGlass = config.LiquidGlass ~= false
+            return ElementFunction:AddToggle(config)
+        end
+
+        ElementFunction.ToggleGlass = ElementFunction.GlassToggle
+        ElementFunction.LiquidToggle = ElementFunction.GlassToggle
+        ElementFunction.ToggleGlassLiquid = ElementFunction.GlassToggle
 
         function ElementFunction:Slider(config)
             config = NormalizeElementConfig(config, "Slider")
@@ -8694,6 +9083,19 @@ function OrionLib:MakeWindow(WindowConfig)
             config = NormalizeElementConfig(config, "Colorpicker")
             return ElementFunction:AddColorpicker(config)
         end
+
+        ElementFunction.ColorPicker = ElementFunction.Colorpicker
+
+        function ElementFunction:GlassColorpicker(config)
+            config = NormalizeElementConfig(config, "Glass Colorpicker")
+            config.Glass = true
+            config.GlassMorph = true
+            return ElementFunction:AddColorpicker(config)
+        end
+
+        ElementFunction.GlassColorPicker = ElementFunction.GlassColorpicker
+        ElementFunction.ColorpickerGlass = ElementFunction.GlassColorpicker
+        ElementFunction.ColorPickerGlass = ElementFunction.GlassColorpicker
 
         function ElementFunction:Paragraph(config)
             config = NormalizeElementConfig(config, "Paragraph")
@@ -8871,6 +9273,37 @@ function OrionLib:MakeWindow(WindowConfig)
         GroupConfig.Icon = ResolveIcon(GroupConfig.Icon or "folder")
         GroupConfig.Visible = GroupConfig.Visible ~= false
         GroupConfig.Collapsed = GroupConfig.Collapsed == true
+        if WindowConfig.TopbarTabs then
+            local TopbarGroup = {
+                Name = GroupConfig.Name,
+                Visible = GroupConfig.Visible,
+                Tabs = {},
+                Type = "TabGroup",
+            }
+            function TopbarGroup:Tab(TabConfig)
+                TabConfig = TranslateConfig(TabConfig or {})
+                TabConfig._Group = TopbarGroup
+                local Elements, Tab = Functions:MakeTab(TabConfig)
+                table.insert(TopbarGroup.Tabs, Tab)
+                return Elements, Tab
+            end
+            function TopbarGroup:SetCollapsed() end
+            function TopbarGroup:SetVisible(state)
+                TopbarGroup.Visible = state == true
+                for _, tab in ipairs(TopbarGroup.Tabs) do
+                    if type(tab.SetVisible) == "function" then
+                        tab:SetVisible(TopbarGroup.Visible)
+                    end
+                end
+            end
+            function TopbarGroup:SetTitle(title)
+                TopbarGroup.Name = tostring(title or TopbarGroup.Name)
+            end
+            function TopbarGroup:SetIcon(icon)
+                GroupConfig.Icon = ResolveIcon(icon or GroupConfig.Icon)
+            end
+            return TopbarGroup
+        end
         local Group = {
             Name = GroupConfig.Name,
             Collapsed = GroupConfig.Collapsed,
@@ -9518,16 +9951,16 @@ function OrionLib:BuildSettings(Tab: table)
         Name = "Theme List",
         Options = ThemeList,
     })
-    
+
     Tab:AddButton({
         Name = "Refresh List",
         Callback = function()
-	        local ThemeList = {}
-			for i in pairs(OrionLib.Themes) do
-				table.insert(ThemeList, i)
-			end
+            local ThemeList = {}
+            for i in pairs(OrionLib.Themes) do
+                table.insert(ThemeList, i)
+            end
             themeList:Refresh(ThemeList, true)
-        end
+        end,
     })
 
     Tab:AddButton({

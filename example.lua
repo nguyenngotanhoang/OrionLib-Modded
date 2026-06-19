@@ -34,9 +34,15 @@ local Window = OrionLib:CreateWindow({
     Author = "Open source UI example",
     Theme = "Midnight",
     Icon = "sparkles",
-    Size = UDim2.fromOffset(650, 390),
-    SidebarCompact = true,
-    SidebarCompactWidth = 48,
+    Size = UDim2.fromOffset(690, 430),
+    TopbarTabs = true,
+    Glass = true,
+    GlassConfig = {
+        BackgroundTransparency = 0.22,
+        PageTransparency = 0.38,
+        NavTransparency = 0.3,
+        Accent = Color3.fromRGB(125, 211, 252),
+    },
     TopbarButtons = {
         {
             Icon = "bell",
@@ -109,6 +115,11 @@ local Combat = Gameplay:Tab({
 local Farming = Gameplay:Tab({
     Title = "Farming",
     Icon = "zap",
+})
+
+local GlassLab = Window:Tab({
+    Title = "Glass Lab",
+    Icon = "droplets",
 })
 
 pcall(function()
@@ -215,7 +226,7 @@ Main:Button({
 
 Main:WarningBox({
     Title = "Mobile ready",
-    Desc = "SidebarCompact uses Lucide icons only and keeps the sidebar at 48px.",
+    Desc = "TopbarTabs keeps pages compact while Liquid Glass styling is applied to the window and pages.",
 })
 
 Main:DiscordServer({
@@ -314,6 +325,64 @@ Combat:Button({
 Farming:Paragraph({
     Title = "Grouped tab",
     Desc = "This tab lives inside Window:TabGroup and can still use every normal element.",
+})
+
+GlassLab:TabBox({
+    Title = "Liquid Glass Elements",
+    Description = "GlassButton, GlassToggle, and GlassColorpicker use layered gradients, soft strokes, and translucent cards inspired by Roblox glassmorphism patterns.",
+    Icon = "droplets",
+    Glass = true,
+    Color = Color3.fromRGB(125, 211, 252),
+})
+
+GlassLab:GlassButton({
+    Title = "Liquid Glass Button",
+    Icon = "sparkles",
+    Color = Color3.fromRGB(56, 189, 248),
+    Callback = function()
+        OrionLib:Notify({
+            Title = "Glass Button",
+            Content = "Liquid glass button clicked.",
+            Icon = "droplets",
+            Duration = 3,
+        })
+    end,
+})
+
+GlassLab:GlassToggle({
+    Title = "Liquid Glass Toggle",
+    Value = true,
+    Color = Color3.fromRGB(52, 211, 153),
+    Callback = function(enabled)
+        print("Glass toggle:", enabled)
+    end,
+})
+
+GlassLab:GlassColorpicker({
+    Title = "Glass Morph Color Picker",
+    Default = Color3.fromRGB(125, 211, 252),
+    Alpha = true,
+    Callback = function(color, alpha)
+        print("Glass color:", color, alpha)
+    end,
+})
+
+local GlassGroup = GlassLab:GroupBox({
+    Title = "Glass GroupBox",
+    Glass = true,
+})
+
+GlassGroup:GlassButton({
+    Title = "Nested Glass Action",
+    Icon = "wand-sparkles",
+    Callback = function()
+        print("Nested glass action")
+    end,
+})
+
+GlassGroup:GlassToggle({
+    Title = "Nested Glass Toggle",
+    Value = false,
 })
 
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })

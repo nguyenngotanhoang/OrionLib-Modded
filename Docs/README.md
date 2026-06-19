@@ -13,8 +13,8 @@ local Window = OrionLib:CreateWindow({
     Title = "Demo UI",
     Theme = "Dark",
     Icon = "sparkles",
-    SidebarCompact = true,
-    SidebarCompactWidth = 48,
+    TopbarTabs = true,
+    Glass = true,
     KeySystem = {
         Enabled = true,
         Keys = {"MY-KEY"},
@@ -59,8 +59,38 @@ Main:Dropdown({
 ### Window API
 
 - `OrionLib:CreateWindow(config)` / `OrionLib:Window(config)` are aliases around Orion's `MakeWindow`.
-- Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, `TopbarButtons`, and `HideSearchBar` in addition to existing Orion fields.
+- Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, `TopbarTabs`, `Glass`, `TopbarButtons`, and `HideSearchBar` in addition to existing Orion fields.
 - Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `AddTopbarButton`, `Popup`, `Dialog`, `LoadingScreen`, `CreateBootstrapLoader`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
+
+### Liquid glass and topbar navigation
+
+`TopbarTabs = true` moves navigation from the sidebar into a compact topbar row. `Glass = true` applies Liquid Glass styling to the window, topbar navigation, pages, `TabBox`, and `GroupBox`. The implementation is inspired by the public Roblox glass UI patterns in [`satyanto/rblxGlassUI`](https://github.com/satyanto/rblxGlassUI), [`boatbomber/GlassmorphicUI`](https://github.com/boatbomber/GlassmorphicUI), and [`Furrycalin/liquid-glass-luau`](https://gitcode.com/Furrycalin/liquid-glass-luau), but is implemented locally without importing their source.
+
+```lua
+local Window = OrionLib:CreateWindow({
+    Title = "Glass Demo",
+    TopbarTabs = true,
+    Glass = true,
+    GlassConfig = {
+        BackgroundTransparency = 0.22,
+        PageTransparency = 0.38,
+        NavTransparency = 0.3,
+        Accent = Color3.fromRGB(125, 211, 252)
+    }
+})
+
+local Glass = Window:Tab({ Title = "Glass Lab", Icon = "droplets" })
+
+Glass:TabBox({
+    Title = "Liquid Glass",
+    Description = "Glass cards and compact topbar navigation.",
+    Glass = true
+})
+
+Glass:GlassButton({ Title = "Liquid Button", Callback = print })
+Glass:GlassToggle({ Title = "Liquid Toggle", Value = true })
+Glass:GlassColorpicker({ Title = "Glass Color", Default = Color3.fromRGB(125, 211, 252), Alpha = true })
+```
 
 ### Loading, popup, dialog, and topbar buttons
 
@@ -166,14 +196,17 @@ The window clamps to the current viewport on mobile, the top bar uses a touch-fr
 WindUI-style element aliases are available on tabs and sections:
 
 - `Button`
+- `GlassButton`
 - `HighlightButton`
 - `WarningBox`
 - `GroupBox`
 - `Toggle`
+- `GlassToggle`
 - `Slider`
 - `Dropdown`
 - `Input`
 - `Colorpicker`
+- `GlassColorpicker`
 - `Paragraph`
 - `TabBox`
 - `TabCard`
