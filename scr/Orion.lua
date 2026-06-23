@@ -150,7 +150,7 @@ getgenv().OrionLib = {
     NotifyOnError = false,
     Folder = "OrionLibSave",
     Version = "OrionWind-1.0.0",
-    DefaultIconSet = "lucide",
+    DefaultIconSet = "solar",
     LocalizationConfig = { Enabled = false, Prefix = "loc:", DefaultLanguage = "en", Translations = {} },
     SelectedLanguage = nil,
 }
@@ -200,6 +200,49 @@ local IconifyAliases = {
     ["material"] = "material-symbols",
     ["phosphor"] = "ph",
     ["remix"] = "ri",
+}
+local SolarAliases = {
+    ["activity"] = "chart-2-bold-duotone",
+    ["alert"] = "danger-triangle-bold-duotone",
+    ["bell"] = "bell-bold-duotone",
+    ["box"] = "box-bold-duotone",
+    ["check"] = "check-circle-bold-duotone",
+    ["circle-help"] = "question-circle-bold-duotone",
+    ["close"] = "close-circle-bold-duotone",
+    ["cog"] = "settings-bold-duotone",
+    ["color"] = "pallete-2-bold-duotone",
+    ["dashboard"] = "widget-5-bold-duotone",
+    ["droplets"] = "waterdrop-bold-duotone",
+    ["folder"] = "folder-bold-duotone",
+    ["home"] = "home-2-bold-duotone",
+    ["house"] = "home-2-bold-duotone",
+    ["info"] = "info-circle-bold-duotone",
+    ["key-round"] = "key-bold-duotone",
+    ["layout-dashboard"] = "widget-5-bold-duotone",
+    ["message-circle"] = "chat-round-bold-duotone",
+    ["message-circle-question"] = "question-circle-bold-duotone",
+    ["minimize"] = "minus-circle-bold-duotone",
+    ["minus"] = "minus-circle-bold-duotone",
+    ["mouse-pointer-click"] = "cursor-square-bold-duotone",
+    ["move-diagonal-2"] = "maximize-square-minimalistic-bold-duotone",
+    ["panel-top-open"] = "sidebar-minimalistic-bold-duotone",
+    ["plus"] = "add-circle-bold-duotone",
+    ["save"] = "diskette-bold-duotone",
+    ["search"] = "magnifer-bold-duotone",
+    ["settings"] = "settings-bold-duotone",
+    ["sparkle"] = "stars-bold-duotone",
+    ["sparkles"] = "stars-bold-duotone",
+    ["combat"] = "target-bold-duotone",
+    ["sword"] = "target-bold-duotone",
+    ["swords"] = "target-bold-duotone",
+    ["trash"] = "trash-bin-trash-bold-duotone",
+    ["triangle-alert"] = "danger-triangle-bold-duotone",
+    ["user"] = "user-rounded-bold-duotone",
+    ["users"] = "users-group-rounded-bold-duotone",
+    ["wand-sparkles"] = "magic-stick-3-bold-duotone",
+    ["warning"] = "danger-triangle-bold-duotone",
+    ["x"] = "close-circle-bold-duotone",
+    ["zap"] = "bolt-bold-duotone",
 }
 local LucideAliases = {
     ["x"] = "x",
@@ -277,7 +320,11 @@ local function SplitIconifyName(iconName: string)
     if prefix == "lucide" then
         return nil, nil
     end
-    return prefix, NormalizeIconifyName(name)
+    name = NormalizeIconifyName(name)
+    if prefix == "solar" then
+        name = SolarAliases[name] or name
+    end
+    return prefix, name
 end
 
 local function NormalizeIconName(IconName: string)
@@ -513,7 +560,7 @@ function OrionLib:SetLucideProvider(provider)
 end
 
 function OrionLib:SetIconSet(iconSet: string?)
-    OrionLib.IconSet = iconSet and tostring(iconSet):lower() or "lucide"
+    OrionLib.IconSet = iconSet and tostring(iconSet):lower() or "solar"
 end
 
 function OrionLib:GetIcon(iconName: string, size: number?)
@@ -1029,6 +1076,8 @@ local LiquidGlassDefaults = {
     ShadowTransparency = 0.68,
     ShadowBlur = 18,
     ShadowSpread = 2,
+    SpecularTransparency = 0.9,
+    DepthTransparency = 0.92,
 }
 
 local function MergeLiquidGlassConfig(base, override)
@@ -1094,6 +1143,8 @@ local function ResolveLiquidGlassConfig(config, fallbackColor)
         ShadowBlur = config.ShadowBlur or config.BlurRadius or LiquidGlassDefaults.ShadowBlur,
         ShadowSpread = config.ShadowSpread or LiquidGlassDefaults.ShadowSpread,
         ShadowOffset = ResolveGlassUDim2(config.ShadowOffset, 0, config.ShadowYOffset or 8),
+        SpecularTransparency = config.SpecularTransparency or LiquidGlassDefaults.SpecularTransparency,
+        DepthTransparency = config.DepthTransparency or LiquidGlassDefaults.DepthTransparency,
     }
 end
 
@@ -1174,6 +1225,53 @@ local function ApplyLiquidGlass(guiObject, config)
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     })
     highlight.Parent = guiObject
+
+    if glassConfig.Decorations ~= false then
+        local radiusPixels = typeof(glassConfig.Radius) == "UDim" and glassConfig.Radius.Offset or tonumber(glassConfig.Radius) or LiquidGlassDefaults.Radius
+        local specular = Create("Frame", {
+            Name = "OrionLiquidGlassSpecular",
+            Size = UDim2.new(1, -14, 0, math.max(8, math.floor(radiusPixels * 0.85))),
+            Position = UDim2.new(0, 7, 0, 6),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundTransparency = glassConfig.SpecularTransparency,
+            BorderSizePixel = 0,
+            ZIndex = math.max(guiObject.ZIndex, 1),
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+            Create("UIGradient", {
+                Rotation = 0,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(0.18, 0.28),
+                    NumberSequenceKeypoint.new(0.72, 0.52),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+            }),
+        })
+        specular.Parent = guiObject
+
+        local depth = Create("Frame", {
+            Name = "OrionLiquidGlassDepth",
+            AnchorPoint = Vector2.new(0, 1),
+            Size = UDim2.new(1, -18, 0, math.max(10, math.floor(radiusPixels * 0.9))),
+            Position = UDim2.new(0, 9, 1, -7),
+            BackgroundColor3 = ColorAdd(glassConfig.Accent, -40),
+            BackgroundTransparency = glassConfig.DepthTransparency,
+            BorderSizePixel = 0,
+            ZIndex = math.max(guiObject.ZIndex, 1),
+        }, {
+            Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+            Create("UIGradient", {
+                Rotation = 0,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(0.5, 0.2),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+            }),
+        })
+        depth.Parent = guiObject
+    end
 
     local nativeShadow
     if glassConfig.Shadow and glassConfig.NativeShadow then
@@ -1463,12 +1561,14 @@ local function NormalizeWindowConfig(config)
     end
     config = TranslateConfig(config or {})
     local sidebarCompact = config.SidebarCompact or config.IconOnly or config.CompactSidebar or config.SidebarCompacted or false
-    local topbarTabs = config.TopbarTabs
+    local sidebarOnly = config.SidebarOnly ~= false
+    local requestedTopbarTabs = config.TopbarTabs
         or config.TopbarNavigation
         or config.Navigation == "Topbar"
         or config.Navigation == "topbar"
         or config.Navbar == "Topbar"
         or config.Navbar == "topbar"
+    local topbarTabs = (not sidebarOnly) and requestedTopbarTabs
     local searchBar = config.SearchBar
         or (config.HideSearchBar and nil or { Default = "Search Tabs", DefaultMain = "Search Elements", ClearTextOnFocus = true, Tabs = true, Mains = true })
     if sidebarCompact or topbarTabs then
@@ -1489,6 +1589,7 @@ local function NormalizeWindowConfig(config)
         IntroToggleIcon = ResolveIcon(config.IntroToggleIcon or (config.OpenButton and config.OpenButton.Icon) or config.Icon or "panel-top-open"),
         Size = config.Size or UDim2.fromOffset(615, 344),
         SidebarCompact = sidebarCompact,
+        SidebarOnly = sidebarOnly,
         TopbarTabs = topbarTabs,
         Navigation = topbarTabs and "Topbar" or "Sidebar",
         SidebarWidth = config.SidebarWidth,
@@ -1498,7 +1599,8 @@ local function NormalizeWindowConfig(config)
         LinkVideo = config.LinkVideo or config.Video,
         Image = config.Image or config.Background,
         KeySystem = config.KeySystem or config.Key or config.KeyAuth,
-        TopbarButtons = config.TopbarButtons or config.Topbar or config.TopbarButton,
+        EnableTopbarButtons = config.EnableTopbarButtons == true,
+        TopbarButtons = config.EnableTopbarButtons == true and (config.TopbarButtons or config.Topbar or config.TopbarButton) or nil,
         Glass = config.Glass or config.LiquidGlass or config.GlassLiquid,
         GlassConfig = config.GlassConfig or config.LiquidGlassConfig,
     }
@@ -1567,13 +1669,26 @@ function OrionLib:LoadingScreen(config)
     })
 
     local hiddenObjects = {}
+    local hiddenLookup = {}
+    local hiddenConnection
+    local function HideLoadingCoveredObject(child)
+        if child ~= screen and child:IsA("GuiObject") and child.Visible and not hiddenLookup[child] then
+            hiddenLookup[child] = true
+            table.insert(hiddenObjects, child)
+            child.Visible = false
+        end
+    end
     if config.HideUI ~= false then
         for _, child in ipairs(Orion:GetChildren()) do
-            if child ~= screen and child:IsA("GuiObject") and child.Visible then
-                table.insert(hiddenObjects, child)
-                child.Visible = false
-            end
+            HideLoadingCoveredObject(child)
         end
+        hiddenConnection = AddConnection(Orion.ChildAdded, function(child)
+            task.defer(function()
+                if screen and screen.Parent then
+                    HideLoadingCoveredObject(child)
+                end
+            end)
+        end)
     end
 
     local card = OrionLib:AddThemeObject(
@@ -1810,10 +1925,17 @@ function OrionLib:LoadingScreen(config)
         pcall(function()
             spinTween:Cancel()
         end)
+        if hiddenConnection and hiddenConnection.Connected then
+            hiddenConnection:Disconnect()
+        end
         local tween = TweenService:Create(screen, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
         TweenService:Create(card, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = UDim2.fromOffset(0, 0) }):Play()
         tween:Play()
         tween.Completed:Wait()
+        local revealDelay = tonumber(config.RevealDelay or config.ShowDelay or config.DelayAfterLoad) or 1
+        if revealDelay > 0 then
+            task.wait(revealDelay)
+        end
         for _, object in ipairs(hiddenObjects) do
             if object and object.Parent then
                 object.Visible = true
@@ -1847,11 +1969,13 @@ end
 function OrionLib:Popup(config)
     config = TranslateConfig(config or {})
     local theme = OrionLib.Themes[OrionLib.SelectedTheme] or OrionLib.Themes.Default or {}
+    local accent = config.Color or theme.Accent or Color3.fromRGB(96, 165, 250)
+    local targetSize = config.Size or UDim2.fromOffset(420, 224)
     local overlay = SetProps(MakeElement("Frame"), {
         Parent = Orion,
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = theme.Main or Color3.fromRGB(18, 20, 27),
-        BackgroundTransparency = config.Dim == true and (config.BackgroundTransparency or 0.72) or 1,
+        BackgroundTransparency = config.Dim == true and (config.BackgroundTransparency or 0.8) or 1,
         Name = config.Name or "OrionPopup",
         Active = config.Modal ~= false,
         ZIndex = 920,
@@ -1862,9 +1986,10 @@ function OrionLib:Popup(config)
             SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 14), {
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.fromScale(0.5, 0.5),
-                Size = config.Size or UDim2.fromOffset(380, 210),
+                Size = UDim2.fromOffset(0, 0),
                 Parent = overlay,
                 ZIndex = 921,
+                ClipsDescendants = true,
             }),
             {
                 OrionLib:AddThemeObject(MakeElement("Stroke", nil, 1), "Stroke"),
@@ -1878,6 +2003,22 @@ function OrionLib:Popup(config)
         ),
         "Main"
     )
+    if config.Glass ~= false then
+        ApplyLiquidGlass(
+            card,
+            MergeLiquidGlassConfig(config.GlassConfig or config.LiquidGlassConfig, {
+                Color = theme.Main or Color3.fromRGB(18, 20, 27),
+                Accent = accent,
+                BackgroundTransparency = config.CardTransparency or 0.24,
+                Radius = 18,
+                StrokeTransparency = 0.76,
+                HighlightTransparency = 0.9,
+                Shadow = true,
+                ShadowTransparency = 0.74,
+                ShadowBlur = 22,
+            })
+        )
+    end
 
     local closeButton = SetChildren(
         SetProps(MakeElement("Button"), {
@@ -1900,6 +2041,17 @@ function OrionLib:Popup(config)
             ),
         }
     )
+    if config.Glass ~= false then
+        ApplyLiquidGlass(closeButton, {
+            Color = theme.Second or Color3.fromRGB(25, 28, 38),
+            Accent = accent,
+            BackgroundTransparency = 0.44,
+            Radius = 10,
+            StrokeTransparency = 0.84,
+            HighlightTransparency = 0.94,
+            Shadow = false,
+        })
+    end
 
     local title = OrionLib:AddThemeObject(
         SetProps(MakeElement("Label", config.Title or "Popup", 19), {
@@ -1926,13 +2078,35 @@ function OrionLib:Popup(config)
     if config.Icon then
         title.Position = UDim2.fromOffset(42, 0)
         title.Size = UDim2.new(1, -78, 0, 28)
-        SetProps(MakeElement("Image", ResolveIcon(config.Icon)), {
-            Parent = card,
-            Position = UDim2.fromOffset(0, 1),
-            Size = UDim2.fromOffset(28, 28),
-            ImageColor3 = config.Color or theme.Accent or Color3.fromRGB(96, 165, 250),
-            ZIndex = 922,
-        })
+        local iconWrap = SetChildren(
+            SetProps(MakeElement("RoundFrame", accent, 0, 10), {
+                Parent = card,
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.fromOffset(30, 30),
+                BackgroundTransparency = 0.2,
+                ZIndex = 922,
+            }),
+            {
+                SetProps(MakeElement("Image", ResolveIcon(config.Icon)), {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    Size = UDim2.fromOffset(17, 17),
+                    ImageColor3 = theme.Text or Color3.fromRGB(255, 255, 255),
+                    ZIndex = 923,
+                }),
+            }
+        )
+        if config.Glass ~= false then
+            ApplyLiquidGlass(iconWrap, {
+                Color = accent,
+                Accent = ColorAdd(accent, 32),
+                BackgroundTransparency = 0.2,
+                Radius = 10,
+                StrokeTransparency = 0.78,
+                HighlightTransparency = 0.9,
+                Shadow = false,
+            })
+        end
     end
 
     local buttonHolder = SetProps(MakeElement("TFrame"), {
@@ -1977,14 +2151,18 @@ function OrionLib:Popup(config)
                 Callback = config.Callback or config.OnClick,
             },
         }
-    for _, buttonConfig in ipairs(buttons) do
+    for buttonIndex, buttonConfig in ipairs(buttons) do
         local titleText = tostring(buttonConfig.Title or buttonConfig.Text or "OK")
         local buttonWidth = buttonConfig.Width or math.clamp(#titleText * 9 + 32, 86, 150)
+        local variant = tostring(buttonConfig.Variant or buttonConfig.Style or (buttonIndex == 1 and "Primary" or "Secondary"))
+        local primary = variant:lower() == "primary" or variant:lower() == "accent"
+        local buttonColor = buttonConfig.Color or (primary and accent or (theme.Second or Color3.fromRGB(25, 28, 38)))
         local button = OrionLib:AddThemeObject(
             SetChildren(
                 SetProps(MakeElement("Button"), {
                     Parent = buttonHolder,
                     Size = UDim2.fromOffset(buttonWidth, 34),
+                    BackgroundColor3 = buttonColor,
                     BackgroundTransparency = 0,
                     ZIndex = 923,
                 }),
@@ -2004,14 +2182,25 @@ function OrionLib:Popup(config)
             ),
             "Second"
         )
+        if config.Glass ~= false then
+            ApplyLiquidGlass(button, {
+                Color = buttonColor,
+                Accent = primary and ColorAdd(accent, 28) or accent,
+                BackgroundTransparency = primary and 0.18 or 0.4,
+                Radius = 10,
+                StrokeTransparency = primary and 0.64 or 0.84,
+                HighlightTransparency = 0.92,
+                Shadow = false,
+            })
+        end
         AddConnection(button.MouseEnter, function()
             TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                BackgroundColor3 = ColorAdd(GetThemeValue("Second", OrionLib.Themes.Default.Second), 5),
+                BackgroundColor3 = ColorAdd(buttonColor, 5),
             }):Play()
         end)
         AddConnection(button.MouseLeave, function()
             TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                BackgroundColor3 = GetThemeValue("Second", OrionLib.Themes.Default.Second),
+                BackgroundColor3 = buttonColor,
             }):Play()
         end)
         AddConnection(button.MouseButton1Click, function()
@@ -2027,6 +2216,7 @@ function OrionLib:Popup(config)
             popup:Close()
         end)
     end
+    TweenService:Create(card, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = targetSize }):Play()
     return popup
 end
 
@@ -2036,6 +2226,7 @@ function OrionLib:Dialog(config)
         config.Buttons = {
             {
                 Title = config.ConfirmText or "Confirm",
+                Variant = "Primary",
                 Callback = config.Callback or config.OnConfirm,
             },
             {
@@ -2892,18 +3083,18 @@ function KeyBindAdd()
     KeyBindFrame = OrionLib:AddThemeObject(
         SetChildren(
             SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, OrionLib.Style.CardRadius or 6), {
-                Size = UDim2.new(0, 235, 0, 160),
+                Size = UDim2.new(0, 252, 0, 174),
                 Position = UDim2.fromOffset(6, 6),
-                BackgroundTransparency = 0,
+                BackgroundTransparency = 0.18,
                 Name = "KeyBind",
                 Visible = false,
                 Parent = Orion,
             }),
             {
                 OrionLib:AddThemeObject(
-                    SetProps(MakeElement("Label", "Key Binds", 15), {
+                    SetProps(MakeElement("Label", "Keybind Menu", 15), {
                         Size = UDim2.new(1, -46, 0, 25),
-                        Position = UDim2.new(0, 8, 0, 0),
+                        Position = UDim2.new(0, 10, 0, 0),
                         Font = Enum.Font.GothamBold,
                         Name = "Content",
                     }),
@@ -2932,6 +3123,17 @@ function KeyBindAdd()
         ),
         "Second"
     )
+    ApplyLiquidGlass(KeyBindFrame, {
+        Color = GetThemeValue("Main", Color3.fromRGB(18, 20, 27)),
+        Accent = GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+        BackgroundTransparency = 0.26,
+        Radius = 14,
+        StrokeTransparency = 0.78,
+        HighlightTransparency = 0.9,
+        Shadow = true,
+        ShadowTransparency = 0.76,
+        ShadowBlur = 18,
+    })
 
     local WindowTopBarLine = OrionLib:AddThemeObject(
         SetProps(MakeElement("Frame"), {
@@ -2957,6 +3159,38 @@ function KeyBindAdd()
         ),
         "Divider"
     )
+    ApplyLiquidGlass(Container, {
+        Color = GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+        Accent = GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)),
+        BackgroundTransparency = 0.48,
+        Radius = 12,
+        Decorations = false,
+        StrokeTransparency = 0.86,
+        HighlightTransparency = 0.94,
+        Shadow = false,
+    })
+
+    local EmptyLabel = OrionLib:AddThemeObject(
+        SetProps(MakeElement("Label", "No keybinds yet", 13), {
+            Size = UDim2.new(1, -18, 0, 32),
+            Font = Enum.Font.GothamSemibold,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextTransparency = 0.25,
+            Name = "EmptyState",
+            Parent = Container,
+        }),
+        "TextDark"
+    )
+
+    local function RefreshKeybindEmptyState()
+        local count = 0
+        for _, child in ipairs(Container:GetChildren()) do
+            if child:IsA("GuiObject") and child.Name ~= "EmptyState" then
+                count += 1
+            end
+        end
+        EmptyLabel.Visible = count == 0
+    end
 
     MakeDraggable(KeyBindFrame, KeyBindFrame.Content)
     AddConnection(KeyBindFrame.Close.MouseButton1Click, function()
@@ -2965,18 +3199,41 @@ function KeyBindAdd()
     AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         Container.CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + 30)
     end)
+    AddConnection(Container.ChildAdded, function()
+        task.defer(RefreshKeybindEmptyState)
+    end)
+    AddConnection(Container.ChildRemoved, function()
+        task.defer(RefreshKeybindEmptyState)
+    end)
+    RefreshKeybindEmptyState()
 end
 
 KeyBindAdd()
 function OrionLib:SetKeyBindVisible(visi: bool)
     if KeyBindFrame then
-        KeyBindFrame.Visible = visi
+        local targetSize = UDim2.new(0, 252, 0, 174)
+        if visi then
+            KeyBindFrame.Visible = true
+            KeyBindFrame.Size = UDim2.new(0, 252, 0, 0)
+            TweenService:Create(KeyBindFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = targetSize }):Play()
+        else
+            local tween = TweenService:Create(KeyBindFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 252, 0, 0),
+            })
+            tween:Play()
+            tween.Completed:Connect(function()
+                if KeyBindFrame then
+                    KeyBindFrame.Visible = false
+                    KeyBindFrame.Size = targetSize
+                end
+            end)
+        end
     end
 end
 
 function OrionLib:ToggleKeyBindMenu()
     if KeyBindFrame then
-        KeyBindFrame.Visible = not KeyBindFrame.Visible
+        OrionLib:SetKeyBindVisible(not KeyBindFrame.Visible)
     end
 end
 
@@ -3082,14 +3339,17 @@ function OrionLib:MakeWindow(WindowConfig)
     WindowConfig.Theme = WindowConfig.Theme or "Default"
     WindowConfig.IntroIcon = ResolveIcon(WindowConfig.IntroIcon or WindowConfig.Icon or "sparkles")
     WindowConfig.Size = mobileScaleSize(WindowConfig.Size or UDim2.fromOffset(615, 344))
-    WindowConfig.TopbarTabs = WindowConfig.TopbarTabs
+    WindowConfig.SidebarOnly = WindowConfig.SidebarOnly ~= false
+    local requestedTopbarTabs = WindowConfig.TopbarTabs
         or WindowConfig.TopbarNavigation
         or WindowConfig.Navigation == "Topbar"
         or WindowConfig.Navigation == "topbar"
         or WindowConfig.Navbar == "Topbar"
         or WindowConfig.Navbar == "topbar"
         or false
+    WindowConfig.TopbarTabs = (not WindowConfig.SidebarOnly) and requestedTopbarTabs
     WindowConfig.Navigation = WindowConfig.TopbarTabs and "Topbar" or "Sidebar"
+    WindowConfig.EnableTopbarButtons = WindowConfig.EnableTopbarButtons == true
     WindowConfig.Glass = WindowConfig.Glass or WindowConfig.LiquidGlass or WindowConfig.GlassLiquid or false
     WindowConfig.GlassConfig = WindowConfig.GlassConfig or WindowConfig.LiquidGlassConfig or {}
     if type(WindowConfig.GlassConfig) ~= "table" then
@@ -3462,6 +3722,7 @@ function OrionLib:MakeWindow(WindowConfig)
             AnchorPoint = Vector2.new(1, 0),
             AutomaticSize = Enum.AutomaticSize.X,
             Name = "TopbarButtons",
+            Visible = WindowConfig.EnableTopbarButtons == true,
             ZIndex = 40,
         }),
         {
@@ -3686,7 +3947,7 @@ function OrionLib:MakeWindow(WindowConfig)
             MobileReopenButton.Visible = false
             WindowStuff.Visible = true
             WindowTopBarLine.Visible = true
-            TopbarButtonHolder.Visible = true
+            TopbarButtonHolder.Visible = WindowConfig.EnableTopbarButtons == true
             MainWindow.SizeDragging.Visible = true
             ApplyIconToObject(MinimizeBtn.Ico, "minus", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = Window.Size })
@@ -8329,6 +8590,8 @@ function OrionLib:MakeWindow(WindowConfig)
                 ColorpickerConfig.Flag = ColorpickerConfig.Flag or nil
                 ColorpickerConfig.Save = ColorpickerConfig.Save or false
                 ColorpickerConfig.Alpha = ColorpickerConfig.Alpha or false
+                local pickerMode = tostring(ColorpickerConfig.Mode or ColorpickerConfig.PickerType or ColorpickerConfig.Style or "Gradient"):lower()
+                pickerMode = (pickerMode == "basic" or pickerMode == "normal" or pickerMode == "bth") and "Basic" or "Gradient"
 
                 local ColorH, ColorS, ColorV = 1, 1, 1
                 local AlphaValue = ColorpickerConfig.DefaultAlpha
@@ -8336,13 +8599,19 @@ function OrionLib:MakeWindow(WindowConfig)
                     Value = ColorpickerConfig.Default,
                     Alpha = AlphaValue,
                     Toggled = false,
+                    Mode = pickerMode,
                     Type = "Colorpicker",
                     Save = ColorpickerConfig.Save,
                     RecentColors = {},
                 }
 
                 local function RGBToHex(c)
-                    return string.format("#%02X%02X%02X", c.R * 255, c.G * 255, c.B * 255)
+                    return string.format(
+                        "#%02X%02X%02X",
+                        math.clamp(math.floor(c.R * 255 + 0.5), 0, 255),
+                        math.clamp(math.floor(c.G * 255 + 0.5), 0, 255),
+                        math.clamp(math.floor(c.B * 255 + 0.5), 0, 255)
+                    )
                 end
 
                 local function HexToRGB(hex)
@@ -8379,6 +8648,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                 local ColorP = Create("ImageLabel", {
                     Size = UDim2.new(1, -50, 0, 150),
+                    Position = UDim2.new(0, 0, 0, 38),
                     Visible = false,
                     Image = "rbxassetid://4155801252",
                 }, {
@@ -8388,7 +8658,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                 local Hue = Create("Frame", {
                     Size = UDim2.new(0, 20, 0, 150),
-                    Position = UDim2.new(1, -45, 0, 0),
+                    Position = UDim2.new(1, -45, 0, 38),
                     Visible = false,
                 }, {
                     Create("UIGradient", {
@@ -8409,7 +8679,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                 local AlphaFrame = Create("Frame", {
                     Size = UDim2.new(0, 20, 0, 150),
-                    Position = UDim2.new(1, -20, 0, 0),
+                    Position = UDim2.new(1, -20, 0, 38),
                     Visible = false,
                 }, {
                     Create("ImageLabel", {
@@ -8441,13 +8711,96 @@ function OrionLib:MakeWindow(WindowConfig)
 
                 if not ColorpickerConfig.Alpha then
                     ColorP.Size = UDim2.new(1, -25, 0, 150)
-                    Hue.Position = UDim2.new(1, -20, 0, 0)
+                    Hue.Position = UDim2.new(1, -20, 0, 38)
                     AlphaFrame.Visible = false
+                end
+
+                local ModeBar = Create("Frame", {
+                    Size = UDim2.new(1, 0, 0, 30),
+                    Position = UDim2.new(0, 0, 0, 0),
+                    BackgroundTransparency = 1,
+                    Visible = false,
+                }, {
+                    Create("UIListLayout", {
+                        FillDirection = Enum.FillDirection.Horizontal,
+                        SortOrder = Enum.SortOrder.LayoutOrder,
+                        Padding = UDim.new(0, 6),
+                    }),
+                })
+
+                local GradientModeButton = Create("TextButton", {
+                    Size = UDim2.new(0.5, -3, 1, 0),
+                    BackgroundColor3 = GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                    TextColor3 = GetThemeValue("Text", Color3.fromRGB(245, 247, 252)),
+                    Text = "Gradient",
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 12,
+                    AutoButtonColor = false,
+                    Parent = ModeBar,
+                }, { Create("UICorner", { CornerRadius = UDim.new(0, 7) }) })
+
+                local BasicModeButton = Create("TextButton", {
+                    Size = UDim2.new(0.5, -3, 1, 0),
+                    BackgroundColor3 = GetThemeValue("Second", Color3.fromRGB(25, 28, 38)),
+                    TextColor3 = GetThemeValue("Text", Color3.fromRGB(245, 247, 252)),
+                    Text = "Basic",
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 12,
+                    AutoButtonColor = false,
+                    Parent = ModeBar,
+                }, { Create("UICorner", { CornerRadius = UDim.new(0, 7) }) })
+
+                local BasicPalette = Create("Frame", {
+                    Size = UDim2.new(1, 0, 0, 150),
+                    Position = UDim2.new(0, 0, 0, 38),
+                    BackgroundTransparency = 1,
+                    Visible = false,
+                }, {
+                    Create("UIGridLayout", {
+                        CellSize = UDim2.fromOffset(28, 28),
+                        CellPadding = UDim2.fromOffset(8, 8),
+                        SortOrder = Enum.SortOrder.LayoutOrder,
+                    }),
+                })
+
+                local presetColors = ColorpickerConfig.Presets
+                    or {
+                        Color3.fromRGB(255, 255, 255),
+                        Color3.fromRGB(15, 23, 42),
+                        Color3.fromRGB(96, 165, 250),
+                        Color3.fromRGB(56, 189, 248),
+                        Color3.fromRGB(52, 211, 153),
+                        Color3.fromRGB(250, 204, 21),
+                        Color3.fromRGB(251, 146, 60),
+                        Color3.fromRGB(248, 113, 113),
+                        Color3.fromRGB(244, 114, 182),
+                        Color3.fromRGB(168, 85, 247),
+                        Color3.fromRGB(99, 102, 241),
+                        Color3.fromRGB(20, 184, 166),
+                    }
+                for index, presetColor in ipairs(presetColors) do
+                    if typeof(presetColor) == "Color3" then
+                        local swatch = Create("ImageButton", {
+                            BackgroundColor3 = presetColor,
+                            AutoButtonColor = false,
+                            LayoutOrder = index,
+                            Parent = BasicPalette,
+                        }, {
+                            Create("UICorner", { CornerRadius = UDim.new(0, 8) }),
+                            Create("UIStroke", {
+                                Color = Color3.fromRGB(255, 255, 255),
+                                Transparency = 0.78,
+                            }),
+                        })
+                        AddConnection(swatch.MouseButton1Click, function()
+                            Colorpicker:Set(presetColor)
+                        end)
+                    end
                 end
 
                 local Inputs = Create("Frame", {
                     Size = UDim2.new(1, 0, 0, 30),
-                    Position = UDim2.new(0, 0, 0, 160),
+                    Position = UDim2.new(0, 0, 0, 196),
                     BackgroundTransparency = 1,
                     Visible = false,
                 }, {
@@ -8516,7 +8869,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                 local RecentFrame = Create("Frame", {
                     Size = UDim2.new(1, 0, 0, 20),
-                    Position = UDim2.new(0, 0, 0, 195),
+                    Position = UDim2.new(0, 0, 0, 232),
                     BackgroundTransparency = 1,
                     Visible = false,
                 }, {
@@ -8533,9 +8886,11 @@ function OrionLib:MakeWindow(WindowConfig)
                     BackgroundTransparency = 1,
                     ClipsDescendants = true,
                 }, {
+                    ModeBar,
                     Hue,
                     ColorP,
                     AlphaFrame,
+                    BasicPalette,
                     Inputs,
                     RecentFrame,
                     Create("UIPadding", {
@@ -8699,21 +9054,40 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
 
                 ColorH, ColorS, ColorV = Color3.toHSV(Colorpicker.Value)
+                local function SetPickerMode(mode)
+                    pickerMode = mode == "Basic" and "Basic" or "Gradient"
+                    Colorpicker.Mode = pickerMode
+                    local isGradient = pickerMode == "Gradient"
+                    ColorP.Visible = Colorpicker.Toggled and isGradient
+                    Hue.Visible = Colorpicker.Toggled and isGradient
+                    AlphaFrame.Visible = Colorpicker.Toggled and isGradient and ColorpickerConfig.Alpha
+                    BasicPalette.Visible = Colorpicker.Toggled and not isGradient
+                    GradientModeButton.BackgroundColor3 = isGradient and (ColorpickerConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)))
+                        or GetThemeValue("Second", Color3.fromRGB(25, 28, 38))
+                    BasicModeButton.BackgroundColor3 = (not isGradient) and (ColorpickerConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250)))
+                        or GetThemeValue("Second", Color3.fromRGB(25, 28, 38))
+                end
+
+                AddConnection(GradientModeButton.MouseButton1Click, function()
+                    SetPickerMode("Gradient")
+                end)
+                AddConnection(BasicModeButton.MouseButton1Click, function()
+                    SetPickerMode("Basic")
+                end)
 
                 AddConnection(Click.MouseButton1Click, function()
                     Colorpicker.Toggled = not Colorpicker.Toggled
-                    local sizeH = ColorpickerConfig.Alpha and 270 or 270
+                    local sizeH = 306
                     TweenService:Create(
                         ColorpickerFrame,
                         TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                         { Size = Colorpicker.Toggled and UDim2.new(1, 0, 0, sizeH) or UDim2.new(1, 0, 0, 38) }
                     ):Play()
-                    ColorP.Visible = Colorpicker.Toggled
-                    Hue.Visible = Colorpicker.Toggled
-                    AlphaFrame.Visible = Colorpicker.Toggled and ColorpickerConfig.Alpha
+                    ModeBar.Visible = Colorpicker.Toggled
                     Inputs.Visible = Colorpicker.Toggled
                     RecentFrame.Visible = Colorpicker.Toggled
                     ColorpickerFrame.F.Line.Visible = Colorpicker.Toggled
+                    SetPickerMode(pickerMode)
                     if not Colorpicker.Toggled then
                         AddRecentColor(Colorpicker.Value)
                     end
@@ -8755,7 +9129,9 @@ function OrionLib:MakeWindow(WindowConfig)
                 end)
 
                 local function UpdateRGB()
-                    local r, g, b = tonumber(RBox.Text) or 0, tonumber(GBox.Text) or 0, tonumber(BBox.Text) or 0
+                    local r = math.clamp(tonumber(RBox.Text) or 0, 0, 255)
+                    local g = math.clamp(tonumber(GBox.Text) or 0, 0, 255)
+                    local b = math.clamp(tonumber(BBox.Text) or 0, 0, 255)
                     Colorpicker:Set(Color3.fromRGB(r, g, b))
                 end
                 AddConnection(RBox.FocusLost, UpdateRGB)
@@ -8842,7 +9218,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         HueSelection.Position = UDim2.new(0.5, 0, 1 - ColorH, 0)
                         UpdateColorPicker(true)
                     end
-                    if Alpha then
+                    if Alpha ~= nil then
                         AlphaValue = Alpha
                         AlphaSelection.Position = UDim2.new(0.5, 0, 1 - AlphaValue, 0)
                         OrionLib:SafeScript(ColorpickerConfig.Callback, Colorpicker.Value, AlphaValue)
@@ -9718,7 +10094,19 @@ function OrionLib:MakeWindow(WindowConfig)
     end
 
     function Functions:AddTopbarButton(ButtonConfig)
+        if WindowConfig.EnableTopbarButtons ~= true then
+            return {
+                Button = nil,
+                Disabled = true,
+                SetVisible = function() end,
+                SetIcon = function() end,
+                SetTitle = function() end,
+                SetTarget = function() end,
+                Destroy = function() end,
+            }
+        end
         ButtonConfig = TranslateConfig(ButtonConfig or {})
+        TopbarButtonHolder.Visible = true
         local width = ButtonConfig.Width or (ButtonConfig.Title and 104 or 30)
         local button = OrionLib:AddThemeObject(
             SetChildren(
@@ -9939,7 +10327,7 @@ function OrionLib:MakeWindow(WindowConfig)
         MainWindow:Destroy()
         MobileIcon:Destroy()
     end
-    if type(WindowConfig.TopbarButtons) == "table" then
+    if WindowConfig.EnableTopbarButtons == true and type(WindowConfig.TopbarButtons) == "table" then
         if WindowConfig.TopbarButtons.Title or WindowConfig.TopbarButtons.Icon then
             Functions:AddTopbarButton(WindowConfig.TopbarButtons)
         else
@@ -9960,7 +10348,27 @@ function OrionLib:Window(WindowConfig)
 end
 
 function OrionLib:BuildSettings(Tab: table)
-    Tab:AddToggle({
+    Tab:TabBox({
+        Title = "Config Center",
+        Description = "Grouped controls for UI state, keybind menu, saved configs, and themes.",
+        Icon = "solar:settings-bold-duotone",
+        Glass = true,
+    })
+
+    local InterfaceGroup = Tab:GroupBox({
+        Title = "Interface",
+        Glass = true,
+    })
+    local ConfigGroup = Tab:GroupBox({
+        Title = "Config Manager",
+        Glass = true,
+    })
+    local ThemeGroup = Tab:GroupBox({
+        Title = "Theme",
+        Glass = true,
+    })
+
+    InterfaceGroup:AddToggle({
         Name = "Toggle Keybind",
         Default = false,
         Callback = function(Value)
@@ -9984,7 +10392,7 @@ function OrionLib:BuildSettings(Tab: table)
 
     local FoundWatermark = WatermarkFound()
     if FoundWatermark then
-        Tab:AddToggle({
+        InterfaceGroup:AddToggle({
             Name = "Toggle Watermark",
             Default = FoundWatermark.Visible,
             Callback = function(Value)
@@ -9997,7 +10405,7 @@ function OrionLib:BuildSettings(Tab: table)
         })
     end
 
-    Tab:AddSlider({
+    InterfaceGroup:AddSlider({
         Name = "Notify Volume",
         Min = 0,
         Max = 10,
@@ -10010,24 +10418,23 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    InterfaceGroup:AddButton({
         Name = "Destroy Orion",
         Callback = function()
             OrionLib:Destroy()
         end,
     })
 
-    local configName = Tab:AddTextbox({
+    local configName = ConfigGroup:AddTextbox({
         Name = "Config Name",
     })
 
-    local configList = Tab:AddDropdown({
+    local configList = ConfigGroup:AddDropdown({
         Name = "Configs List",
         Options = GetSavedConfigs(),
     })
 
-    Tab:AddDivider()
-    Tab:AddButton({
+    ConfigGroup:AddButton({
         Name = "Create Config",
         Callback = function()
             local name = configName.Value
@@ -10044,7 +10451,7 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    ConfigGroup:AddButton({
         Name = "Load Config",
         Callback = function()
             local name = configList.Value
@@ -10060,7 +10467,7 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    ConfigGroup:AddButton({
         Name = "Overwrite Config",
         DoubleClick = true,
         Callback = function()
@@ -10077,7 +10484,7 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    ConfigGroup:AddButton({
         Name = "Set as Autoload",
         Callback = function()
             local name = configList.Value
@@ -10089,7 +10496,7 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    ConfigGroup:AddButton({
         Name = "Set as Unautoload",
         Callback = function()
             local name = configList.Value
@@ -10101,20 +10508,19 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    ConfigGroup:AddButton({
         Name = "Refresh List",
         Callback = function()
             configList:Refresh(GetSavedConfigs(), true)
         end,
     })
 
-    Tab:AddDivider()
-    local themeList = Tab:AddDropdown({
+    local themeList = ThemeGroup:AddDropdown({
         Name = "Theme List",
         Options = ThemeList,
     })
 
-    Tab:AddButton({
+    ThemeGroup:AddButton({
         Name = "Refresh List",
         Callback = function()
             local ThemeList = {}
@@ -10125,7 +10531,7 @@ function OrionLib:BuildSettings(Tab: table)
         end,
     })
 
-    Tab:AddButton({
+    ThemeGroup:AddButton({
         Name = "Set Theme",
         Callback = function()
             OrionLib:SetTheme(themeList.Value)
@@ -10133,13 +10539,16 @@ function OrionLib:BuildSettings(Tab: table)
     })
 
     if Orion and Orion:FindFirstChildWhichIsA("VideoFrame") then
-        Tab:AddDivider()
+        local MediaGroup = Tab:GroupBox({
+            Title = "Media",
+            Glass = true,
+        })
 
-        local VideoLink = Tab:AddTextbox({
+        local VideoLink = MediaGroup:AddTextbox({
             Name = "Video Link",
         })
 
-        Tab:AddButton({
+        MediaGroup:AddButton({
             Name = "Set Video Main",
             Callback = function()
                 OrionLib:SetVideoLink(VideoLink.Value)

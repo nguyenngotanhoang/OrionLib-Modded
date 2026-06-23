@@ -8,11 +8,19 @@ return function(context)
     function WindowConfig.Normalize(config)
         config = TranslateConfig(config or {})
         local sidebarCompact = config.SidebarCompact or config.IconOnly or config.CompactSidebar or config.SidebarCompacted or false
+        local sidebarOnly = config.SidebarOnly ~= false
+        local requestedTopbarTabs = config.TopbarTabs
+            or config.TopbarNavigation
+            or config.Navigation == "Topbar"
+            or config.Navigation == "topbar"
+            or config.Navbar == "Topbar"
+            or config.Navbar == "topbar"
+        local topbarTabs = (not sidebarOnly) and requestedTopbarTabs
         local searchBar = config.SearchBar
             or (
                 config.HideSearchBar and nil or { Default = "Search Tabs", DefaultMain = "Search Elements", ClearTextOnFocus = true, Tabs = true, Mains = true }
             )
-        if sidebarCompact then
+        if sidebarCompact or topbarTabs then
             searchBar = nil
         end
         return {
@@ -30,6 +38,9 @@ return function(context)
             IntroToggleIcon = ResolveIcon(config.IntroToggleIcon or (config.OpenButton and config.OpenButton.Icon) or config.Icon or "panel-top-open"),
             Size = config.Size or UDim2.fromOffset(615, 344),
             SidebarCompact = sidebarCompact,
+            SidebarOnly = sidebarOnly,
+            TopbarTabs = topbarTabs,
+            Navigation = topbarTabs and "Topbar" or "Sidebar",
             SidebarWidth = config.SidebarWidth,
             SidebarCompactWidth = config.SidebarCompactWidth or config.CompactWidth or 48,
             SearchBar = searchBar,
@@ -37,6 +48,10 @@ return function(context)
             LinkVideo = config.LinkVideo or config.Video,
             Image = config.Image or config.Background,
             KeySystem = config.KeySystem or config.Key or config.KeyAuth,
+            EnableTopbarButtons = config.EnableTopbarButtons == true,
+            TopbarButtons = config.EnableTopbarButtons == true and (config.TopbarButtons or config.Topbar or config.TopbarButton) or nil,
+            Glass = config.Glass or config.LiquidGlass or config.GlassLiquid,
+            GlassConfig = config.GlassConfig or config.LiquidGlassConfig,
         }
     end
 

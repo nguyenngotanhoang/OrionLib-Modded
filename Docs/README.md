@@ -13,7 +13,7 @@ local Window = OrionLib:CreateWindow({
     Title = "Demo UI",
     Theme = "Dark",
     Icon = "sparkles",
-    TopbarTabs = true,
+    SidebarCompact = true,
     Glass = true,
     KeySystem = {
         Enabled = true,
@@ -59,17 +59,17 @@ Main:Dropdown({
 ### Window API
 
 - `OrionLib:CreateWindow(config)` / `OrionLib:Window(config)` are aliases around Orion's `MakeWindow`.
-- Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, `TopbarTabs`, `Glass`, `TopbarButtons`, and `HideSearchBar` in addition to existing Orion fields.
-- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `AddTopbarButton`, `Popup`, `Dialog`, `LoadingScreen`, `CreateBootstrapLoader`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
+- Window config accepts `Title`, `Author`, `Folder`, `Icon`, `Video`, `Background`, `SidebarCompact`, `SidebarOnly`, `Glass`, and `HideSearchBar` in addition to existing Orion fields.
+- Window methods include `Dashboard`, `Tab`, `TabGroup`, `SelectTab`, `GetTabs`, `Popup`, `Dialog`, `LoadingScreen`, `CreateBootstrapLoader`, `Open`, `Close`, `Toggle`, `SetToggleKey`, `SetUIScale`, `SetPanelBackground`, `SetBackgroundImage`, `ToggleKeyBindMenu`, `OnOpen`, `OnClose`, and `OnDestroy`.
 
-### Liquid glass and topbar navigation
+### Liquid glass and compact sidebar
 
-`TopbarTabs = true` moves navigation from the sidebar into a compact topbar row. `Glass = true` applies Liquid Glass styling to the window, topbar navigation, pages, `TabBox`, and `GroupBox`. The glass renderer uses subtle gradients, soft highlight strokes, optional `UIShadow`, and per-corner `UICorner` probes where the Roblox beta API is available, while safely falling back on normal `UIGradient`/`UIStroke`/`UICorner` modifiers elsewhere. The implementation is inspired by the public Roblox glass UI patterns in [`satyanto/rblxGlassUI`](https://github.com/satyanto/rblxGlassUI), [`boatbomber/GlassmorphicUI`](https://github.com/boatbomber/GlassmorphicUI), and [`Furrycalin/liquid-glass-luau`](https://gitcode.com/Furrycalin/liquid-glass-luau), but is implemented locally without importing their source.
+`SidebarCompact = true` keeps navigation sidebar-only and icon-focused. `Glass = true` applies Liquid Glass+ styling to the window, sidebar navigation, pages, `TabBox`, and `GroupBox`. The glass renderer uses subtle gradients, soft highlight/depth layers, optional `UIShadow`, and per-corner `UICorner` probes where the Roblox beta API is available, while safely falling back on normal `UIGradient`/`UIStroke`/`UICorner` modifiers elsewhere. The implementation is inspired by the public Roblox glass UI patterns in [`satyanto/rblxGlassUI`](https://github.com/satyanto/rblxGlassUI), [`boatbomber/GlassmorphicUI`](https://github.com/boatbomber/GlassmorphicUI), and [`Furrycalin/liquid-glass-luau`](https://gitcode.com/Furrycalin/liquid-glass-luau), but is implemented locally without importing their source.
 
 ```lua
 local Window = OrionLib:CreateWindow({
     Title = "Glass Demo",
-    TopbarTabs = true,
+    SidebarCompact = true,
     Glass = true,
     GlassConfig = {
         BackgroundTransparency = 0.32,
@@ -86,7 +86,7 @@ local Glass = Window:Tab({ Title = "Glass Lab", Icon = "droplets" })
 
 Glass:TabBox({
     Title = "Liquid Glass",
-    Description = "Glass cards and compact topbar navigation.",
+    Description = "Glass cards and compact sidebar navigation.",
     Glass = true
 })
 
@@ -95,25 +95,18 @@ Glass:GlassToggle({ Title = "Liquid Toggle", Value = true })
 Glass:GlassColorpicker({ Title = "Glass Color", Default = Color3.fromRGB(125, 211, 252), Alpha = true })
 ```
 
-### Loading, popup, dialog, and topbar buttons
+### Loading, popup, and dialog
 
-`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. Loading hides the existing Orion UI by default, uses the same Liquid Glass card styling, uses a rotating loader icon, and keeps the background transparent unless you pass a backdrop value. Pass `Glass = false` only if you want the old flat loader. `Popup` and `Dialog` use the same OrionLib theme objects, rounded cards, strokes, icons, and resized Orion-style buttons as the main UI; pass `Dim = true` only if you want a darkened backdrop. Topbar buttons can be configured up front or added later.
+`OrionLib:LoadingScreen()` / `OrionLib:CreateBootstrapLoader()` can be shown before creating the window. Loading hides existing and newly-created Orion UI by default, uses the same Liquid Glass card styling, and reveals the UI after `RevealDelay` seconds once closed. Pass `Glass = false` only if you want the old flat loader. `Popup` and `Dialog` now use the same Liquid Glass+ card, rounded icon badge, and variant buttons as the main UI; pass `Dim = true` only if you want a darkened backdrop.
 
 ```lua
-local Loader = OrionLib:CreateBootstrapLoader({ Title = "Loading", AutoClose = false })
+local Loader = OrionLib:CreateBootstrapLoader({ Title = "Loading", AutoClose = false, RevealDelay = 1 })
 Loader:SetProgress(0.5, "Building UI")
 
 local Window = OrionLib:CreateWindow({
     Title = "Demo",
-    TopbarButtons = {
-        { Icon = "bell", Callback = function() OrionLib:Popup({ Title = "Popup", Description = "Hello" }) end }
-    }
-})
-
-Window:AddTopbarButton({
-    Icon = "layout-dashboard",
-    Title = "Dash",
-    Tab = "Dashboard" -- or use Callback = function() ... end
+    SidebarCompact = true,
+    Glass = true
 })
 
 Loader:SetProgress(1, "Ready")
@@ -158,7 +151,7 @@ local Dashboard = Window:Dashboard({
 Dashboard:TabCard({
     Title = "Combat",
     Description = "Creates a dedicated combat card page.",
-    Icon = "solar:sword-bold-duotone",
+    Icon = "solar:target-bold-duotone",
     Color = Color3.fromRGB(248, 113, 113),
     Build = function(Tab)
         Tab:Button({ Title = "Card Combat Button", Icon = "tabler:sword" })
@@ -170,7 +163,7 @@ To intentionally route a card into an existing tab, pass `UseExistingTab = true`
 
 ### GroupBox and WarningBox
 
-`GroupBox` creates an Obsidian-style framed group that can contain regular elements. `WarningBox` creates a page-style callout with a Lucide warning icon.
+`GroupBox` creates an Obsidian-style framed group that can contain regular elements. `WarningBox` creates a page-style callout with a Solar warning icon.
 
 ```lua
 local Group = Main:GroupBox({ Title = "GroupBox" })
@@ -178,13 +171,13 @@ Group:Button({ Title = "Inside Group", Icon = "box" })
 
 Main:WarningBox({
     Title = "Heads up",
-    Desc = "This page uses Lucide icons only."
+    Desc = "This page uses Solar icons by default."
 })
 ```
 
 ### Settings tab
 
-Use `Window:SettingsTab()` to add Orion's built-in settings page with a Lucide settings icon; in compact sidebar mode it renders as an icon-only settings tab.
+Use `Window:SettingsTab()` to add Orion's built-in settings page with a grouped Config Center; in compact sidebar mode it renders as an icon-only settings tab.
 
 ```lua
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })
@@ -217,6 +210,8 @@ WindUI-style element aliases are available on tabs and sections:
 - `DiscordServer`
 - `Graph`
 - `RichLabel`
+
+Color pickers support both `Mode = "Gradient"` for HSV selection and `Mode = "Basic"` for preset swatches. `Presets = { Color3.fromRGB(...) }` overrides the default basic palette.
 - `AdvancedLabel`
 - `Section`
 - `Divider`
@@ -263,7 +258,7 @@ Main:DiscordServer({
 ### Key system
 
 The key system can be enabled or disabled from the window config. When enabled, it opens before the main UI is built.
-The key screen uses the same Orion x WindUI theme colors, rounded card, accent gradient, Lucide icon, and matching input/buttons.
+The key screen uses the same Orion x WindUI theme colors, rounded card, accent gradient, Solar icon defaults, and matching input/buttons.
 
 ```lua
 local Window = OrionLib:CreateWindow({
@@ -309,8 +304,7 @@ Window:ToggleKeyBindMenu()
 
 ## Icons
 
-OrionLib resolves icons through a Lucide-compatible provider first, using the same `GetAsset(iconName, size)` shape as `lucide-roblox` / Obsidian-style Lucide ports. The library auto-loads `deividcomsono/lucide-roblox-direct` (the Lucide source used by Obsidian-style ports) and no longer falls back to Orion/Feather icons.
-It also supports Iconify icon-set prefixes from Icônes/Iconify, including `solar`, `tabler`, `ph`, `mdi`, `ri`, `heroicons`, `material-symbols`, and other `prefix:name` sets.
+OrionLib defaults unprefixed icon names to the Solar Iconify set and falls back to the Lucide-compatible provider when a Solar name is unavailable. It also supports Iconify icon-set prefixes from Icônes/Iconify, including `solar`, `tabler`, `ph`, `mdi`, `ri`, `heroicons`, `material-symbols`, and other `prefix:name` sets.
 
 ```lua
 -- Optional: plug in a Lucide provider/module before creating windows.
@@ -374,7 +368,7 @@ OrionLib:Localization({
 
 ### `attempt to concatenate string with nil` when creating a window
 
-If you use a Lucide icon name such as `"sparkles"` or `"home"` for `Icon`/`IntroIcon`, OrionLib now routes it through the shared icon resolver instead of forcing a numeric Roblox asset id. This means all of these are valid:
+If you use an icon name such as `"sparkles"` or `"home"` for `Icon`/`IntroIcon`, OrionLib routes it through the shared Solar/Iconify/Lucide resolver instead of forcing a numeric Roblox asset id. This means all of these are valid:
 
 ```lua
 Icon = "sparkles"
@@ -382,4 +376,4 @@ Icon = "rbxassetid://14229447778"
 Icon = 14229447778
 ```
 
-The same resolver is used for notification icons and window intro icons, so Lucide names with digits like `"trash-2"` will no longer be mistaken for Roblox asset id `2`.
+The same resolver is used for notification icons and window intro icons, so icon names with digits like `"trash-2"` will no longer be mistaken for Roblox asset id `2`.

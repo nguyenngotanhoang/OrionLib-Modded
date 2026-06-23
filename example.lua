@@ -2,6 +2,8 @@
 local OrionSource = game:HttpGet("https://raw.githubusercontent.com/tanhoangviet/OrionLib-Modded/main/scr/Orion.lua?cache=" .. tostring(os.time()))
 local OrionLib = loadstring(OrionSource, "OrionLib")()
 
+OrionLib:SetIconSet("solar")
+
 OrionLib:AddTheme({
     Name = "Ocean",
     Main = Color3.fromRGB(10, 18, 30),
@@ -25,6 +27,7 @@ local Loader = OrionLib:CreateBootstrapLoader({
     Content = "Caching icons and preparing Orion UI...",
     Icon = "solar:stars-bold-duotone",
     AutoClose = false,
+    RevealDelay = 1,
     GlassConfig = {
         BackgroundTransparency = 0.3,
         StrokeTransparency = 0.78,
@@ -41,12 +44,13 @@ local Window = OrionLib:CreateWindow({
     Theme = "Midnight",
     Icon = "sparkles",
     Size = UDim2.fromOffset(690, 430),
-    TopbarTabs = true,
+    SidebarCompact = true,
+    SidebarCompactWidth = 54,
     Glass = true,
     GlassConfig = {
         BackgroundTransparency = 0.32,
         PageTransparency = 0.5,
-        NavTransparency = 0.48,
+        NavTransparency = 0.42,
         StrokeTransparency = 0.76,
         PageStrokeTransparency = 0.84,
         NavStrokeTransparency = 0.8,
@@ -54,19 +58,6 @@ local Window = OrionLib:CreateWindow({
         ShadowBlur = 24,
         Radius = 14,
         Accent = Color3.fromRGB(125, 211, 252),
-    },
-    TopbarButtons = {
-        {
-            Icon = "bell",
-            Callback = function()
-                OrionLib:Popup({
-                    Title = "Topbar Popup",
-                    Description = "This popup came from an optional topbar button.",
-                    Icon = "bell",
-                    Duration = 4,
-                })
-            end,
-        },
     },
     --[[
     KeySystem = {
@@ -154,8 +145,8 @@ Dashboard:TabCard({
 Dashboard:TabCard({
     Title = "Combat",
     Description = "Creates a dedicated combat card page with its own header.",
-    Icon = "solar:sword-bold-duotone",
-    TabIcon = "solar:sword-bold-duotone",
+    Icon = "solar:target-bold-duotone",
+    TabIcon = "solar:target-bold-duotone",
     Color = Color3.fromRGB(248, 113, 113),
     Build = function(Tab)
         Tab:Button({
@@ -238,7 +229,7 @@ Main:Button({
 
 Main:WarningBox({
     Title = "Mobile ready",
-    Desc = "TopbarTabs keeps pages compact while Liquid Glass styling is applied to the window and pages.",
+    Desc = "SidebarCompact keeps navigation icon-only while Liquid Glass styling is applied to the window and pages.",
 })
 
 Main:DiscordServer({
@@ -371,11 +362,22 @@ GlassLab:GlassToggle({
 })
 
 GlassLab:GlassColorpicker({
-    Title = "Glass Morph Color Picker",
+    Title = "Gradient Glass Color Picker",
     Default = Color3.fromRGB(125, 211, 252),
+    Mode = "Gradient",
     Alpha = true,
     Callback = function(color, alpha)
         print("Glass color:", color, alpha)
+    end,
+})
+
+GlassLab:Colorpicker({
+    Title = "Basic Preset Color Picker",
+    Default = Color3.fromRGB(52, 211, 153),
+    Mode = "Basic",
+    Glass = true,
+    Callback = function(color)
+        print("Basic color:", color)
     end,
 })
 
@@ -399,13 +401,6 @@ GlassGroup:GlassToggle({
 
 Window:SettingsTab({ Title = "Settings", Icon = "settings" })
 Window:RefreshPages()
-
-Window:AddTopbarButton({
-    Icon = "layout-dashboard",
-    Title = "Dash",
-    Width = 76,
-    Tab = Dashboard,
-})
 
 Loader:SetProgress(1, "Ready")
 task.delay(0.35, function()
