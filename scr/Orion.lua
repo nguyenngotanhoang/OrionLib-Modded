@@ -2924,21 +2924,28 @@ function OrionLib:MakeNotification(NotificationConfig)
         NotificationConfig.Image = NotificationConfig.Image or "sparkles"
         NotificationConfig.Time = NotificationConfig.Time or 5
         NotificationConfig.Volume = NotificationConfig.Volume or OrionLib.NotifyVolume
+        NotificationConfig.Accept = NotificationConfig.Accept or nil
+        NotificationConfig.Close = NotificationConfig.Close or nil
+        NotificationConfig.AcceptText = NotificationConfig.AcceptText or "Accept"
+        NotificationConfig.CloseText = NotificationConfig.CloseText or "Close"
 
         local function ParseText(Str)
             if type(Str) ~= "string" then
                 return Str
             end
+
             Str = Str:gsub("%[Highlight:['\"](.-)['\"]%]", '<font color="#ffffff"><b>%1</b></font>')
             Str = Str:gsub("%[underline:['\"](.-)['\"]%]", "<u>%1</u>")
             Str = Str:gsub("%[Color_(.-):['\"](.-)['\"]%]", '<font color="%1">%2</font>')
+
             return Str
         end
 
+        local Closed = false
         local IconId = ResolveImageLikeAsset(NotificationConfig.Image)
 
         local NotificationParent = SetProps(MakeElement("Frame"), {
-            Size = UDim2.new(1, 0, 0, 0),
+            Size = UDim2.new(1,0,0,0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Parent = NotificationHolder,
             BackgroundTransparency = 1,
@@ -2946,33 +2953,33 @@ function OrionLib:MakeNotification(NotificationConfig)
         })
 
         local Card = SetChildren(
-            SetProps(MakeElement("RoundFrame", Color3.fromRGB(25, 25, 25), 0, 8), {
+            SetProps(MakeElement("RoundFrame", Color3.fromRGB(25,25,25),0,8), {
                 Parent = NotificationParent,
-                Size = UDim2.new(1, -20, 0, 0),
-                Position = UDim2.new(1, 30, 0, 0),
+                Size = UDim2.new(1,-20,0,0),
+                Position = UDim2.new(1,30,0,0),
                 AutomaticSize = Enum.AutomaticSize.Y,
             }),
             {
-                MakeElement("Stroke", Color3.fromRGB(60, 60, 60), 1),
+                MakeElement("Stroke", Color3.fromRGB(60,60,60),1),
                 Create("UIPadding", {
-                    PaddingTop = UDim.new(0, 10),
-                    PaddingBottom = UDim.new(0, 10),
-                    PaddingLeft = UDim.new(0, 12),
-                    PaddingRight = UDim.new(0, 12),
-                }),
+                    PaddingTop = UDim.new(0,10),
+                    PaddingBottom = UDim.new(0,10),
+                    PaddingLeft = UDim.new(0,12),
+                    PaddingRight = UDim.new(0,12),
+                })
             }
         )
 
-        local List = Create("UIListLayout", {
+        Create("UIListLayout", {
             Parent = Card,
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 6),
+            Padding = UDim.new(0,6),
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
         })
 
         local Header = Create("Frame", {
             Parent = Card,
-            Size = UDim2.new(1, 0, 0, 20),
+            Size = UDim2.new(1,0,0,20),
             BackgroundTransparency = 1,
             LayoutOrder = 1,
         })
@@ -2981,16 +2988,16 @@ function OrionLib:MakeNotification(NotificationConfig)
             Parent = Header,
             FillDirection = Enum.FillDirection.Horizontal,
             VerticalAlignment = Enum.VerticalAlignment.Center,
-            Padding = UDim.new(0, 8),
+            Padding = UDim.new(0,8),
         })
 
         local NotificationIcon = Create("ImageLabel", {
             Parent = Header,
-            Size = UDim2.new(0, 16, 0, 16),
+            Size = UDim2.new(0,16,0,16),
             Image = "",
-            ImageColor3 = Color3.fromRGB(255, 255, 255),
             BackgroundTransparency = 1,
         })
+
         ApplyIconToObject(NotificationIcon, IconId, 48)
 
         Create("TextLabel", {
@@ -2999,81 +3006,161 @@ function OrionLib:MakeNotification(NotificationConfig)
             Text = ParseText(NotificationConfig.Name),
             Font = Enum.Font.GothamBold,
             TextSize = 13,
-            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextColor3 = Color3.fromRGB(255,255,255),
             BackgroundTransparency = 1,
             RichText = true,
         })
 
-        if NotificationConfig.Banner then
-            local Banner = Create("ImageLabel", {
-                Parent = Card,
-                Size = UDim2.new(1, 0, 0, 100),
-                Image = NotificationConfig.Banner,
-                ScaleType = Enum.ScaleType.Crop,
-                BackgroundTransparency = 1,
-                LayoutOrder = 2,
-            })
-            Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = Banner })
-            Create("UIStroke", {
-                Parent = Banner,
-                Transparency = 0.5,
-                Color = Color3.fromRGB(80, 80, 80),
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            })
-        end
+        local TimeLabel = Create("TextLabel", {
+            Parent = Header,
+            AutomaticSize = Enum.AutomaticSize.XY,
+            Text = string.format("00:%02d", NotificationConfig.Time),
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = Color3.fromRGB(180,180,180),
+            BackgroundTransparency = 1,
+        })
 
         Create("TextLabel", {
             Parent = Card,
-            Size = UDim2.new(1, 0, 0, 0),
+            Size = UDim2.new(1,0,0,0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = ParseText(NotificationConfig.Content),
             Font = Enum.Font.GothamSemibold,
             TextSize = 12,
-            TextColor3 = Color3.fromRGB(200, 200, 200),
+            TextColor3 = Color3.fromRGB(200,200,200),
             BackgroundTransparency = 1,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextWrapped = true,
             RichText = true,
+            LayoutOrder = 2,
+        })
+
+        local ButtonHolder = Create("Frame", {
+            Parent = Card,
+            Size = UDim2.new(1,0,0,26),
+            BackgroundTransparency = 1,
             LayoutOrder = 3,
         })
 
-        Create("Frame", { Parent = Card, Size = UDim2.new(1, 0, 0, 2), BackgroundTransparency = 1, LayoutOrder = 4 })
+        Create("UIListLayout", {
+            Parent = ButtonHolder,
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            Padding = UDim.new(0,6),
+        })
+		
+		if typeof(NotificationConfig.Accept) == "function" then
+	        local AcceptButton = Create("TextButton", {
+	            Parent = ButtonHolder,
+	            Size = UDim2.new(0,70,1,0),
+	            Text = NotificationConfig.AcceptText,
+	            Font = Enum.Font.GothamBold,
+	            TextSize = 12,
+	            TextColor3 = Color3.new(1,1,1),
+	            BackgroundColor3 = Color3.fromRGB(0,170,0),
+	        })
+	
+	        Create("UICorner", {
+	            Parent = AcceptButton,
+	            CornerRadius = UDim.new(0,4)
+	        })
+		end
+		if typeof(NotificationConfig.Close) == "function" then 
+	        local CloseButton = Create("TextButton", {
+	            Parent = ButtonHolder,
+	            Size = UDim2.new(0,70,1,0),
+	            Text = NotificationConfig.CloseText,
+	            Font = Enum.Font.GothamBold,
+	            TextSize = 12,
+	            TextColor3 = Color3.new(1,1,1),
+	            BackgroundColor3 = Color3.fromRGB(170,0,0),
+	        })
+	
+	        Create("UICorner", {
+	            Parent = CloseButton,
+	            CornerRadius = UDim.new(0,4)
+	        })
+		end
 
         local BarWrapper = Create("Frame", {
             Parent = Card,
-            Size = UDim2.new(1, 4, 0, 2),
-            BackgroundColor3 = Color3.fromRGB(45, 45, 45),
+            Size = UDim2.new(1,4,0,2),
+            BackgroundColor3 = Color3.fromRGB(45,45,45),
             BorderSizePixel = 0,
-            LayoutOrder = 5,
+            LayoutOrder = 4,
         })
-        Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = BarWrapper })
+
+        Create("UICorner", {
+            Parent = BarWrapper,
+            CornerRadius = UDim.new(1,0)
+        })
 
         local Bar = Create("Frame", {
             Parent = BarWrapper,
-            Size = UDim2.new(0, 0, 1, 0),
-            BackgroundColor3 = Color3.fromRGB(0, 170, 255),
+            Size = UDim2.new(0,0,1,0),
+            BackgroundColor3 = Color3.fromRGB(0,170,255),
             BorderSizePixel = 0,
         })
-        Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = Bar })
 
-        if NotificationConfig.SoundId then
-            local sId = tostring(NotificationConfig.SoundId):match("%d+")
-            if sId then
-                local s = Instance.new("Sound", workspace)
-                s.SoundId = "rbxassetid://" .. sId
-                s.Volume = NotificationConfig.Volume
-                s.PlayOnRemove = true
-                s:Destroy()
+        Create("UICorner", {
+            Parent = Bar,
+            CornerRadius = UDim.new(1,0)
+        })
+
+        local function RemoveNotification()
+            if Closed then
+                return
             end
+            Closed = true
+            local Out = TweenService:Create(
+                Card,
+                TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+                {Position = UDim2.new(1,90,0,0)}
+            )
+            Out:Play()
+            Out.Completed:Wait()
+            NotificationParent:Destroy()
         end
+		if AcceptButton then
+	        AcceptButton.MouseButton1Click:Connect(function()
+	            pcall(NotificationConfig.Accept)
+	            RemoveNotification()
+	        end)
+		end
+		if CloseButton then
+	        CloseButton.MouseButton1Click:Connect(function()
+	            pcall(NotificationConfig.Close)
+	            RemoveNotification()
+	        end)
+		end
 
-        TweenService:Create(Card, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(1, -272, 0, 0) }):Play()
-        TweenService:Create(Bar, TweenInfo.new(NotificationConfig.Time, Enum.EasingStyle.Linear), { Size = UDim2.new(1, 0, 1, 0) }):Play()
-        task.wait(NotificationConfig.Time)
-        local Out = TweenService:Create(Card, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Position = UDim2.new(1, 90, 0, 0) })
-        Out:Play()
-        Out.Completed:Wait()
-        NotificationParent:Destroy()
+        task.spawn(function()
+            local t = NotificationConfig.Time
+            while t >= 0 and not Closed do
+                TimeLabel.Text = string.format("00:%02d", t)
+                task.wait(1)
+                t -= 1
+            end
+        end)
+
+        TweenService:Create(
+            Card,
+            TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            {Position = UDim2.new(1,-272,0,0)}
+        ):Play()
+
+        TweenService:Create(
+            Bar,
+            TweenInfo.new(NotificationConfig.Time, Enum.EasingStyle.Linear),
+            {Size = UDim2.new(1,0,1,0)}
+        ):Play()
+
+        task.delay(NotificationConfig.Time, function()
+            if not Closed then
+                RemoveNotification()
+            end
+        end)
     end)
 end
 
@@ -3444,7 +3531,7 @@ function OrionLib:MakeWindow(WindowConfig)
         }),
         {
             OrionLib:AddThemeObject(
-                SetProps(MakeElement("Image", "x"), {
+                SetProps(MakeElement("Image", "rbxassetid://7072725342"), {
                     Position = UDim2.new(0, 9, 0, 6),
                     Size = UDim2.new(0, 18, 0, 18),
                 }),
@@ -3460,7 +3547,7 @@ function OrionLib:MakeWindow(WindowConfig)
         }),
         {
             OrionLib:AddThemeObject(
-                SetProps(MakeElement("Image", "minus"), {
+                SetProps(MakeElement("Image", "rbxassetid://7072719338"), {
                     Position = UDim2.new(0, 9, 0, 6),
                     Size = UDim2.new(0, 18, 0, 18),
                     Name = "Ico",
@@ -3703,7 +3790,7 @@ function OrionLib:MakeWindow(WindowConfig)
         }),
         {
             OrionLib:AddThemeObject(
-                SetProps(MakeElement("Image", "move-diagonal-2"), { -- Icon kéo giãn chuẩn
+                SetProps(MakeElement("Image", "move-diagonal-2"), {
                     AnchorPoint = Vector2.new(0.5, 0.5),
                     Position = UDim2.new(0.5, 0, 0.5, 0),
                     Size = UDim2.fromScale(0.82, 0.82),
@@ -3949,7 +4036,7 @@ function OrionLib:MakeWindow(WindowConfig)
             WindowTopBarLine.Visible = true
             TopbarButtonHolder.Visible = WindowConfig.EnableTopbarButtons == true
             MainWindow.SizeDragging.Visible = true
-            ApplyIconToObject(MinimizeBtn.Ico, "minus", 32)
+            ApplyIconToObject(MinimizeBtn.Ico, "rbxassetid://7072719338", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = Window.Size })
             tween:Play()
             tween.Completed:Connect(function()
@@ -6956,13 +7043,14 @@ function OrionLib:MakeWindow(WindowConfig)
             end
             function ElementFunction:AddToggle(ToggleConfig)
                 ToggleConfig = ToggleConfig or {}
-                ToggleConfig.Name = ToggleConfig.Name or "Toggle"
-                ToggleConfig.Default = ToggleConfig.Default or false
-                ToggleConfig.Callback = ToggleConfig.Callback or function() end
+                ToggleConfig.Name = ToggleConfig.Name or ToggleConfig.Title or ToggleConfig.Titles or "Toggle"
+                ToggleConfig.Default = ToggleConfig.Default or ToggleConfig.Average or false
+                ToggleConfig.Callback = ToggleConfig.Callback or ToggleConfig.Function or ToggleConfig.function or function() end
                 ToggleConfig.Color = ToggleConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
-                ToggleConfig.Visible = ToggleConfig.Visible or true
-                ToggleConfig.Disabled = ToggleConfig.Disabled or false
-                ToggleConfig.Type = ToggleConfig.Type or "CheckBox"
+                ToggleConfig.Visible = ToggleConfig.Visible or ToggleConfig.Enabled or true
+                ToggleConfig.Disabled = ToggleConfig.Disabled or ToggleConfig.Dead or false
+                ToggleConfig.Icon = ToggleConfig.Icon or "rbxassetid://3944680095"
+                ToggleConfig.Type = ToggleConfig.Type or ToggleConfig.Mode or "CheckBox"
                 ToggleConfig.Flag = ToggleConfig.Flag or nil
                 ToggleConfig.Save = ToggleConfig.Save or false
 
@@ -6977,14 +7065,14 @@ function OrionLib:MakeWindow(WindowConfig)
                 }
 
                 local Click = SetProps(MakeElement("Button"), {
-                    Size = UDim2.new(1, 0, 1, 0),
+                    Size = UDim2.new(1, 0, 0, 37),
                 })
                 local ToggleBox
                 if ToggleConfig.Type == "Switch" then
                     ToggleBox = SetChildren(
                         SetProps(MakeElement("RoundFrame", GetThemeValue("Divider", OrionLib.Themes.Default.Divider), 0, 12), {
                             Size = UDim2.new(0, 40, 0, 20),
-                            Position = UDim2.new(1, -8, 0.5, 0),
+                            Position = UDim2.new(1, -8, 0, 20),
                             AnchorPoint = Vector2.new(1, 0.5),
                             BackgroundColor3 = GetThemeValue("Divider", OrionLib.Themes.Default.Divider),
                             Name = "Switch",
@@ -7003,7 +7091,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     ToggleBox = SetChildren(
                         SetProps(MakeElement("RoundFrame", ToggleConfig.Color, 0, 4), {
                             Size = UDim2.new(0, 24, 0, 24),
-                            Position = UDim2.new(1, -24, 0.5, 0),
+                            Position = UDim2.new(1, -24, 0, 20),
                             AnchorPoint = Vector2.new(0.5, 0.5),
                             BackgroundColor3 = GetThemeValue("Divider", OrionLib.Themes.Default.Divider),
                             Name = "Check",
@@ -7014,7 +7102,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                 Name = "Stroke",
                                 Transparency = 0.5,
                             }),
-                            SetProps(MakeElement("Image", "check"), {
+                            SetProps(MakeElement("Image", ToggleConfig.Icon), {
                                 Size = UDim2.new(0, 8, 0, 8),
                                 AnchorPoint = Vector2.new(0.5, 0.5),
                                 Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -7034,7 +7122,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         {
                             OrionLib:AddThemeObject(
                                 SetProps(MakeElement("Label", ToggleConfig.Name, 15), {
-                                    Size = UDim2.new(1, -12, 1, 0),
+                                    Size = UDim2.new(1, -12, 0, 37),
                                     Position = UDim2.new(0, 12, 0, 0),
                                     Font = Enum.Font.GothamBold,
                                     Name = "Content",
@@ -7113,16 +7201,32 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
 
                 local function UpdateLayout()
-                    local hasBind = ToggleFrame:FindFirstChild("ButtonKey")
-                    if hasBind then
-                        if ToggleFrame:FindFirstChild("Switch") then
-                            ToggleFrame.Switch.Position = UDim2.new(1, -60, 0.5, 0)
-                        end
-                        if ToggleFrame:FindFirstChild("Check") then
-                            ToggleFrame.Check.Position = UDim2.new(1, -50, 0.5, 0)
-                        end
-                    end
-                end
+				    local offset = 8
+				    if ToggleFrame:FindFirstChild("Switch") then
+				        ToggleFrame.Switch.Position = UDim2.new(1,-offset,0.5,20)
+				        offset += ToggleFrame.Switch.AbsoluteSize.X + 6
+				    elseif ToggleFrame:FindFirstChild("Check") then
+				        ToggleFrame.Check.Position = UDim2.new(1,-offset-12,0,20)
+				        offset += ToggleFrame.Check.AbsoluteSize.X + 6
+				    end
+				    local ColorButton = ToggleFrame:FindFirstChild("ToggleColorButton")
+				    local ColorSwatch = ToggleFrame:FindFirstChild("ToggleColorSwatch")
+				    if ColorButton and ColorSwatch then
+				        ColorButton.Position = UDim2.new(1,-offset,0,20)
+				        ColorSwatch.Position = ColorButton.Position
+				        offset += ColorSwatch.AbsoluteSize.X + 6
+				    end
+				    local Bind = ToggleFrame:FindFirstChild("ButtonKey")
+				    local BindBox = ToggleFrame:FindFirstChild("ToggleBindBox")
+				    if Bind then
+				        Bind.Position = UDim2.new(1,-offset,0,20)
+				        offset += Bind.AbsoluteSize.X + 6
+					end
+				    if BindBox then
+				        BindBox.Position = Bind.Position
+				    end
+				    ToggleFrame.Content.Size = UDim2.new(1,-offset-10,0,37)
+				end
 
                 local function AddTogglesKeyBind(name: string)
                     local KeyBindAdd = ToggleFrame:Clone()
@@ -7134,6 +7238,19 @@ function OrionLib:MakeWindow(WindowConfig)
                         if KeyBindAdd:FindFirstChild("ButtonKey") then
                             KeyBindAdd:FindFirstChild("ButtonKey"):Destroy()
                         end
+                        if KeyBindAdd:FindFirstChild("ToggleColorButton") then
+                            KeyBindAdd:FindFirstChild("ToggleColorButton"):Destroy()
+                        end
+                        if KeyBindAdd:FindFirstChild("ToggleColorSwatch") then
+                            KeyBindAdd:FindFirstChild("ToggleColorSwatch"):Destroy()
+                        end
+                        if KeyBindAdd:FindFirstChild("ToggleColorContainer") then
+                            KeyBindAdd:FindFirstChild("ToggleColorContainer"):Destroy()
+                        end
+                        if KeyBindAdd:FindFirstChild("ToggleColorLine") then
+                            KeyBindAdd:FindFirstChild("ToggleColorLine"):Destroy()
+                        end
+                        KeyBindAdd.Size = UDim2.new(1, 0, 0, 38)
                         if KeyBindAdd:FindFirstChild("TextButton") then
                             AddConnection(KeyBindAdd:FindFirstChild("TextButton").MouseButton1Up, function()
                                 Toggle:Set(not Toggle.Value)
@@ -7185,7 +7302,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         local newSwitch = SetChildren(
                             SetProps(MakeElement("RoundFrame", GetThemeValue("Divider", OrionLib.Themes.Default.Divider), 0, 12), {
                                 Size = UDim2.new(0, 40, 0, 20),
-                                Position = UDim2.new(1, -8, 0.5, 0),
+                                Position = UDim2.new(1, -8, 0, 20),
                                 AnchorPoint = Vector2.new(1, 0.5),
                                 Name = "Switch",
                                 Parent = ToggleFrame,
@@ -7199,17 +7316,23 @@ function OrionLib:MakeWindow(WindowConfig)
                                 }),
                             }
                         )
+                        ToggleBox = newSwitch
                     else
                         local newCheck = SetChildren(
                             SetProps(MakeElement("RoundFrame", ToggleConfig.Color, 0, 4), {
                                 Size = UDim2.new(0, 24, 0, 24),
-                                Position = UDim2.new(1, -24, 0.5, 0),
+                                Position = UDim2.new(1, -24, 0, 20),
                                 AnchorPoint = Vector2.new(0.5, 0.5),
                                 Name = "Check",
                                 Parent = ToggleFrame,
                             }),
                             {
-                                SetProps(MakeElement("Image", "check"), {
+                            	SetProps(MakeElement("Stroke"), {
+                                    Color = GetThemeValue("Stroke", OrionLib.Themes.Default.Stroke),
+                                    Name = "Stroke",
+                                    Transparency = 0.5,
+                                }),
+                                SetProps(MakeElement("Image", ToggleConfig.Icon), {
                                     Size = UDim2.new(0, 8, 0, 8),
                                     AnchorPoint = Vector2.new(0.5, 0.5),
                                     Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -7218,9 +7341,10 @@ function OrionLib:MakeWindow(WindowConfig)
                                 }),
                             }
                         )
+                        ToggleBox = newCheck
                     end
                     Toggle:UpdateTweenKeyBindToggles(ToggleFrame, Toggle.Value)
-                    UpdateLayout()
+                    task.defer(UpdateLayout)
                 end
 
                 function Toggle:SetDisabled(state)
@@ -7310,6 +7434,28 @@ function OrionLib:MakeWindow(WindowConfig)
                         end
                     end
                 end
+                
+                function Toggle:SetColor(Value, BlockCallback)
+                    if getgenv().Destroy or typeof(Value) ~= "Color3" then
+                        return
+                    end
+                    ToggleConfig.Color = Value
+                    Toggle.Color = Value
+                    Toggle:UpdateTweenKeyBindToggles(ToggleFrame, Toggle.Value)
+                    if Toggle.__DisplayName then
+                        local data = getgenv().TogglesSaveTable[Toggle.__DisplayName]
+                        if data then
+                            Toggle:UpdateTweenKeyBindToggles(data, Toggle.Value)
+                        end
+                    end
+                    if Toggle.__ColorSwatch then
+                        Toggle.__ColorSwatch.BackgroundColor3 = Value
+                    end
+                    if Toggle.__ColorCallback and not BlockCallback then
+                        OrionLib:SafeScript(Toggle.__ColorCallback, Value, Toggle.Value)
+                    end
+                    UpdateLayout()
+                end
 
                 if ToggleConfig.Default == true then
                     Toggle:Set(true)
@@ -7321,6 +7467,359 @@ function OrionLib:MakeWindow(WindowConfig)
                     end
                     Toggle:Set(not Toggle.Value)
                 end)
+
+                function Toggle:AddColor(ColorConfig)
+                    if Toggle.__ColorPicker then
+                        return Toggle.__ColorPicker
+                    end
+                    ColorConfig = ColorConfig or {}
+                    ColorConfig.Default = ColorConfig.Default or ColorConfig.Color or ToggleConfig.Color
+                    ColorConfig.Callback = ColorConfig.Callback or function() end
+                    ColorConfig.Flag = ColorConfig.Flag or nil
+                    ColorConfig.Save = ColorConfig.Save or false
+
+                    local ToggleColor = {
+                        Value = ColorConfig.Default,
+                        Toggled = false,
+                        Type = "ToggleColor",
+                        Save = ColorConfig.Save,
+                        RecentColors = {},
+                    }
+                    Toggle.__ColorCallback = ColorConfig.Callback
+                    Toggle.__ColorPicker = ToggleColor
+
+                    local ColorH, ColorS, ColorV = Color3.toHSV(ToggleColor.Value)
+                    local ColorInput, HueInput
+
+                    local function RGBToHex(c)
+                        return string.format("#%02X%02X%02X", c.R * 255, c.G * 255, c.B * 255)
+                    end
+
+                    local function HexToRGB(hex)
+                        hex = tostring(hex or ""):gsub("#", "")
+                        if #hex ~= 6 or not hex:match("^[%x]+$") then
+                            return nil
+                        end
+                        return Color3.fromRGB(
+                            tonumber("0x" .. hex:sub(1, 2)),
+                            tonumber("0x" .. hex:sub(3, 4)),
+                            tonumber("0x" .. hex:sub(5, 6))
+                        )
+                    end
+
+                    local ColorSelection = Create("ImageLabel", {
+                        Size = UDim2.new(0, 18, 0, 18),
+                        Position = UDim2.new(ColorS, 0, 1 - ColorV, 0),
+                        ScaleType = Enum.ScaleType.Fit,
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        BackgroundTransparency = 1,
+                        Image = "http://www.roblox.com/asset/?id=4805639000",
+                    })
+
+                    local HueSelection = Create("ImageLabel", {
+                        Size = UDim2.new(0, 18, 0, 18),
+                        Position = UDim2.new(0.5, 0, 1 - ColorH, 0),
+                        ScaleType = Enum.ScaleType.Fit,
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        BackgroundTransparency = 1,
+                        Image = "http://www.roblox.com/asset/?id=4805639000",
+                    })
+
+                    local ColorP = Create("ImageLabel", {
+                        Size = UDim2.new(1, -25, 0, 130),
+                        Position = UDim2.new(0, 0, 0, 0),
+                        Visible = false,
+                        Image = "rbxassetid://4155801252",
+                        BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1),
+                    }, {
+                        Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+                        ColorSelection,
+                    })
+
+                    local Hue = Create("Frame", {
+                        Size = UDim2.new(0, 20, 0, 130),
+                        Position = UDim2.new(1, -20, 0, 0),
+                        Visible = false,
+                    }, {
+                        Create("UIGradient", {
+                            Rotation = 90,
+                            Color = ColorSequence.new({
+                                ColorSequenceKeypoint.new(0.00, Color3.fromHSV(1, 1, 1)),
+                                ColorSequenceKeypoint.new(0.17, Color3.fromHSV(0.83, 1, 1)),
+                                ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.67, 1, 1)),
+                                ColorSequenceKeypoint.new(0.50, Color3.fromHSV(0.5, 1, 1)),
+                                ColorSequenceKeypoint.new(0.67, Color3.fromHSV(0.33, 1, 1)),
+                                ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.17, 1, 1)),
+                                ColorSequenceKeypoint.new(1.00, Color3.fromHSV(0, 1, 1)),
+                            }),
+                        }),
+                        Create("UICorner", { CornerRadius = UDim.new(0, 5) }),
+                        HueSelection,
+                    })
+
+                    local Inputs = Create("Frame", {
+                        Size = UDim2.new(1, 0, 0, 30),
+                        Position = UDim2.new(0, 0, 0, 140),
+                        BackgroundTransparency = 1,
+                        Visible = false,
+                    }, {
+                        Create("UIListLayout", {
+                            FillDirection = Enum.FillDirection.Horizontal,
+                            SortOrder = Enum.SortOrder.LayoutOrder,
+                            Padding = UDim.new(0, 5),
+                        }),
+                    })
+
+                    local HexBox = Create("TextBox", {
+                        Size = UDim2.new(0, 70, 1, 0),
+                        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+                        TextColor3 = Color3.fromRGB(255, 255, 255),
+                        Text = RGBToHex(ToggleColor.Value),
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 12,
+                        PlaceholderText = "HEX",
+                    }, { Create("UICorner", { CornerRadius = UDim.new(0, 4) }) })
+
+                    local RBox = Create("TextBox", {
+                        Size = UDim2.new(0, 40, 1, 0),
+                        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+                        TextColor3 = Color3.new(1, 0, 0),
+                        Text = math.floor(ToggleColor.Value.R * 255),
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 12,
+                    }, { Create("UICorner", { CornerRadius = UDim.new(0, 4) }) })
+                    local GBox = Create("TextBox", {
+                        Size = UDim2.new(0, 40, 1, 0),
+                        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+                        TextColor3 = Color3.new(0, 1, 0),
+                        Text = math.floor(ToggleColor.Value.G * 255),
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 12,
+                    }, { Create("UICorner", { CornerRadius = UDim.new(0, 4) }) })
+                    local BBox = Create("TextBox", {
+                        Size = UDim2.new(0, 40, 1, 0),
+                        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+                        TextColor3 = Color3.new(0.3, 0.3, 1),
+                        Text = math.floor(ToggleColor.Value.B * 255),
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 12,
+                    }, { Create("UICorner", { CornerRadius = UDim.new(0, 4) }) })
+                    HexBox.Parent = Inputs
+                    RBox.Parent = Inputs
+                    GBox.Parent = Inputs
+                    BBox.Parent = Inputs
+
+                    local RecentFrame = Create("Frame", {
+                        Size = UDim2.new(1, 0, 0, 20),
+                        Position = UDim2.new(0, 0, 0, 177),
+                        BackgroundTransparency = 1,
+                        Visible = false,
+                    }, {
+                        Create("UIListLayout", {
+                            FillDirection = Enum.FillDirection.Horizontal,
+                            SortOrder = Enum.SortOrder.LayoutOrder,
+                            Padding = UDim.new(0, 6),
+                        }),
+                    })
+
+                    local ColorContainer = Create("Frame", {
+                        Position = UDim2.new(0, 0, 0, 38),
+                        Size = UDim2.new(1, 0, 1, -38),
+                        BackgroundTransparency = 1,
+                        ClipsDescendants = true,
+                        Name = "ToggleColorContainer",
+                        Parent = ToggleFrame,
+                    }, {
+                        Hue,
+                        ColorP,
+                        Inputs,
+                        RecentFrame,
+                        Create("UIPadding", {
+                            PaddingLeft = UDim.new(0, 10),
+                            PaddingRight = UDim.new(0, 10),
+                            PaddingBottom = UDim.new(0, 10),
+                            PaddingTop = UDim.new(0, 10),
+                        }),
+                    })
+
+                    local ColorLine = OrionLib:AddThemeObject(SetProps(MakeElement("Frame"), {
+                        Size = UDim2.new(1, 0, 0, 1),
+                        Position = UDim2.new(0, 0, 0, 37),
+                        Name = "ToggleColorLine",
+                        Visible = false,
+                        Parent = ToggleFrame,
+                    }), "Stroke")
+
+                    local ColorButton = SetProps(MakeElement("Button"), {
+                        Size = UDim2.new(0, 24, 0, 24),
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Name = "ToggleColorButton",
+                        Parent = ToggleFrame,
+                        ZIndex = 5,
+                    })
+
+                    local ColorSwatch = SetChildren(SetProps(MakeElement("RoundFrame", ToggleColor.Value, 0, 4), {
+                        Size = UDim2.new(0, 24, 0, 24),
+                        Position = ColorButton.Position,
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        BackgroundColor3 = ToggleColor.Value,
+                        Parent = ToggleFrame,
+                        Name = "ToggleColorSwatch",
+                        ZIndex = 4,
+                    }), {
+                        OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                    })
+                    Toggle.__ColorSwatch = ColorSwatch
+
+                    local function AddRecentColor(Col)
+                        for _, v in ipairs(ToggleColor.RecentColors) do
+                            if v == Col then
+                                return
+                            end
+                        end
+                        table.insert(ToggleColor.RecentColors, 1, Col)
+                        if #ToggleColor.RecentColors > 5 then
+                            table.remove(ToggleColor.RecentColors, 6)
+                        end
+                    end
+
+                    local function RedrawRecentColors()
+                        for _, child in pairs(RecentFrame:GetChildren()) do
+                            if child:IsA("ImageButton") then
+                                child:Destroy()
+                            end
+                        end
+                        for _, rc in ipairs(ToggleColor.RecentColors) do
+                            local cBtn = Create("ImageButton", {
+                                Size = UDim2.new(0, 20, 0, 20),
+                                BackgroundColor3 = rc,
+                                AutoButtonColor = false,
+                            }, { Create("UICorner", { CornerRadius = UDim.new(0, 4) }) })
+                            cBtn.Parent = RecentFrame
+                            AddConnection(cBtn.MouseButton1Click, function()
+                                ToggleColor:Set(rc)
+                            end)
+                        end
+                    end
+                    
+                    local function UpdateInputDisplays()
+                        HexBox.Text = RGBToHex(ToggleColor.Value)
+                        RBox.Text = tostring(math.floor(ToggleColor.Value.R * 255))
+                        GBox.Text = tostring(math.floor(ToggleColor.Value.G * 255))
+                        BBox.Text = tostring(math.floor(ToggleColor.Value.B * 255))
+                    end
+
+                    local function UpdateColorPicker(BlockCallback)
+                        ToggleColor.Value = Color3.fromHSV(ColorH, ColorS, ColorV)
+                        ColorP.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
+                        Toggle:SetColor(ToggleColor.Value, BlockCallback)
+                        UpdateInputDisplays()
+                    end
+
+                    AddConnection(ColorButton.MouseButton1Click, function()
+                        if ToggleConfig.Disabled then
+                            return
+                        end
+                        ToggleColor.Toggled = not ToggleColor.Toggled
+                        local openSize = 250
+                        TweenService:Create(ToggleFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            Size = ToggleColor.Toggled and UDim2.new(1, 0, 0, openSize) or UDim2.new(1, 0, 0, 38),
+                        }):Play()
+                        ColorP.Visible = ToggleColor.Toggled
+                        Hue.Visible = ToggleColor.Toggled
+                        Inputs.Visible = ToggleColor.Toggled
+                        RecentFrame.Visible = ToggleColor.Toggled
+                        ColorLine.Visible = ToggleColor.Toggled
+                        if ToggleColor.Toggled then
+                            RedrawRecentColors()
+                        else
+                            AddRecentColor(ToggleColor.Value)
+                        end
+                    end)
+
+                    local function UpdateHex()
+                        local nC = HexToRGB(HexBox.Text)
+                        if nC then
+                            ToggleColor:Set(nC)
+                        end
+                    end
+                    AddConnection(HexBox.FocusLost, UpdateHex)
+
+                    local function UpdateRGB()
+                        local r = math.clamp(tonumber(RBox.Text) or 0, 0, 255)
+                        local g = math.clamp(tonumber(GBox.Text) or 0, 0, 255)
+                        local b = math.clamp(tonumber(BBox.Text) or 0, 0, 255)
+                        ToggleColor:Set(Color3.fromRGB(r, g, b))
+                    end
+                    AddConnection(RBox.FocusLost, UpdateRGB)
+                    AddConnection(GBox.FocusLost, UpdateRGB)
+                    AddConnection(BBox.FocusLost, UpdateRGB)
+
+                    AddConnection(ColorP.InputBegan, function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            if ColorInput then
+                                ColorInput:Disconnect()
+                            end
+                            ColorInput = AddConnection(RunService.RenderStepped, function()
+                                local ColorX = (math.clamp(Mouse.X - ColorP.AbsolutePosition.X, 0, ColorP.AbsoluteSize.X) / ColorP.AbsoluteSize.X)
+                                local ColorY = (math.clamp(Mouse.Y - ColorP.AbsolutePosition.Y, 0, ColorP.AbsoluteSize.Y) / ColorP.AbsoluteSize.Y)
+                                ColorSelection.Position = UDim2.new(ColorX, 0, ColorY, 0)
+                                ColorS = ColorX
+                                ColorV = 1 - ColorY
+                                UpdateColorPicker()
+                            end)
+                        end
+                    end)
+
+                    AddConnection(ColorP.InputEnded, function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            if ColorInput then
+                                ColorInput:Disconnect()
+                            end
+                        end
+                    end)
+
+                    AddConnection(Hue.InputBegan, function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            if HueInput then
+                                HueInput:Disconnect()
+                            end
+                            HueInput = AddConnection(RunService.RenderStepped, function()
+                                local HueY = (math.clamp(Mouse.Y - Hue.AbsolutePosition.Y, 0, Hue.AbsoluteSize.Y) / Hue.AbsoluteSize.Y)
+                                HueSelection.Position = UDim2.new(0.5, 0, HueY, 0)
+                                ColorH = 1 - HueY
+                                UpdateColorPicker()
+                            end)
+                        end
+                    end)
+
+                    AddConnection(Hue.InputEnded, function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            if HueInput then
+                                HueInput:Disconnect()
+                            end
+                        end
+                    end)
+
+                    function ToggleColor:Set(Value, BlockCallback)
+                        if getgenv().Destroy or typeof(Value) ~= "Color3" then
+                            return
+                        end
+                        ToggleColor.Value = Value
+                        ColorH, ColorS, ColorV = Color3.toHSV(Value)
+                        ColorSelection.Position = UDim2.new(ColorS, 0, 1 - ColorV, 0)
+                        HueSelection.Position = UDim2.new(0.5, 0, 1 - ColorH, 0)
+                        UpdateColorPicker(BlockCallback)
+                    end
+
+                    ToggleColor:Set(ToggleColor.Value, true)
+                    task.defer(UpdateLayout)
+                    if ColorConfig.Flag then
+                        OrionLib.Flags[ColorConfig.Flag] = ToggleColor
+                    end
+                    Toggle.ColorPicker = ToggleColor
+					return Toggle
+                end
 
                 function Toggle:AddBind(BindConfig)
                     BindConfig = BindConfig or {}
@@ -7340,7 +7839,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
                     local Click = SetProps(MakeElement("Button"), {
                         Size = UDim2.new(0, 30, 0, 24),
-                        Position = (ToggleConfig.Type == "Switch" and UDim2.new(1, -55, 0.5, 0) or UDim2.new(1, -48, 0.5, 0)),
+                        Position = (ToggleConfig.Type == "Switch" and UDim2.new(1, -55, 0, 20) or UDim2.new(1, -48, 0, 20)),
                         AnchorPoint = Vector2.new(1, 0.5),
                         Parent = ToggleFrame,
                         Name = "ButtonKey",
@@ -7352,6 +7851,7 @@ function OrionLib:MakeWindow(WindowConfig)
                             SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 4), {
                                 Size = UDim2.new(0, 30, 0, 24),
                                 Position = Click.Position,
+                                Name = "ToggleBindBox",
                                 AnchorPoint = Vector2.new(1, 0.5),
                                 Parent = ToggleFrame,
                                 ZIndex = 1,
@@ -7378,7 +7878,8 @@ function OrionLib:MakeWindow(WindowConfig)
                         TweenService:Create(BindBox, TweenInfo.new(0.25, Enum.EasingStyle.Quint), { Size = UDim2.new(0, width, 0, 24) }):Play()
                         TweenService:Create(Click, TweenInfo.new(0.25, Enum.EasingStyle.Quint), { Size = UDim2.new(0, width, 0, 24) }):Play()
                     end)
-
+                    
+                    task.defer(UpdateLayout)
                     AddConnection(Click.InputEnded, function(Input)
                         if ToggleConfig.Disabled then
                             return
@@ -7462,12 +7963,23 @@ function OrionLib:MakeWindow(WindowConfig)
                     end
 
                     AddTogglesKeyBind(ToggleConfig.Name)
+                    task.defer(UpdateLayout)
 
                     if BindConfig.Flag then
                         OrionLib.Flags[BindConfig.Flag] = Bind
                     end
-                    return Bind
+                    Toggle.KeyBind = Bind
+					return Toggle
                 end
+                
+                function Toggle:GetColor()
+				    return Toggle.ColorPicker
+				end
+				
+				function Toggle:GetKeyBind()
+				    return Toggle.ColorPicker
+				end
+				
                 if ToggleConfig.Flag then
                     OrionLib.Flags[ToggleConfig.Flag] = Toggle
                 end
