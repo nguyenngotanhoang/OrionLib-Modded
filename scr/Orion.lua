@@ -6897,6 +6897,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 VideoConfig.Value = VideoConfig.Value or { ["Playing"] = false, ["Loop"] = false }
                 VideoConfig.Size = VideoConfig.Size or 20
                 VideoConfig.Flag = VideoConfig.Flag or false
+                VideoConfig.Sound = VideoConfig.Sound or {}
                 VideoConfig.Visible = VideoConfig.Visible ~= false
                 VideoConfig.Padding = VideoConfig.Padding or 8
                 local Video = { Default = VideoConfig.Icon, Size = VideoConfig.Size, Type = "Video" }
@@ -6943,6 +6944,9 @@ function OrionLib:MakeWindow(WindowConfig)
                 )
 
                 VideoFrame = VideoFrameTo:FindFirstChildWhichIsA("VideoFrame", true)
+                if VideoConfig.Sound and VideoConfig.Sound.Enabled then
+	                Create("Sound", {Parent = VideoFrame, SoundId = VideoConfig.Sound.ID or "rbxassetid://123456789", Volume = 1, Played = VideoConfig.Value.Playing, Looped = VideoConfig.Value.Loop})
+                end
                 local function updateLayout(size)
                     if getgenv().Destroy then
                         return
@@ -6973,6 +6977,18 @@ function OrionLib:MakeWindow(WindowConfig)
                         local VideoAsset = OrionLib:MakeAsset({ Icon = VideoConfig.Video }, { Root = "OrionLibSave", Folder = "OrionVideo" })
                         VideoFrame.Video = VideoAsset and VideoAsset.Icon or ResolveImageLikeAsset(VideoConfig.Video)
                     end
+                end
+                
+                function Video:SetSoundID(ToChange)
+                    if getgenv().Destroy then
+                        return
+                    end
+				    if VideoFrame then
+				        local sound = VideoFrame:FindFirstChild("Sound")
+				        if sound then
+				            sound.SoundId = ToChange
+				        end
+				    end
                 end
 
                 function Video:SetVisible(ToChange: boolean)
@@ -7007,7 +7023,10 @@ function OrionLib:MakeWindow(WindowConfig)
                         return
                     end
                     if VideoFrame then
-                        VideoFrame.Volume = ToChange
+                        local sound = VideoFrame:FindFirstChild("Sound")
+				        if sound then
+				            sound.Volume = ToChange
+				        end
                     end
                 end
 
@@ -7019,22 +7038,32 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
 
                 function Video:Play()
-                    if getgenv().Destroy then
-                        return
-                    end
-                    if VideoFrame then
-                        VideoFrame:Play()
-                    end
-                end
-
-                function Video:Stop()
-                    if getgenv().Destroy then
-                        return
-                    end
-                    if VideoFrame then
-                        VideoFrame:Pause()
-                    end
-                end
+				    if VideoFrame then
+				        VideoFrame:Play()
+				        local sound = VideoFrame:FindFirstChild("Sound")
+				        if sound then
+				            sound.TimePosition = VideoFrame.TimePosition
+				            sound:Play()
+				        end
+				    end
+				end
+				
+				function Video:Stop()
+				    if VideoFrame then
+				        VideoFrame:Pause()
+				        local sound = VideoFrame:FindFirstChild("Sound")
+				        if sound then
+				            sound:Pause()
+				        end
+				    end
+				end
+                
+                AddConnection(RunService.RenderStepped, function()
+				    local sound = VideoFrame:FindFirstChild("Sound")
+				    if sound and math.abs(sound.TimePosition - VideoFrame.TimePosition) > 0.1 then
+				        sound.TimePosition = VideoFrame.TimePosition
+				    end
+				end)
 
                 if VideoConfig.Flag then
                     OrionLib.Flags[VideoConfig.Flag] = Video
@@ -7045,7 +7074,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 ToggleConfig = ToggleConfig or {}
                 ToggleConfig.Name = ToggleConfig.Name or ToggleConfig.Title or ToggleConfig.Titles or "Toggle"
                 ToggleConfig.Default = ToggleConfig.Default or ToggleConfig.Average or false
-                ToggleConfig.Callback = ToggleConfig.Callback or ToggleConfig.Function or ToggleConfig.function or function() end
+                ToggleConfig.Callback = ToggleConfig.Callback or ToggleConfig.Function or function() end
                 ToggleConfig.Color = ToggleConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
                 ToggleConfig.Visible = ToggleConfig.Visible or ToggleConfig.Enabled or true
                 ToggleConfig.Disabled = ToggleConfig.Disabled or ToggleConfig.Dead or false
