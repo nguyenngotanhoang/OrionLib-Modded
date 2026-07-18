@@ -7146,6 +7146,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetChildren(
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 38),
+                            Visible = ToggleConfig.Visible,
                             Parent = ItemParent,
                         }),
                         {
@@ -8034,7 +8035,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     Value = SliderConfig.Default,
                     Save = SliderConfig.Save,
                     Disabled = SliderConfig.Disabled,
-                    Visible = SliderConfig.Visible,
+                    Visible = SliderConfig.Visible
                 }
                 local Dragging = false
 
@@ -8130,11 +8131,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     if getgenv().Destroy then
                         return
                     end
-                    TweenService:Create(
-                        SliderDrag,
-                        TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                        { Size = UDim2.fromScale((Slider.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min), 1) }
-                    ):Play()
+                    SliderDrag.Size = UDim2.fromScale((Slider.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min), 1)
                     SliderBar.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
                     SliderDrag.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
                     OrionLib:SafeScript(SliderConfig.Callback, Slider.Value)
@@ -8227,11 +8224,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
 
                 Slider.Value = math.clamp(Slider.Value, SliderConfig.Min, SliderConfig.Max)
-                TweenService:Create(
-                    SliderDrag,
-                    TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                    { Size = UDim2.fromScale((Slider.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min), 1) }
-                ):Play()
+                SliderDrag.Size = UDim2.fromScale((Slider.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min), 1)
                 SliderBar.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
                 SliderDrag.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
 
@@ -8342,7 +8335,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                     ),
 
                                     OrionLib:AddThemeObject(
-                                        SetProps(MakeElement("Image", "chevron-down"), {
+                                        SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
                                             Size = UDim2.new(0, 20, 0, 20),
                                             AnchorPoint = Vector2.new(0, 0.5),
                                             Position = UDim2.new(1, -30, 0.5, 0),
