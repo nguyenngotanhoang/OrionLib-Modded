@@ -8029,210 +8029,739 @@ function OrionLib:MakeWindow(WindowConfig)
                 SliderConfig.Color = SliderConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
                 SliderConfig.Flag = SliderConfig.Flag or nil
                 SliderConfig.Save = SliderConfig.Save or false
+                SliderConfig.Mode = (SliderConfig.Mode or SliderConfig.SliderMode or "Normal")
+                SliderConfig.Keybinds = SliderConfig.Keybinds or {}
+                SliderConfig.KeybindEnabled = SliderConfig.KeybindEnabled or SliderConfig.EnabledKeybind or SliderConfig.EnableKeybind or false
 
-                local Slider = {
-                    Type = "Slider",
-                    Value = SliderConfig.Default,
-                    Save = SliderConfig.Save,
-                    Disabled = SliderConfig.Disabled,
-                    Visible = SliderConfig.Visible
-                }
-                local Dragging = false
-
-                local SliderDrag = SetChildren(
-                    SetProps(MakeElement("RoundFrame", SliderConfig.Color, 0, 5), {
-                        Size = UDim2.new(0, 0, 1, 0),
-                        BackgroundTransparency = 0.3,
-                        ClipsDescendants = true,
-                    }),
-                    {
-                        OrionLib:AddThemeObject(
-                            SetProps(MakeElement("Label", "value", 13), {
-                                Size = UDim2.new(1, -12, 0, 14),
-                                Position = UDim2.new(0, 12, 0, 6),
-                                Font = Enum.Font.GothamBold,
-                                Name = "Value",
-                                TextTransparency = 0,
-                            }),
-                            "Text"
-                        ),
-                    }
-                )
-
-                local SliderBar = SetChildren(
-                    SetProps(MakeElement("RoundFrame", SliderConfig.Color, 0, 5), {
-                        Size = UDim2.new(1, -24, 0, 26),
-                        Position = UDim2.new(0, 12, 0, 30),
-                        BackgroundTransparency = 0.9,
-                    }),
-                    {
-                        SetProps(MakeElement("Stroke"), { Color = SliderConfig.Color }),
-                        OrionLib:AddThemeObject(
-                            SetProps(MakeElement("Label", "value", 13), {
-                                Size = UDim2.new(1, -12, 0, 14),
-                                Position = UDim2.new(0, 12, 0, 6),
-                                Font = Enum.Font.GothamBold,
-                                Name = "Value",
-                                TextTransparency = 0.8,
-                            }),
-                            "Text"
-                        ),
-                        SliderDrag,
-                    }
-                )
-
-                local SliderFrame = OrionLib:AddThemeObject(
-                    SetChildren(
-                        SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 4), {
-                            Size = UDim2.new(1, 0, 0, 65),
-                            Visible = SliderConfig.Visible,
-                            Parent = ItemParent,
-                        }),
-                        {
-                            OrionLib:AddThemeObject(
-                                SetProps(MakeElement("Label", SliderConfig.Name, 15), {
-                                    Size = UDim2.new(1, -12, 0, 14),
-                                    Position = UDim2.new(0, 12, 0, 10),
-                                    Font = Enum.Font.GothamBold,
-                                    Name = "Content",
-                                }),
-                                "Text"
-                            ),
-                            OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
-                            SliderBar,
-                        }
-                    ),
-                    "Second"
-                )
-
-                local function DraggingUi(parent)
-                    parent.InputBegan:Connect(function(Input)
-                        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-                            Dragging = true
-                        end
-                    end)
-
-                    parent.InputEnded:Connect(function(Input)
-                        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-                            Dragging = false
-                        end
-                    end)
+                local function NormalizeSliderMode(mode)
+                    mode = tostring(mode or "Normal"):lower()
+                    if mode == "compact" or mode == "mini" then
+                        return "Compact"
+                    end
+                    return "Normal"
                 end
 
-                DraggingUi(SliderBar)
-                AddConnection(UserInputService.InputChanged, function(Input)
-                    if Dragging and not Slider.Disabled then
-                        local SizeScale = math.clamp((Input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
-                        Slider:Set(SliderConfig.Min + ((SliderConfig.Max - SliderConfig.Min) * SizeScale))
+                SliderConfig.Mode = NormalizeSliderMode(SliderConfig.Mode)
+ 
+                 local Slider = {
+                     Type = "Slider",
+                     Value = SliderConfig.Default,
+                     Save = SliderConfig.Save,
+                     Disabled = SliderConfig.Disabled,
+                     Visible = SliderConfig.Visible,
+                     Mode = SliderConfig.Mode,
+                    Keybinds = {},
+                    KeybindEnabled = SliderConfig.KeybindEnabled == true,
+                    KeybindDragging = false,
+                    KeybindSelecting = false,
+                    SelectedKeybind = nil,
+                 }
+                 local Dragging = false
+                local ActiveKeybindDrag = nil
+                local SliderKeyChoices = {
+                    Enum.KeyCode.Z,
+                    Enum.KeyCode.X,
+                    Enum.KeyCode.C,
+                    Enum.KeyCode.V,
+                    Enum.KeyCode.B,
+                    Enum.KeyCode.N,
+                    Enum.KeyCode.M,
+                    Enum.KeyCode.G,
+                    Enum.KeyCode.H,
+                    Enum.KeyCode.J,
+                    Enum.KeyCode.K,
+                    Enum.KeyCode.L,
+                    Enum.KeyCode.F,
+                    Enum.KeyCode.R,
+                    Enum.KeyCode.T,
+                    Enum.KeyCode.Y,
+                    Enum.KeyCode.U,
+                    Enum.KeyCode.I,
+                    Enum.KeyCode.O,
+                    Enum.KeyCode.P,
+                }
+ 
+                 local SliderDrag = SetChildren(
+                     SetProps(MakeElement("RoundFrame", SliderConfig.Color, 0, 5), {
+                         Size = UDim2.new(0, 0, 1, 0),
+                         BackgroundTransparency = 0.3,
+                         ClipsDescendants = true,
+                     }),
+                     {
+                         OrionLib:AddThemeObject(
+                             SetProps(MakeElement("Label", "value", 13), {
+                                 Size = UDim2.new(1, -12, 0, 14),
+                                 Position = UDim2.new(0, 12, 0, 6),
+                                 Font = Enum.Font.GothamBold,
+                                 Name = "Value",
+                                 TextTransparency = 0,
+                             }),
+                             "Text"
+                         ),
+                     }
+                 )
+ 
+                 local SliderBar = SetChildren(
+                     SetProps(MakeElement("RoundFrame", SliderConfig.Color, 0, 5), {
+                         Size = UDim2.new(1, -24, 0, 26),
+                         Position = UDim2.new(0, 12, 0, 30),
+                         BackgroundTransparency = 0.9,
+                        ClipsDescendants = false,
+                     }),
+                     {
+                         SetProps(MakeElement("Stroke"), { Color = SliderConfig.Color }),
+                         OrionLib:AddThemeObject(
+                             SetProps(MakeElement("Label", "value", 13), {
+                                 Size = UDim2.new(1, -12, 0, 14),
+                                 Position = UDim2.new(0, 12, 0, 6),
+                                 Font = Enum.Font.GothamBold,
+                                 Name = "Value",
+                                 TextTransparency = 0.8,
+                             }),
+                             "Text"
+                         ),
+                         SliderDrag,
+                     }
+                 )
+ 
+                local CompactHandleValue = OrionLib:AddThemeObject(
+                    SetProps(MakeElement("Label", "value", 12), {
+                        AnchorPoint = Vector2.new(0.5, 0),
+                        AutomaticSize = Enum.AutomaticSize.X,
+                        Size = UDim2.new(0, 0, 0, 20),
+                        Position = UDim2.new(0.5, 0, 0, -30),
+                        BackgroundTransparency = 0.15,
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Center,
+                        TextTransparency = 1,
+                        Visible = false,
+                        ZIndex = 8,
+                    }),
+                    "Text"
+                )
+
+                SetChildren(CompactHandleValue, {
+                    SetProps(MakeElement("Corner", 0, 10), {}),
+                    SetProps(MakeElement("Padding", 0, 8, 8, 0), {}),
+                    OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                })
+
+                local CompactHandle = OrionLib:AddThemeObject(
+                    SetChildren(
+                        SetProps(MakeElement("RoundFrame", SliderConfig.Color, 0, 14), {
+                            Parent = SliderBar,
+                            Size = UDim2.new(0, 28, 0, 28),
+                            Position = UDim2.new(0, -14, 0.5, -14),
+                            BackgroundTransparency = 0,
+                            Visible = false,
+                            ZIndex = 7,
+                        }),
+                        {
+                            OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                            CompactHandleValue,
+                        }
+                    ),
+                    "Accent"
+                )
+
+                local KeybindControls = SetChildren(
+                    SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 14), {
+                        Size = UDim2.new(0, 122, 0, 28),
+                        Position = UDim2.new(1, -134, 0, 61),
+                        BackgroundTransparency = 0.84,
+                        Visible = SliderConfig.KeybindEnabled == true,
+                    }),
+                    {
+                        OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                    }
+                )
+
+                local function MakeKeybindControlButton(text, xOffset, themeType)
+                    local button = OrionLib:AddThemeObject(
+                        SetProps(MakeElement("Button"), {
+                            Parent = KeybindControls,
+                            Size = UDim2.new(0, 26, 0, 22),
+                            Position = UDim2.new(0, xOffset, 0.5, -11),
+                            BackgroundTransparency = 0.72,
+                            Text = text,
+                            TextColor3 = GetThemeValue("Text", Color3.fromRGB(245, 247, 252)),
+                            TextSize = 15,
+                            Font = Enum.Font.GothamBold,
+                            ZIndex = 6,
+                        }),
+                        themeType or "Accent"
+                    )
+                    SetChildren(button, {
+                        SetProps(MakeElement("Corner", 0, 12), {}),
+                    })
+                    return button
+                end
+
+                local AddKeybindButton = MakeKeybindControlButton("+", 4, "Accent")
+                local DragKeybindButton = MakeKeybindControlButton("↔", 32, "TextDark")
+                local SelectKeybindButton = MakeKeybindControlButton("✓", 60, "Accent")
+                local DeleteKeybindButton = MakeKeybindControlButton("×", 88, "TextDark")
+ 
+                 local SliderFrame = OrionLib:AddThemeObject(
+                     SetChildren(
+                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 4), {
+                             Size = UDim2.new(1, 0, 0, 65),
+                             Visible = SliderConfig.Visible,
+                             Parent = ItemParent,
+                         }),
+                         {
+                             OrionLib:AddThemeObject(
+                                 SetProps(MakeElement("Label", SliderConfig.Name, 15), {
+                                    Size = UDim2.new(1, -72, 0, 14),
+                                     Position = UDim2.new(0, 12, 0, 10),
+                                     Font = Enum.Font.GothamBold,
+                                     Name = "Content",
+                                 }),
+                                 "Text"
+                             ),
+                            KeybindControls,
+                             OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                             SliderBar,
+                         }
+                     ),
+                     "Second"
+                 )
+ 
+                local ScrollLockContainer = nil
+                local ScrollLockPreviousState = nil
+
+                local function GetItemScrollContainer()
+                    local current = SliderFrame
+                    while current do
+                        if current.Name == "ItemContainer" and current:IsA("ScrollingFrame") then
+                            return current
+                        end
+                        current = current.Parent
+                    end
+                    return nil
+                end
+
+                local function SetSliderScrollLock(state)
+                    local container = GetItemScrollContainer()
+                    if state then
+                        if container and ScrollLockContainer ~= container then
+                            ScrollLockContainer = container
+                            ScrollLockPreviousState = container.ScrollingEnabled
+                        end
+                        if ScrollLockContainer then
+                            ScrollLockContainer.ScrollingEnabled = false
+                        end
+                    else
+                        if ScrollLockContainer and ScrollLockPreviousState ~= nil then
+                            ScrollLockContainer.ScrollingEnabled = ScrollLockPreviousState
+                        end
+                        ScrollLockContainer = nil
+                        ScrollLockPreviousState = nil
+                    end
+                end
+
+                 local function DraggingUi(parent)
+                     parent.InputBegan:Connect(function(Input)
+                         if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                             Dragging = true
+                             SetSliderScrollLock(true)
+                         end
+                     end)
+                 end
+ 
+                local function GetSliderRange()
+                    return math.max(SliderConfig.Max - SliderConfig.Min, SliderConfig.Increment)
+                end
+
+                local function GetSliderScale(value)
+                    return math.clamp((value - SliderConfig.Min) / GetSliderRange(), 0, 1)
+                end
+
+                local function GetSliderValueFromInput(input)
+                    local SizeScale = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / math.max(SliderBar.AbsoluteSize.X, 1), 0, 1)
+                    return SliderConfig.Min + (GetSliderRange() * SizeScale)
+                end
+
+                local function FormatSliderValue(value)
+                    if type(SliderConfig.ValueName) == "function" then
+                        local ok, result = pcall(SliderConfig.ValueName, value)
+                        if ok and result ~= nil then
+                            return tostring(result)
+                        end
+                        return tostring(value)
+                    end
+                    local valueName = SliderConfig.ValueName or ""
+                    if valueName == "" then
+                        return tostring(value)
+                    end
+                    return tostring(value) .. " " .. tostring(valueName)
+                end
+
+                local function RefreshKeybindBookmarks()
+                    for _, bookmark in ipairs(Slider.Keybinds) do
+                        bookmark.Value = math.clamp(Round(bookmark.Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                        bookmark.Frame.Position = UDim2.new(GetSliderScale(bookmark.Value), -14, 0, -24)
+                        bookmark.Frame.Visible = Slider.KeybindEnabled
+                        bookmark.Button.Text = tostring(bookmark.Key)
+                    end
+                end
+
+                local function PickRandomSliderKey()
+                    local used = {}
+                    for _, bookmark in ipairs(Slider.Keybinds) do
+                        used[bookmark.Key] = true
+                    end
+                    local available = {}
+                    for _, keyCode in ipairs(SliderKeyChoices) do
+                        if not used[keyCode.Name] then
+                            table.insert(available, keyCode)
+                        end
+                    end
+                    if #available == 0 then
+                        available = SliderKeyChoices
+                    end
+                    return available[math.random(1, #available)]
+                end
+
+                local ShowCompactValueBubble = function() end
+
+                local function UpdateSelectedKeybind(bookmark)
+                    Slider.SelectedKeybind = bookmark
+                    for _, item in ipairs(Slider.Keybinds) do
+                        if item.Button then
+                            item.Button.BackgroundTransparency = item == bookmark and 0 or 0.05
+                        end
+                    end
+                end
+
+                local function RemoveSliderKeybind(bookmark)
+                    if not bookmark then
+                        return
+                    end
+                    for index, item in ipairs(Slider.Keybinds) do
+                        if item == bookmark then
+                            if item.Frame then
+                                item.Frame:Destroy()
+                            elseif item.Button then
+                                item.Button:Destroy()
+                            end
+                            table.remove(Slider.Keybinds, index)
+                            if Slider.SelectedKeybind == item then
+                                Slider.SelectedKeybind = nil
+                            end
+                            if ActiveKeybindDrag == item then
+                                ActiveKeybindDrag = nil
+                                SetSliderScrollLock(false)
+                            end
+                            
+                            RefreshKeybindBookmarks()
+                            return
+                        end
+                    end
+                end
+
+                local function AddSliderKeybind(key, value)
+                    local keyName = (typeof(key) == "EnumItem" and key.Name) or tostring(key or PickRandomSliderKey().Name)
+                    local bookmark = {
+                        Key = keyName,
+                        Value = math.clamp(Round(value or Slider.Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max),
+                        Binding = false,
+                    }
+
+                    bookmark.Stick = OrionLib:AddThemeObject(
+                        SetProps(MakeElement("Frame"), {
+                            Size = UDim2.new(0, 2, 0, 26),
+                            Position = UDim2.new(0.5, -1, 0, 18),
+                            BackgroundTransparency = 0.15,
+                            ZIndex = 5,
+                        }),
+                        "Accent"
+                    )
+
+                    bookmark.Button = OrionLib:AddThemeObject(
+                        SetProps(MakeElement("Button"), {
+                            Size = UDim2.new(0, 28, 0, 24),
+                            Position = UDim2.new(0.5, -14, 0, 0),
+                            BackgroundTransparency = 0.05,
+                            Text = bookmark.Key,
+                            TextSize = 12,
+                            Font = Enum.Font.GothamBold,
+                            ZIndex = 6,
+                        }),
+                        "Accent"
+                    )
+
+                    SetChildren(bookmark.Button, {
+                        SetProps(MakeElement("Corner", 0, 11), {}),
+                        OrionLib:AddThemeObject(MakeElement("Stroke"), "Stroke"),
+                    })
+
+                    bookmark.Frame = SetChildren(
+                        SetProps(MakeElement("TFrame"), {
+                            Parent = SliderBar,
+                            Size = UDim2.new(0, 28, 0, 44),
+                            Position = UDim2.new(GetSliderScale(bookmark.Value), -14, 0, -24),
+                            ZIndex = 5,
+                        }),
+                        {
+                            bookmark.Stick,
+                            bookmark.Button,
+                        }
+                    )
+
+                    AddConnection(bookmark.Button.InputBegan, function(Input)
+                        if Slider.Disabled then
+                            return
+                        end
+                        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                            if Slider.KeybindDragging then
+                                ActiveKeybindDrag = bookmark
+                                UpdateSelectedKeybind(bookmark)
+                                SetSliderScrollLock(true)
+                            elseif Slider.KeybindSelecting then
+                                UpdateSelectedKeybind(bookmark)
+                            else
+                                bookmark.Binding = true
+                                UpdateSelectedKeybind(bookmark)
+                                bookmark.Button.Text = "..."
+                            end
+                        end
+                    end)
+
+                    table.insert(Slider.Keybinds, bookmark)
+                    if not Slider.SelectedKeybind then
+                        UpdateSelectedKeybind(bookmark)
+                    end
+                    RefreshKeybindBookmarks()
+                    return bookmark
+                end
+
+                 DraggingUi(SliderBar)
+                 AddConnection(UserInputService.InputChanged, function(Input)
+                    if ActiveKeybindDrag and Slider.KeybindEnabled and Slider.KeybindDragging and not Slider.Disabled then
+                        ActiveKeybindDrag.Value = math.clamp(Round(GetSliderValueFromInput(Input), SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                        RefreshKeybindBookmarks()
+                    elseif Dragging and not Slider.Disabled then
+                        Slider:Set(GetSliderValueFromInput(Input))
+                        ShowCompactValueBubble()
+                     end
+                 end)
+ 
+                AddConnection(UserInputService.InputEnded, function(Input)
+                    if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                        Dragging = false
+                        ActiveKeybindDrag = nil
+                        SetSliderScrollLock(false)
                     end
                 end)
 
-                local function Update()
+                AddConnection(UserInputService.InputBegan, function(Input, gp)
+                    if Slider.Disabled or gp or UserInputService:GetFocusedTextBox() or not Slider.KeybindEnabled then
+                        return
+                    end
+                    for _, bookmark in ipairs(Slider.Keybinds) do
+                        if bookmark.Binding then
+                            if Input.KeyCode ~= Enum.KeyCode.Unknown then
+                                bookmark.Key = Input.KeyCode.Name
+                                bookmark.Binding = false
+                                RefreshKeybindBookmarks()
+                            end
+                            return
+                        end
+                        if Input.KeyCode.Name == bookmark.Key then
+                            Slider:Set(bookmark.Value)
+                            return
+                        end
+                    end
+                end)
+
+                AddConnection(AddKeybindButton.MouseButton1Click, function()
+                    if not Slider.Disabled and Slider.KeybindEnabled then
+                        AddSliderKeybind(PickRandomSliderKey(), Slider.Value)
+                    end
+                end)
+
+                AddConnection(DragKeybindButton.MouseButton1Click, function()
+                    if Slider.KeybindEnabled then
+                        Slider:SetKeybindDragging(not Slider.KeybindDragging)
+                    end
+                end)
+
+                AddConnection(SelectKeybindButton.MouseButton1Click, function()
+                    if not Slider.Disabled and Slider.KeybindEnabled then
+                        Slider:SetKeybindSelecting(not Slider.KeybindSelecting)
+                    end
+                end)
+
+                AddConnection(DeleteKeybindButton.MouseButton1Click, function()
+                    if not Slider.Disabled and Slider.KeybindEnabled then
+                        RemoveSliderKeybind(Slider.SelectedKeybind or Slider.Keybinds[#Slider.Keybinds])
+                    end
+                end)
+
+                local CompactValueFadeToken = 0
+
+                local function RefreshCompactHandle()
+                    local scale = GetSliderScale(Slider.Value)
+                    TweenService:Create(CompactHandle,TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),{Position = UDim2.new(scale, -14, 0.5, -14)}):Play()
+                    CompactHandleValue.Text = FormatSliderValue(Slider.Value)
+                end
+
+                ShowCompactValueBubble = function()
+                    if Slider.Mode ~= "Compact" then
+                        return
+                    end
+                    CompactValueFadeToken += 1
+                    local fadeToken = CompactValueFadeToken
+                    CompactHandleValue.Visible = true
+                    CompactHandleValue.TextTransparency = 0
+                    CompactHandleValue.BackgroundTransparency = 0.15
+                    local stroke = CompactHandleValue:FindFirstChildOfClass("UIStroke")
+                    if stroke then
+                        stroke.Transparency = 0
+                    end
+                    task.delay(1.9, function()
+                        if fadeToken ~= CompactValueFadeToken or Slider.Mode ~= "Compact" or getgenv().Destroy then
+                            return
+                        end
+                        TweenService:Create(CompactHandleValue, TweenInfo.new(0.5, Enum.EasingStyle.Quint), { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
+                        if stroke then
+                            TweenService:Create(stroke, TweenInfo.new(0.5, Enum.EasingStyle.Quint), { Transparency = 1 }):Play()
+                        end
+                        task.delay(0.28, function()
+                            if fadeToken == CompactValueFadeToken then
+                                CompactHandleValue.Visible = false
+                            end
+                        end)
+                    end)
+                end
+
+                local function UpdateMode()
+                    local compact = Slider.Mode == "Compact"
+                    local keybindEnabled = Slider.KeybindEnabled == true
+                    SliderFrame.Size = UDim2.new(1, 0, 0, compact and (keybindEnabled and 74 or 56) or (keybindEnabled and 91 or 85))
+                    SliderBar.Size = UDim2.new(1, -24, 0, compact and 12 or 26)
+                    SliderBar.Position = UDim2.new(0, 12, 0, compact and 28 or 30)
+                    SliderFrame.Content.Size = UDim2.new(1, -24, 0, 14)
+                    SliderFrame.Content.Position = UDim2.new(0, 12, 0, compact and 7 or 10)
+                    KeybindControls.Size = UDim2.new(0, compact and 116 or 122, 0, compact and 26 or 28)
+                    KeybindControls.Position = UDim2.new(1, compact and -128 or -134, 0, compact and 48 or 61)
+                    SliderBar.Value.Visible = not compact
+                    SliderDrag.Value.Visible = not compact
+                    CompactHandle.Visible = compact
+                    if not compact then
+                        CompactHandleValue.Visible = false
+                    end
+                    RefreshCompactHandle()
+                    RefreshKeybindBookmarks()
+                end
+
+                 local function Update()
+                     if getgenv().Destroy then
+                         return
+                     end
+                     TweenService:Create(SliderDrag,TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),{Size = UDim2.fromScale(GetSliderScale(Slider.Value), 1)}):Play()
+                     SliderBar.Value.Text = FormatSliderValue(Slider.Value)
+                     SliderDrag.Value.Text = FormatSliderValue(Slider.Value)
+                    RefreshCompactHandle()
+                     OrionLib:SafeScript(SliderConfig.Callback, Slider.Value)
+                 end
+ 
+                 function Slider:Set(Value)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     Slider.Value = math.clamp(Round(Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                     Update()
+                 end
+ 
+                function Slider:SetMode(mode)
                     if getgenv().Destroy then
                         return
                     end
-                    SliderDrag.Size = UDim2.fromScale((Slider.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min), 1)
-                    SliderBar.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
-                    SliderDrag.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
-                    OrionLib:SafeScript(SliderConfig.Callback, Slider.Value)
+                    Slider.Mode = NormalizeSliderMode(mode)
+                    SliderConfig.Mode = Slider.Mode
+                    UpdateMode()
                 end
 
-                function Slider:Set(Value)
+                function Slider:SetKeybindDragging(state)
                     if getgenv().Destroy then
                         return
                     end
-                    Slider.Value = math.clamp(Round(Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
-                    Update()
+                    Slider.KeybindDragging = state == true
+                    DragKeybindButton.Text = Slider.KeybindDragging and "●" or "↔"
                 end
 
-                function Slider:SetDisabled(state)
+                function Slider:SetKeybindSelecting(state)
                     if getgenv().Destroy then
                         return
                     end
-                    Slider.Disabled = state
-                    SliderConfig.Disabled = state
-                    if SliderFrame then
-                        TweenService:Create(SliderFrame, TweenInfo.new(0.2), { BackgroundTransparency = state and 0.5 or 0 }):Play()
-                    end
-                    if SliderBar then
-                        TweenService:Create(SliderBar, TweenInfo.new(0.2), { BackgroundTransparency = state and 0.95 or 0.9 }):Play()
-                    end
-                    if SliderFrame:FindFirstChild("Content") then
-                        SliderFrame.Content.TextTransparency = state and 0.5 or 0
-                    end
+                    Slider.KeybindSelecting = state == true
+                    SelectKeybindButton.Text = Slider.KeybindSelecting and "●" or "✓"
                 end
 
-                function Slider:SetVisible(state)
+                function Slider:SetKeybindEnabled(state)
                     if getgenv().Destroy then
                         return
                     end
-                    Slider.Visible = state
-                    if SliderFrame then
-                        SliderFrame.Visible = state
+                    Slider.KeybindEnabled = state == true
+                    SliderConfig.KeybindEnabled = Slider.KeybindEnabled
+                    KeybindControls.Visible = Slider.KeybindEnabled
+                    if not Slider.KeybindEnabled then
+                        Slider:SetKeybindDragging(false)
+                        Slider:SetKeybindSelecting(false)
+                        ActiveKeybindDrag = nil
+                        SetSliderScrollLock(false)
                     end
+                    RefreshKeybindBookmarks()
                 end
 
-                function Slider:SetMax(Value: number)
+                function Slider:SelectKeybind(bookmark)
                     if getgenv().Destroy then
                         return
                     end
-                    local MaxToFix = tonumber(Value) or 5
-                    SliderConfig.Max = (MaxToFix > 0 and MaxToFix or 5)
-                    Slider.Value = math.clamp(Round(Slider.Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
-                    Update()
+                    UpdateSelectedKeybind(bookmark)
                 end
 
-                function Slider:SetMin(Value: number)
+                function Slider:DeleteKeybind(bookmark)
                     if getgenv().Destroy then
                         return
                     end
-                    SliderConfig.Min = tonumber(Value) or 5
-                    Slider.Value = math.clamp(Round(Slider.Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
-                    Update()
+                    RemoveSliderKeybind(bookmark or Slider.SelectedKeybind or Slider.Keybinds[#Slider.Keybinds])
                 end
 
-                function Slider:SetText(ToChange)
+                function Slider:AddKeybind(key, value)
                     if getgenv().Destroy then
                         return
                     end
-                    if SliderFrame and SliderFrame:FindFirstChild("Content") then
-                        SliderFrame.Content.Text = ToChange
+                    if not Slider.KeybindEnabled then
+                        Slider:SetKeybindEnabled(true)
                     end
+                    return AddSliderKeybind(key or PickRandomSliderKey(), value or Slider.Value)
                 end
 
-                function Slider:SetTextValue(ToChange)
+                function Slider:ClearKeybinds()
                     if getgenv().Destroy then
                         return
                     end
-                    SliderConfig.ValueName = ToChange
-                    SliderBar.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
-                    SliderDrag.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
-                end
-
-                function Slider:SetCallback(ToChange)
-                    if getgenv().Destroy then
-                        return
+                    for _, bookmark in ipairs(Slider.Keybinds) do
+                        if bookmark.Frame then
+                            bookmark.Frame:Destroy()
+                        elseif bookmark.Button then
+                            bookmark.Button:Destroy()
+                        end
                     end
-                    SliderConfig.Callback = ToChange
+                    Slider.Keybinds = {}
+                    Slider.SelectedKeybind = nil
+                    ActiveKeybindDrag = nil
                 end
 
-                if SliderConfig.Disabled then
-                    Slider:SetDisabled(true)
+                 function Slider:SetDisabled(state)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     Slider.Disabled = state
+                     SliderConfig.Disabled = state
+                     if SliderFrame then
+                         TweenService:Create(SliderFrame, TweenInfo.new(0.2), { BackgroundTransparency = state and 0.5 or 0 }):Play()
+                     end
+                     if SliderBar then
+                         TweenService:Create(SliderBar, TweenInfo.new(0.2), { BackgroundTransparency = state and 0.95 or 0.9 }):Play()
+                     end
+                     if SliderFrame:FindFirstChild("Content") then
+                         SliderFrame.Content.TextTransparency = state and 0.5 or 0
+                     end
+                 end
+ 
+                 function Slider:SetVisible(state)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     Slider.Visible = state
+                     if SliderFrame then
+                         SliderFrame.Visible = state
+                     end
+                 end
+ 
+                 function Slider:SetMax(Value: number)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     local MaxToFix = tonumber(Value) or 5
+                     SliderConfig.Max = (MaxToFix > 0 and MaxToFix or 5)
+                     Slider.Value = math.clamp(Round(Slider.Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                    for _, bookmark in ipairs(Slider.Keybinds) do
+                        bookmark.Value = math.clamp(Round(bookmark.Value / 2, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                    end
+                    RefreshKeybindBookmarks()
+                     Update()
+                 end
+ 
+                 function Slider:SetMin(Value: number)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     SliderConfig.Min = tonumber(Value) or 5
+                     Slider.Value = math.clamp(Round(Slider.Value, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                    for _, bookmark in ipairs(Slider.Keybinds) do
+                        bookmark.Value = math.clamp(Round(bookmark.Value / 2, SliderConfig.Increment), SliderConfig.Min, SliderConfig.Max)
+                    end
+                    RefreshKeybindBookmarks()
+                     Update()
+                 end
+ 
+                 function Slider:SetText(ToChange)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     if SliderFrame and SliderFrame:FindFirstChild("Content") then
+                         SliderFrame.Content.Text = ToChange
+                     end
+                 end
+ 
+                 function Slider:SetTextValue(ToChange)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     SliderConfig.ValueName = ToChange
+                     SliderBar.Value.Text = FormatSliderValue(Slider.Value)
+                     SliderDrag.Value.Text = FormatSliderValue(Slider.Value)
+                    RefreshCompactHandle()
+                 end
+ 
+                 function Slider:SetCallback(ToChange)
+                     if getgenv().Destroy then
+                         return
+                     end
+                     SliderConfig.Callback = ToChange
+                 end
+ 
+                 if SliderConfig.Disabled then
+                     Slider:SetDisabled(true)
+                 end
+                 if SliderConfig.Visible == false then
+                     Slider:SetVisible(false)
+                 end
+ 
+                 Slider.Value = math.clamp(Slider.Value, SliderConfig.Min, SliderConfig.Max)
+                SliderDrag.Size = UDim2.fromScale(GetSliderScale(Slider.Value), 1)
+                 SliderBar.Value.Text = FormatSliderValue(Slider.Value)
+                 SliderDrag.Value.Text = FormatSliderValue(Slider.Value)
+                for _, bindConfig in ipairs(SliderConfig.Keybinds) do
+                    if type(bindConfig) == "table" then
+                        AddSliderKeybind(bindConfig.Key or bindConfig.Keybind, bindConfig.Value or Slider.Value)
+                    else
+                        AddSliderKeybind(bindConfig, Slider.Value)
+                    end
                 end
-                if SliderConfig.Visible == false then
-                    Slider:SetVisible(false)
-                end
-
-                Slider.Value = math.clamp(Slider.Value, SliderConfig.Min, SliderConfig.Max)
-                SliderDrag.Size = UDim2.fromScale((Slider.Value - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min), 1)
-                SliderBar.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
-                SliderDrag.Value.Text = tostring(Slider.Value) .. " " .. SliderConfig.ValueName
-
-                if SliderConfig.Flag then
-                    OrionLib.Flags[SliderConfig.Flag] = Slider
-                end
-                return Slider
-            end
+                Slider:SetKeybindEnabled(SliderConfig.KeybindEnabled)
+                UpdateMode()
+ 
+                 if SliderConfig.Flag then
+                     OrionLib.Flags[SliderConfig.Flag] = Slider
+                 end
+                 return Slider
+             end
             function ElementFunction:AddDropdown(DropdownConfig)
                 DropdownConfig = DropdownConfig or {}
                 DropdownConfig.Name = DropdownConfig.Name or "Dropdown"
