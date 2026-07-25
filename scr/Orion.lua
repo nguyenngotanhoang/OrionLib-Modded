@@ -4021,7 +4021,7 @@ function OrionLib:MakeWindow(WindowConfig)
             MainWindow.SizeDragging.Visible = false
             WindowTopBarLine.Visible = false
             TopbarButtonHolder.Visible = false
-            ApplyIconToObject(MinimizeBtn.Ico, "maximize-2", 32)
+            ApplyIconToObject(MinimizeBtn.Ico, "rbxassetid://7072720870", 32)
             local tween = TweenService:Create(MainWindow, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = GetCollapsedSize() })
             tween:Play()
             task.delay(0.08, function()
@@ -7507,7 +7507,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     ColorConfig.Callback = ColorConfig.Callback or function() end
                     ColorConfig.Flag = ColorConfig.Flag or nil
                     ColorConfig.Save = ColorConfig.Save or false
-
+ 
                     local ToggleColor = {
                         Value = ColorConfig.Default,
                         Toggled = false,
@@ -7517,7 +7517,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     }
                     Toggle.__ColorCallback = ColorConfig.Callback
                     Toggle.__ColorPicker = ToggleColor
-
+ 
                     local ColorH, ColorS, ColorV = Color3.toHSV(ToggleColor.Value)
                     local ColorInput, HueInput
 
@@ -7701,6 +7701,51 @@ function OrionLib:MakeWindow(WindowConfig)
                     })
                     Toggle.__ColorSwatch = ColorSwatch
 
+                    local ColorScrollLockContainer = nil
+                    local ColorScrollLockPreviousState = nil
+
+                    local function GetColorScrollContainer()
+                        local current = ToggleFrame
+                        while current do
+                            if current.Name == "ItemContainer" and current:IsA("ScrollingFrame") then
+                                return current
+                            end
+                            current = current.Parent
+                        end
+                        return nil
+                    end
+
+                    local function SetColorScrollLock(state)
+                        local container = GetColorScrollContainer()
+                        if state then
+                            if container and ColorScrollLockContainer ~= container then
+                                ColorScrollLockContainer = container
+                                ColorScrollLockPreviousState = container.ScrollingEnabled
+                            end
+                            if ColorScrollLockContainer then
+                                ColorScrollLockContainer.ScrollingEnabled = false
+                            end
+                        else
+                            if ColorScrollLockContainer and ColorScrollLockPreviousState ~= nil then
+                                ColorScrollLockContainer.ScrollingEnabled = ColorScrollLockPreviousState
+                            end
+                            ColorScrollLockContainer = nil
+                            ColorScrollLockPreviousState = nil
+                        end
+                    end
+
+                    local function EndColorDrag()
+                        if ColorInput then
+                            ColorInput:Disconnect()
+                            ColorInput = nil
+                        end
+                        if HueInput then
+                            HueInput:Disconnect()
+                            HueInput = nil
+                        end
+                        SetColorScrollLock(false)
+                    end
+
                     local function AddRecentColor(Col)
                         for _, v in ipairs(ToggleColor.RecentColors) do
                             if v == Col then
@@ -7712,7 +7757,7 @@ function OrionLib:MakeWindow(WindowConfig)
                             table.remove(ToggleColor.RecentColors, 6)
                         end
                     end
-
+ 
                     local function RedrawRecentColors()
                         for _, child in pairs(RecentFrame:GetChildren()) do
                             if child:IsA("ImageButton") then
@@ -7738,7 +7783,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         GBox.Text = tostring(math.floor(ToggleColor.Value.G * 255))
                         BBox.Text = tostring(math.floor(ToggleColor.Value.B * 255))
                     end
-
+ 
                     local function UpdateColorPicker(BlockCallback)
                         ToggleColor.Value = Color3.fromHSV(ColorH, ColorS, ColorV)
                         ColorP.BackgroundColor3 = Color3.fromHSV(ColorH, 1, 1)
@@ -7766,7 +7811,7 @@ function OrionLib:MakeWindow(WindowConfig)
                             AddRecentColor(ToggleColor.Value)
                         end
                     end)
-
+ 
                     local function UpdateHex()
                         local nC = HexToRGB(HexBox.Text)
                         if nC then
@@ -7774,7 +7819,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         end
                     end
                     AddConnection(HexBox.FocusLost, UpdateHex)
-
+ 
                     local function UpdateRGB()
                         local r = math.clamp(tonumber(RBox.Text) or 0, 0, 255)
                         local g = math.clamp(tonumber(GBox.Text) or 0, 0, 255)
@@ -7784,12 +7829,13 @@ function OrionLib:MakeWindow(WindowConfig)
                     AddConnection(RBox.FocusLost, UpdateRGB)
                     AddConnection(GBox.FocusLost, UpdateRGB)
                     AddConnection(BBox.FocusLost, UpdateRGB)
-
+ 
                     AddConnection(ColorP.InputBegan, function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                             if ColorInput then
                                 ColorInput:Disconnect()
                             end
+                            SetColorScrollLock(true)
                             ColorInput = AddConnection(RunService.RenderStepped, function()
                                 local ColorX = (math.clamp(Mouse.X - ColorP.AbsolutePosition.X, 0, ColorP.AbsoluteSize.X) / ColorP.AbsoluteSize.X)
                                 local ColorY = (math.clamp(Mouse.Y - ColorP.AbsolutePosition.Y, 0, ColorP.AbsoluteSize.Y) / ColorP.AbsoluteSize.Y)
@@ -7800,20 +7846,19 @@ function OrionLib:MakeWindow(WindowConfig)
                             end)
                         end
                     end)
-
+ 
                     AddConnection(ColorP.InputEnded, function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                            if ColorInput then
-                                ColorInput:Disconnect()
-                            end
+                            EndColorDrag()
                         end
                     end)
-
+ 
                     AddConnection(Hue.InputBegan, function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                             if HueInput then
                                 HueInput:Disconnect()
                             end
+                            SetColorScrollLock(true)
                             HueInput = AddConnection(RunService.RenderStepped, function()
                                 local HueY = (math.clamp(Mouse.Y - Hue.AbsolutePosition.Y, 0, Hue.AbsoluteSize.Y) / Hue.AbsoluteSize.Y)
                                 HueSelection.Position = UDim2.new(0.5, 0, HueY, 0)
@@ -7822,15 +7867,19 @@ function OrionLib:MakeWindow(WindowConfig)
                             end)
                         end
                     end)
-
+ 
                     AddConnection(Hue.InputEnded, function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                            if HueInput then
-                                HueInput:Disconnect()
-                            end
+                            EndColorDrag()
                         end
                     end)
 
+                    AddConnection(UserInputService.InputEnded, function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                            EndColorDrag()
+                        end
+                    end)
+ 
                     function ToggleColor:Set(Value, BlockCallback)
                         if getgenv().Destroy or typeof(Value) ~= "Color3" then
                             return
@@ -7841,7 +7890,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         HueSelection.Position = UDim2.new(0.5, 0, 1 - ColorH, 0)
                         UpdateColorPicker(BlockCallback)
                     end
-
+ 
                     ToggleColor:Set(ToggleColor.Value, true)
                     task.defer(UpdateLayout)
                     if ColorConfig.Flag then
@@ -8772,7 +8821,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 DropdownConfig.Callback = DropdownConfig.Callback or function() end
                 DropdownConfig.Flag = DropdownConfig.Flag or nil
                 DropdownConfig.Save = DropdownConfig.Save or false
-                DropdownConfig.Visible = DropdownConfig.Visible ~= false
+                DropdownConfig.Visible = DropdownConfig.Visible or true
                 DropdownConfig.Disabled = DropdownConfig.Disabled or false
 
                 if DropdownConfig.MultiTrue then
@@ -8847,6 +8896,7 @@ function OrionLib:MakeWindow(WindowConfig)
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 38),
                             Parent = ItemParent,
+                            Visible = Dropdown.Visible,
                             ClipsDescendants = true,
                         }),
                         {
@@ -9193,9 +9243,6 @@ function OrionLib:MakeWindow(WindowConfig)
                 if DropdownConfig.Disabled then
                     Dropdown:SetDisabled(true)
                 end
-                if DropdownConfig.Visible == false then
-                    Dropdown:SetVisible(false)
-                end
                 if DropdownConfig.Multi then
                     if DropdownConfig.MultiTrue then
                         for k, v in pairs(Dropdown.Value) do
@@ -9268,6 +9315,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetChildren(
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 38),
+                            Visible = Bind.Visible,
                             Parent = ItemParent,
                         }),
                         {
@@ -9449,12 +9497,12 @@ function OrionLib:MakeWindow(WindowConfig)
                 TextboxConfig.Name = TextboxConfig.Name or "Textbox"
                 TextboxConfig.Finished = TextboxConfig.Finished or false
                 TextboxConfig.Save = TextboxConfig.Save or false
-                TextboxConfig.Numeric = TextboxConfig.Numeric or false
+                TextboxConfig.Numeric = TextboxConfig.Numeric or TextboxConfig.Number or false
                 TextboxConfig.Flag = TextboxConfig.Flag or nil
-                TextboxConfig.Default = TextboxConfig.Default or ""
+                TextboxConfig.Default = TextboxConfig.Default or TextboxConfig.Value or ""
                 TextboxConfig.TextDisappear = TextboxConfig.TextDisappear or false
-                TextboxConfig.Callback = TextboxConfig.Callback or function() end
-                TextboxConfig.Visible = TextboxConfig.Visible ~= false
+                TextboxConfig.Callback = TextboxConfig.Callback or TextboxConfig.Function or function() end
+                TextboxConfig.Visible = TextboxConfig.Visible or TextboxConfig.Enabled or true
                 TextboxConfig.Disabled = TextboxConfig.Disabled or false
 
                 local Textbox = {
@@ -9505,6 +9553,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetChildren(
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 38),
+                            Visible = Textbox.Visible,
                             Parent = ItemParent,
                         }),
                         {
@@ -9513,7 +9562,6 @@ function OrionLib:MakeWindow(WindowConfig)
                                     Size = UDim2.new(1, -12, 1, 0),
                                     Position = UDim2.new(0, 12, 0, 0),
                                     Font = Enum.Font.GothamBold,
-                                    Visible = TextboxConfig.Visible,
                                     Name = "Content",
                                 }),
                                 "Text"
@@ -9651,8 +9699,8 @@ function OrionLib:MakeWindow(WindowConfig)
                 ColorpickerConfig.DefaultAlpha = ColorpickerConfig.DefaultAlpha or 0
                 ColorpickerConfig.Callback = ColorpickerConfig.Callback or function() end
                 ColorpickerConfig.Flag = ColorpickerConfig.Flag or nil
-                ColorpickerConfig.Save = ColorpickerConfig.Save or false
                 ColorpickerConfig.Alpha = ColorpickerConfig.Alpha or false
+                ColorpickerConfig.Visible = ColorpickerConfig.Visible or ColorpickerConfig.Enabled or true
                 local pickerMode = tostring(ColorpickerConfig.Mode or ColorpickerConfig.PickerType or ColorpickerConfig.Style or "Gradient"):lower()
                 pickerMode = (pickerMode == "basic" or pickerMode == "normal" or pickerMode == "bth") and "Basic" or "Gradient"
 
@@ -9664,7 +9712,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     Toggled = false,
                     Mode = pickerMode,
                     Type = "Colorpicker",
-                    Save = ColorpickerConfig.Save,
+                    Visible = ColorpickerConfig.Visible,
                     RecentColors = {},
                 }
 
@@ -9986,6 +10034,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     SetChildren(
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 38),
+                            Visible = Colorpicker.Visible,
                             Parent = ItemParent,
                         }),
                         {
@@ -10285,6 +10334,24 @@ function OrionLib:MakeWindow(WindowConfig)
                         AlphaValue = Alpha
                         AlphaSelection.Position = UDim2.new(0.5, 0, 1 - AlphaValue, 0)
                         OrionLib:SafeScript(ColorpickerConfig.Callback, Colorpicker.Value, AlphaValue)
+                    end
+                end
+                
+                function Colorpicker:SetVisible(Value)
+                    if getgenv().Destroy then
+                        return
+                    end
+                    if ColorpickerFrame then
+	                    ColorpickerFrame.Visible = Value
+                    end
+                end
+                
+                function Colorpicker:SetLabel(Value)
+                    if getgenv().Destroy then
+                        return
+                    end
+                    if ColorpickerFrame and ColorpickerFrame:FindFirstChild("Content") then
+	                    ColorpickerFrame.Content.Text = Value
                     end
                 end
 
