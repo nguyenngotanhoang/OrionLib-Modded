@@ -1,8 +1,13 @@
 local cloneref = (cloneref or clonereference or function(instance: any)
     return instance
 end)
-local getgenv = getgenv or function()
-    return shared
+local nativeGetEnvironment = getgenv
+local Environment = type(nativeGetEnvironment) == "function" and nativeGetEnvironment() or _G
+if type(Environment) ~= "table" then
+    Environment = {}
+end
+local getgenv = function()
+    return Environment
 end
 local UserInputService: UserInputService = cloneref(game:GetService("UserInputService"))
 local TweenService: TweenService = cloneref(game:GetService("TweenService"))
@@ -10,10 +15,37 @@ local RunService: RunService = cloneref(game:GetService("RunService"))
 local HttpService: HttpService = cloneref(game:GetService("HttpService"))
 local ContentProvider: ContentProvider = cloneref(game:GetService("ContentProvider"))
 local LocalPlayer = game:GetService("Players").LocalPlayer
+if not LocalPlayer then
+    error("OrionLib must be loaded from a client LocalScript")
+end
 local Mouse = cloneref(LocalPlayer:GetMouse())
-local cam = workspace.CurrentCamera
 
-local PARENT = (gethui and gethui()) or cloneref(game:GetService("CoreGui"))
+local function GetCurrentCamera()
+    return workspace.CurrentCamera or workspace:FindFirstChildOfClass("Camera")
+end
+
+-- Prefer an explicitly supported UI host, then use PlayerGui for normal
+-- client scripts. CoreGui is only a final fallback because it is protected.
+local function ResolveUIParent()
+    if type(gethui) == "function" then
+        local success, parent = pcall(gethui)
+        if success and typeof(parent) == "Instance" then
+            return parent
+        end
+    end
+
+    local playerGui = LocalPlayer and LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not playerGui and LocalPlayer then
+        local success, result = pcall(function()
+            return LocalPlayer:WaitForChild("PlayerGui", 5)
+        end)
+        playerGui = success and result or nil
+    end
+
+    return playerGui or cloneref(game:GetService("CoreGui"))
+end
+
+local PARENT = ResolveUIParent()
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request) or function() end
 local getcustomasset = getcustomasset or getsynasset or function() end
 local makefolder = makefolder or function() end
@@ -94,13 +126,13 @@ local BundlePalette = LoadBundleModule("scr/theme/palette.lua")
 local BundleThemes = BundlePalette and BundlePalette.Themes or nil
 local BundleStyle = BundlePalette and BundlePalette.Style or nil
 
-getgenv().OrionLib = {
+local OrionLib = {
     Elements = {},
     ThemeObjects = {},
     ThemeChangedCallbacks = {},
     Connections = {},
     Flags = {},
-    SizeMin = Vector2.new(480, 360),
+    SizeMin = Vector2.new(380, 260),
     OnDestroyTo = {},
     Themes = BundleThemes or {
         Default = {
@@ -154,6 +186,8 @@ getgenv().OrionLib = {
     LocalizationConfig = { Enabled = false, Prefix = "loc:", DefaultLanguage = "en", Translations = {} },
     SelectedLanguage = nil,
 }
+
+getgenv().OrionLib = OrionLib
 
 getgenv().Destroy = false
 
@@ -570,7 +604,14 @@ end
 Orion = Instance.new("ScreenGui")
 Orion.Name = "Orion"
 Orion.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Orion.Parent = PARENT
+Orion.ResetOnSpawn = false
+local parented = pcall(function()
+    Orion.Parent = PARENT
+end)
+if not parented then
+    PARENT = LocalPlayer:WaitForChild("PlayerGui")
+    Orion.Parent = PARENT
+end
 
 _currentKey = Enum.KeyCode.RightShift
 function OrionLib:SetKeyToggleUI(key: Enum.KeyCode)
@@ -679,11 +720,13 @@ end
 OrionLib:SetFont("GothamBold")
 
 function OrionLib:IsRunning()
-    return Orion.Parent == PARENT
+    return PARENT ~= nil and Orion.Parent == PARENT
 end
 
 local function getMaxSize()
-    return Vector2.new(cam.ViewportSize.X * 0.9, cam.ViewportSize.Y * 0.9)
+    local camera = GetCurrentCamera()
+    local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+    return Vector2.new(viewport.X * 0.9, viewport.Y * 0.9)
 end
 
 local function isMobileDevice()
@@ -832,7 +875,10 @@ function OrionLib:SnapScreen(gui: GuiObject)
                 return nil
             end
         end
-        local cam = workspace.CurrentCamera
+        local cam = GetCurrentCamera()
+        if not cam then
+            return
+        end
         local screen = cam.ViewportSize
         local pos = gui.AbsolutePosition
         local size = gui.AbsoluteSize
@@ -1003,9 +1049,11 @@ local function SetChildren(Element, Children)
     if BundleFactory and BundleFactory.SetChildren then
         return BundleFactory.SetChildren(Element, Children)
     end
-    table.foreach(Children, function(_, Child)
-        Child.Parent = Element
-    end)
+    for _, Child in pairs(Children or {}) do
+        if Child then
+            Child.Parent = Element
+        end
+    end
     return Element
 end
 
@@ -2567,7 +2615,7 @@ parser = {
         end,
         Load = function(flag, data)
             if OrionLib.Flags[flag] then
-                OrionLib.Flags[flag]:Set(data.Text)
+                OrionLib.Flags[flag]:SetText(data.Text)
             end
         end,
     },
@@ -3411,7 +3459,18 @@ function OrionLib:MakeWindow(WindowConfig)
     local Loaded = false
     local UIHidden = false
 
-    WindowConfig = TranslateConfig(WindowConfig or {})
+    WindowConfig = type(WindowConfig) == "table" and TranslateConfig(WindowConfig) or {}
+    if WindowConfig.SearchBar == true then
+        WindowConfig.SearchBar = {
+            Default = "Search Tabs",
+            DefaultMain = "Search Elements",
+            ClearTextOnFocus = true,
+            Tabs = true,
+            Mains = true,
+        }
+    elseif WindowConfig.SearchBar ~= nil and type(WindowConfig.SearchBar) ~= "table" then
+        WindowConfig.SearchBar = nil
+    end
     WindowConfig.Name = WindowConfig.Name or WindowConfig.Title or "Library"
     WindowConfig.ConfigFolder = WindowConfig.ConfigFolder or WindowConfig.Folder or WindowConfig.Name
     WindowConfig.SaveConfig = WindowConfig.SaveConfig or false
@@ -4192,18 +4251,28 @@ function OrionLib:MakeWindow(WindowConfig)
     local Functions = {}
     local TabName = {}
     local AllTabs = {}
-    function Functions:MakeTab(TabConfig)
-        TabConfig = TabConfig or {}
-        TabConfig = TranslateConfig(TabConfig)
-        TabConfig.Name = TabConfig.Name or TabConfig.Title or "Tab"
+
+        function Functions:MakeTab(TabConfig)
+        TabConfig = type(TabConfig) == "table" and TranslateConfig(TabConfig) or {}
+        TabConfig.Name = tostring(TabConfig.Name or TabConfig.Title or "Tab")
         TabConfig.Icon = ResolveIcon(TabConfig.Icon or "")
         TabConfig.Visible = TabConfig.Visible ~= false
         TabConfig.Disabled = TabConfig.Disabled == true
+        TabConfig.Mode = TabConfig.Mode or TabConfig.Design or "Normal"
         TabConfig.IconOnly = WindowConfig.SidebarCompact or TabConfig.IconOnly == true
         local TabParent = TabConfig._Parent or TabHolder
         local TabIndent = tonumber(TabConfig._Indent or 0) or 0
         local TabWidthOffset = tonumber(TabConfig._WidthOffset or 0) or 0
         local topbarTabWidth = math.clamp((#tostring(TabConfig.Name) * 8) + (TabConfig.Icon and 46 or 24), 82, 168)
+        local function NormalizeMode(mode)
+            mode = tostring(mode or "Normal"):lower()
+            if mode == "group" or mode == "grouptab" or mode == "tabgroup" then
+                return "Group"
+            end
+            return "Normal"
+        end
+
+        TabConfig.Mode = NormalizeMode(TabConfig.Mode)
 
         local Tabs = {
             Disabled = TabConfig.Disabled,
@@ -4211,6 +4280,7 @@ function OrionLib:MakeWindow(WindowConfig)
             Type = "Tabs",
             Name = TabConfig.Name,
             Group = TabConfig._Group,
+            Mode = TabConfig.Mode,
         }
 
         local TabFrame = SetChildren(
@@ -4277,26 +4347,77 @@ function OrionLib:MakeWindow(WindowConfig)
         table.insert(AllTabs, Tabs)
         TabName[TabConfig.Name] = Tabs
         local TabBadge
-
-        local Container = OrionLib:AddThemeObject(
-            SetChildren(
-                SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
-                    Size = WindowConfig.TopbarTabs and UDim2.new(1, 0, 1, -92)
-                        or UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
-                    Position = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 92)
-                        or UDim2.new(0, WindowConfig.SidebarWidth, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
-                    Parent = MainWindow,
-                    Visible = false,
-                    Name = "ItemContainer",
-                    ZIndex = 4,
-                }),
-                {
-                    MakeElement("List", 0, 6),
-                    MakeElement("Padding", 15, 10, 10, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 10 or 15),
-                }
-            ),
-            "Divider"
-        )
+        local Container
+		
+		if Tabs.Mode == "Group" then
+			Container = OrionLib:AddThemeObject(
+	            SetChildren(
+	                SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 1, 6), {
+	                    Parent = MainWindow,
+	                    Size = WindowConfig.TopbarTabs and UDim2.new(1, 0, 1, -92) or UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
+	                    Position = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 92) or UDim2.new(0, WindowConfig.SidebarWidth, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
+	                    BackgroundTransparency = 1,
+						Name = "ItemContainer",
+						Visible = false,
+						ZIndex = 4,
+	                }),
+	                {
+	                    OrionLib:AddThemeObject(
+				            SetChildren(
+				                SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
+				                    Size = UDim2.new(0.5, -3, 1, 0),
+				                    Position = UDim2.new(0, 0, 0, 0),
+				                    Name = "Left",
+				                    ZIndex = 4,
+				                }),
+				                {
+				                    MakeElement("List", 0, 6),
+				                    MakeElement("Padding", 15, 10, 10, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 10 or 15),
+				                }
+				            ),
+				            "Divider"
+				        ),
+						OrionLib:AddThemeObject(
+				            SetChildren(
+				                SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
+				                    Size = UDim2.new(0.5, -3, 1, 0),
+				                    Position = UDim2.new(1, 0, 0, 0),
+									AnchorPoint = Vector2.new(1, 0),
+				                    Name = "Right",
+				                    ZIndex = 4,
+				                }),
+				                {
+				                    MakeElement("List", 0, 6),
+				                    MakeElement("Padding", 15, 10, 10, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 10 or 15),
+				                }
+				            ),
+				            "Divider"
+				        )
+	                }
+	            ),
+	            "Main"
+	        )
+		else
+	        Container = OrionLib:AddThemeObject(
+	            SetChildren(
+	                SetProps(MakeElement("ScrollFrame", Color3.fromRGB(255, 255, 255), 5), {
+	                    Size = WindowConfig.TopbarTabs and UDim2.new(1, 0, 1, -92)
+	                        or UDim2.new(1, -WindowConfig.SidebarWidth, 1, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and -90 or -50),
+	                    Position = WindowConfig.TopbarTabs and UDim2.new(0, 0, 0, 92)
+	                        or UDim2.new(0, WindowConfig.SidebarWidth, 0, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 90 or 50),
+	                    Parent = MainWindow,
+	                    Visible = false,
+	                    Name = "ItemContainer",
+	                    ZIndex = 4,
+	                }),
+	                {
+	                    MakeElement("List", 0, 6),
+	                    MakeElement("Padding", 15, 10, 10, (WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 10 or 15),
+	                }
+	            ),
+	            "Divider"
+	        )
+		end
         Container:SetAttribute("OrionTabContainer", true)
         if WindowConfig.Glass then
             ApplyLiquidGlass(Container, {
@@ -4311,22 +4432,33 @@ function OrionLib:MakeWindow(WindowConfig)
             })
         end
         Tabs.Button = TabFrame
-        Tabs.Container = Container
-        SetMinimumZIndex(Container, 4)
+		Tabs.Container = Container
+		-- A grouped page owns two scrolling columns. The left column is the
+		-- default destination for controls added directly through the tab API.
+		local PrimaryContainer = Tabs.Mode == "Group" and Container:FindFirstChild("Left") or Container
+		if not PrimaryContainer then
+			error("OrionLib failed to create the primary tab container")
+		end
+		SetMinimumZIndex(Container, 4)
         AddConnection(Container.DescendantAdded, function(Descendant)
             if Descendant:IsA("GuiObject") then
                 Descendant.ZIndex = math.max(Descendant.ZIndex, 4)
             end
         end)
-
-        AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-            Container.CanvasSize = UDim2.new(
-                0,
-                0,
-                0,
-                Container.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30)
-            )
-        end)
+        
+        if Tabs.Mode == "Group" then
+	        for i, v in pairs(Container:GetChildren()) do
+				if v:IsA("ScrollingFrame") and v:FindFirstChild("UIListLayout") then
+					AddConnection(v.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+						v.CanvasSize = UDim2.new(0, 0, 0, v.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30))
+					end)
+				end
+			end
+		else
+			AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+				Container.CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30))
+			end)
+        end
 
         local function SelectTab()
             if Tabs.Disabled then
@@ -4510,7 +4642,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 TabBadge.Size = TabConfig.IconOnly and UDim2.new(0, 8, 0, 8) or UDim2.new(0, math.max(20, TabBadge.Value.TextBounds.X + 10), 0, 16)
             end
         end
-
+        
         local function GetElements(ItemParent)
             local ElementFunction = {}
             function ElementFunction:AddDivider(DividerConfig)
@@ -6199,6 +6331,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
 
                 function Button:AddButton(ButtonConfigClone)
+	                if Button.__ButtonClone then return Button.__ButtonClone end
                     ButtonConfigClone = ButtonConfigClone or {}
                     ButtonConfigClone.Visible = ButtonConfigClone.Visible or true
                     ButtonConfigClone.Disabled = ButtonConfigClone.Disabled or false
@@ -6207,7 +6340,8 @@ function OrionLib:MakeWindow(WindowConfig)
                     ButtonConfigClone.Flag = ButtonConfigClone.Flag or nil
                     ButtonConfigClone.Icon = ButtonConfigClone.Icon or "mouse-pointer-click"
                     local ButtonClone = { Disabled = ButtonConfigClone.Disabled, Visible = ButtonConfigClone.Visible, Flag = ButtonConfigClone.Flag }
-
+					Button.__ButtonClone = ButtonClone
+					
                     if ButtonFrame then
                         ButtonFrame.Size = UDim2.new(0.493, 0, 0, 33)
                         local ButtonCloneFrame = Clone(ButtonFrame, {
@@ -6326,8 +6460,14 @@ function OrionLib:MakeWindow(WindowConfig)
                     if ButtonConfigClone.Flag then
                         OrionLib.Flags[ButtonConfig.Flag][ButtonConfigClone.Flag] = ButtonClone
                     end
-                    return ButtonClone
+                    Button.ButtonClone = ButtonClone
+                    return Button
                 end
+                
+                function Button:GetClone()
+	                return Button.ButtonClone
+                end
+                
                 if ButtonConfig.Flag then
                     OrionLib.Flags[ButtonConfig.Flag] = Button
                 end
@@ -6466,7 +6606,6 @@ function OrionLib:MakeWindow(WindowConfig)
                         ButtonConfig.Callback = callback
                     end
                 end
-
                 if ButtonConfig.Flag then
                     OrionLib.Flags[ButtonConfig.Flag] = Button
                 end
@@ -10366,15 +10505,15 @@ function OrionLib:MakeWindow(WindowConfig)
 
         local ElementFunction = {}
         function ElementFunction:AddSection(SectionConfig)
-            SectionConfig = SectionConfig or {}
-            SectionConfig.Name = SectionConfig.Name or "Section"
+            SectionConfig = type(SectionConfig) == "table" and SectionConfig or {}
+            SectionConfig.Name = tostring(SectionConfig.Name or SectionConfig.Title or "Section")
             SectionConfig.Flag = SectionConfig.Flag or nil
             local Section = { Type = "Section" }
 
             local SectionFrame = SetChildren(
                 SetProps(MakeElement("TFrame"), {
                     Size = UDim2.new(1, 0, 0, 26),
-                    Parent = Container,
+                    Parent = SectionConfig._Parent or PrimaryContainer,
                 }),
                 {
                     OrionLib:AddThemeObject(
@@ -10486,7 +10625,7 @@ function OrionLib:MakeWindow(WindowConfig)
             SectionFunction.RichLabel = function(_, config)
                 config = TranslateConfig(config or {})
                 config.Name = config.Name or config.Title or "Rich Label"
-                return SectionFunction:AddGraph(config)
+                return SectionFunction:AddLabel(config.Content or config.Text or config.Name, config)
             end
             SectionFunction.AdvancedLabel = SectionFunction.RichLabel
             for methodName, method in next, SectionFunction do
@@ -10497,6 +10636,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 config = TranslateConfig(config or {})
                 return SectionFunction:AddWarningBox(config)
             end
+            Section.WarningBox = SectionFunction.WarningBox
 
             if SectionConfig.Flag then
                 OrionLib.Flags[SectionConfig.Flag] = Section
@@ -10504,27 +10644,56 @@ function OrionLib:MakeWindow(WindowConfig)
             return Section
         end
 
-        for i, v in next, GetElements(Container) do
+        for i, v in next, GetElements(PrimaryContainer) do
             ElementFunction[i] = v
         end
 
         function ElementFunction:AddGroupBox(GroupConfig)
-            GroupConfig = TranslateConfig(GroupConfig or {})
-            GroupConfig.Name = GroupConfig.Name or GroupConfig.Title or "GroupBox"
+            GroupConfig = type(GroupConfig) == "table" and TranslateConfig(GroupConfig) or {}
+            GroupConfig.Name = tostring(GroupConfig.Name or GroupConfig.Title or "GroupBox")
+            if GroupConfig.Default == nil then
+                GroupConfig.Default = GroupConfig.Value ~= nil and GroupConfig.Value or true
+            end
             GroupConfig.Visible = GroupConfig.Visible ~= false
-            local Group = { Type = "GroupBox", Visible = GroupConfig.Visible }
+            local Group = { Type = "GroupBox", Visible = GroupConfig.Visible, StoreTab = GroupConfig.Default}
             local GroupFrame = OrionLib:AddThemeObject(
                 SetChildren(
                     SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 6), {
                         Size = UDim2.new(1, 0, 0, 36),
-                        Parent = Container,
+                        Parent = GroupConfig._Parent or PrimaryContainer,
                         Visible = GroupConfig.Visible,
                         BackgroundTransparency = 0.25,
                     }),
                     {
+                    	SetChildren(
+					        SetProps(MakeElement("Button"), {
+					            Name = "ButtonEnabled",
+					            AnchorPoint = Vector2.new(1, 1),
+					            Position = UDim2.new(1, -7, 0, 29),
+					            Size = UDim2.fromOffset(24, 24),
+					            BackgroundTransparency = 1,
+					            BackgroundColor3 = OrionLib.Themes[OrionLib.SelectedTheme].Second,
+					            Active = true,
+					            AutoButtonColor = false,
+					            ZIndex = 10,
+					        }),
+					        {
+					            OrionLib:AddThemeObject(
+					                SetProps(MakeElement("Image", "rbxassetid://7072706796"), {
+					                    AnchorPoint = Vector2.new(0.5, 0.5),
+					                    Position = UDim2.new(0.5, 0, 0.5, 0),
+					                    Size = UDim2.fromScale(0.82, 0.82),
+					                    ImageTransparency = 0,
+					                    BackgroundTransparency = 1,
+					                    ZIndex = 11,
+					                }),
+					                "Text"
+					            ),
+					        }
+					    ),
                         OrionLib:AddThemeObject(
                             SetProps(MakeElement("Label", GroupConfig.Name, 14), {
-                                Size = UDim2.new(1, -24, 0, 20),
+                                Size = UDim2.new(1, -45, 0, 20),
                                 Position = UDim2.new(0, 12, 0, 8),
                                 Font = Enum.Font.GothamBold,
                                 Name = "Title",
@@ -10556,10 +10725,14 @@ function OrionLib:MakeWindow(WindowConfig)
                     Shadow = false,
                 })
             end
-            AddConnection(GroupFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-                GroupFrame.Holder.Size = UDim2.new(1, -20, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y)
-                GroupFrame.Size = UDim2.new(1, 0, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y + 46)
-            end)
+            local function HasVisibleElement()
+			    for _, v in ipairs(GroupFrame.Holder:GetChildren()) do
+			        if v:IsA("GuiObject") and v.Visible then
+			            return true
+			        end
+			    end
+			    return false
+			end
             for methodName, method in next, GetElements(GroupFrame.Holder) do
                 Group[methodName] = method
             end
@@ -10660,13 +10833,46 @@ function OrionLib:MakeWindow(WindowConfig)
             Group.RichLabel = function(_, config)
                 config = TranslateConfig(config or {})
                 config.Name = config.Name or config.Title or "Rich Label"
-                return Group:AddGraph(config)
+                return Group:AddLabel(config.Content or config.Text or config.Name, config)
             end
             Group.AdvancedLabel = Group.RichLabel
             function Group:SetVisible(state)
                 Group.Visible = state == true
                 GroupFrame.Visible = Group.Visible
             end
+            function Group:SetLabel(text)
+	            if GroupFrame and GroupFrame:FindFirstChild("Title") then
+	                GroupFrame.Title.Text = text
+                end
+            end
+			local TweenInfoGroup = TweenInfo.new(
+    0.2,
+    Enum.EasingStyle.Quad,
+    Enum.EasingDirection.Out
+)
+
+            function Group:SetStoreTab(state)
+			    Group.StoreTab = state == true
+			    local hasVisible = HasVisibleElement()
+			    GroupFrame.Holder.Visible = state and hasVisible
+			    local targetSize
+			    if state and hasVisible then
+			        GroupFrame.Holder.Size = UDim2.new(1, -20, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y)
+			        targetSize = UDim2.new(1, 0, 0, GroupFrame.Holder.UIListLayout.AbsoluteContentSize.Y + 46)
+			    else
+			        targetSize = UDim2.new(1, 0, 0, 36)
+			    end
+			    TweenService:Create(GroupFrame, TweenInfoGroup, {Size = targetSize}):Play()
+			    TweenService:Create(GroupFrame.ButtonEnabled, TweenInfo.new(0.15), {Rotation = state and 0 or 180}):Play()
+			end
+            AddConnection(GroupFrame.ButtonEnabled.MouseButton1Click, function()
+		        Group:SetStoreTab(not Group.StoreTab)
+            end)
+            Group:SetStoreTab(Group.StoreTab)
+            local function UpdateLayout()
+			    Group:SetStoreTab(Group.StoreTab)
+			end
+            AddConnection(GroupFrame.Holder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), UpdateLayout)
             if GroupConfig.Flag then
                 OrionLib.Flags[GroupConfig.Flag] = Group
             end
@@ -10813,7 +11019,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
         function ElementFunction:RichLabel(config)
             config = NormalizeElementConfig(config, "Rich Label")
-            return ElementFunction:AddGraph(config)
+            return ElementFunction:AddLabel(config.Content or config.Text or config.Name, config)
         end
 
         function ElementFunction:AdvancedLabel(config)
@@ -10835,7 +11041,7 @@ function OrionLib:MakeWindow(WindowConfig)
             local frame = SetProps(MakeElement("Frame"), {
                 Size = UDim2.new(1, 0, 0, math.max(6, columns * 10)),
                 BackgroundTransparency = 1,
-                Parent = Container,
+                Parent = PrimaryContainer,
             })
             return {
                 Instance = frame,
@@ -10874,12 +11080,18 @@ function OrionLib:MakeWindow(WindowConfig)
             for i, v in next, ElementFunction do
                 ElementFunction[i] = function() end
             end
-            Container:FindFirstChild("UIListLayout"):Destroy()
-            Container:FindFirstChild("UIPadding"):Destroy()
+            local layout = PrimaryContainer:FindFirstChild("UIListLayout")
+            local padding = PrimaryContainer:FindFirstChild("UIPadding")
+            if layout then
+                layout:Destroy()
+            end
+            if padding then
+                padding:Destroy()
+            end
             SetChildren(
                 SetProps(MakeElement("TFrame"), {
                     Size = UDim2.new(1, 0, 1, 0),
-                    Parent = ItemParent,
+                    Parent = PrimaryContainer,
                 }),
                 {
                     OrionLib:AddThemeObject(
@@ -10932,12 +11144,136 @@ function OrionLib:MakeWindow(WindowConfig)
                 }
             )
         end
+        
+        if Tabs.Mode == "Group" and not TabConfig.PremiumOnly then
+            Tabs.LeftContainer = Container:FindFirstChild("Left")
+            Tabs.RightContainer = Container:FindFirstChild("Right")
+            if not Tabs.LeftContainer or not Tabs.RightContainer then
+                error("OrionLib failed to create grouped tab columns")
+            end
+
+            -- Column APIs preserve the low-level Add* methods while exposing
+            -- the same convenient constructors used by a regular tab.
+            local function CreateColumnAPI(column)
+                local api = GetElements(column)
+
+                function api:Section(config)
+                    config = NormalizeElementConfig(config, "Section")
+                    config._Parent = column
+                    return ElementFunction:AddSection(config)
+                end
+                api.AddSection = function(_, config)
+                    return api:Section(config)
+                end
+
+                function api:GroupBox(config)
+                    config = NormalizeElementConfig(config, "GroupBox")
+                    config._Parent = column
+                    return ElementFunction:AddGroupBox(config)
+                end
+                api.AddGroupBox = function(_, config)
+                    return api:GroupBox(config)
+                end
+
+                function api:Button(config)
+                    config = NormalizeElementConfig(config, "Button")
+                    return api:AddButton(config)
+                end
+
+                function api:Toggle(config)
+                    config = NormalizeElementConfig(config, "Toggle")
+                    return api:AddToggle(config)
+                end
+
+                function api:Slider(config)
+                    config = NormalizeElementConfig(config, "Slider")
+                    return api:AddSlider(config)
+                end
+
+                function api:Dropdown(config)
+                    config = NormalizeElementConfig(config, "Dropdown")
+                    return api:AddDropdown(config)
+                end
+
+                function api:Input(config)
+                    config = NormalizeElementConfig(config, "Input")
+                    config.Finished = config.Finished ~= false
+                    return api:AddTextbox(config)
+                end
+
+                function api:Paragraph(config)
+                    config = NormalizeElementConfig(config, "Paragraph")
+                    return api:AddParagraph(config.Title or config.Name, config.Content or "")
+                end
+
+                return api
+            end
+
+            local LeftAPI = CreateColumnAPI(Tabs.LeftContainer)
+            local RightAPI = CreateColumnAPI(Tabs.RightContainer)
+
+            function Tabs:Left()
+                return LeftAPI
+            end
+
+            function Tabs:Right()
+                return RightAPI
+            end
+
+            function Tabs:GetColumn(side)
+                return tostring(side or "Left"):lower() == "right" and RightAPI or LeftAPI
+            end
+
+            ElementFunction.Left = function()
+                return LeftAPI
+            end
+            ElementFunction.Right = function()
+                return RightAPI
+            end
+            ElementFunction.GetColumn = function(_, side)
+                return Tabs:GetColumn(side)
+            end
+		end
+
+        -- Optional builders keep larger interfaces modular without forcing a
+        -- particular element schema. Each builder receives its new container.
+        local function ResolveBuilderTarget(config)
+            if Tabs.Mode ~= "Group" then
+                return ElementFunction
+            end
+            return Tabs:GetColumn(config.Column or config.Side)
+        end
+
+        local function BuildConfiguredContainers(configs, constructor)
+            if type(configs) ~= "table" then
+                return
+            end
+            for _, config in ipairs(configs) do
+                if type(config) == "table" then
+                    local target = ResolveBuilderTarget(config)
+                    local child = target[constructor](target, config)
+                    local build = config.Build or config.Builder
+                    if type(build) == "function" then
+                        OrionLib:SafeScript(build, child, ElementFunction, Tabs)
+                    end
+                end
+            end
+        end
+
+        if not TabConfig.PremiumOnly then
+            BuildConfiguredContainers(TabConfig.Sections, "Section")
+            BuildConfiguredContainers(TabConfig.Groups or TabConfig.GroupBoxes, "GroupBox")
+            if type(TabConfig.Build) == "function" then
+                OrionLib:SafeScript(TabConfig.Build, ElementFunction, Tabs)
+            end
+        end
+
         return ElementFunction, Tabs
     end
 
     function Functions:TabGroup(GroupConfig)
-        GroupConfig = TranslateConfig(GroupConfig or {})
-        GroupConfig.Name = GroupConfig.Name or GroupConfig.Title or "Group"
+        GroupConfig = type(GroupConfig) == "table" and TranslateConfig(GroupConfig) or {}
+        GroupConfig.Name = tostring(GroupConfig.Name or GroupConfig.Title or "Group")
         GroupConfig.Icon = ResolveIcon(GroupConfig.Icon or "folder")
         GroupConfig.Visible = GroupConfig.Visible ~= false
         GroupConfig.Collapsed = GroupConfig.Collapsed == true
@@ -10949,7 +11285,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 Type = "TabGroup",
             }
             function TopbarGroup:Tab(TabConfig)
-                TabConfig = TranslateConfig(TabConfig or {})
+                TabConfig = type(TabConfig) == "table" and TranslateConfig(TabConfig) or {}
                 TabConfig._Group = TopbarGroup
                 local Elements, Tab = Functions:MakeTab(TabConfig)
                 table.insert(TopbarGroup.Tabs, Tab)
@@ -11061,7 +11397,7 @@ function OrionLib:MakeWindow(WindowConfig)
         end)
 
         function Group:Tab(TabConfig)
-            TabConfig = TranslateConfig(TabConfig or {})
+            TabConfig = type(TabConfig) == "table" and TranslateConfig(TabConfig) or {}
             TabConfig._Parent = Holder
             TabConfig._Indent = WindowConfig.SidebarCompact and 0 or 10
             TabConfig._Group = Group
