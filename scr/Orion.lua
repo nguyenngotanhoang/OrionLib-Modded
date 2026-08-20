@@ -132,9 +132,10 @@ local OrionLib = {
     ThemeChangedCallbacks = {},
     Connections = {},
     Flags = {},
+    Label = {}, Toggle = {},
     SizeMin = Vector2.new(380, 260),
     OnDestroyTo = {},
-    Themes = BundleThemes or {
+    Themes = {
         Default = {
             Main = Color3.fromRGB(18, 20, 27),
             Second = Color3.fromRGB(25, 28, 38),
@@ -144,37 +145,100 @@ local OrionLib = {
             TextDark = Color3.fromRGB(156, 164, 181),
             Accent = Color3.fromRGB(96, 165, 250),
             AccentDark = Color3.fromRGB(37, 99, 235),
+            Success = Color3.fromRGB(74, 222, 128),
+            Warning = Color3.fromRGB(251, 191, 36),
+            Error = Color3.fromRGB(248, 113, 113),
         },
         Dark = {
-            Main = Color3.fromRGB(18, 18, 22),
-            Second = Color3.fromRGB(27, 27, 34),
-            Stroke = Color3.fromRGB(58, 58, 72),
-            Divider = Color3.fromRGB(58, 58, 72),
-            Text = Color3.fromRGB(245, 245, 250),
-            TextDark = Color3.fromRGB(165, 166, 180),
+            Main = Color3.fromRGB(16, 17, 21),
+            Second = Color3.fromRGB(24, 26, 33),
+            Stroke = Color3.fromRGB(56, 59, 72),
+            Divider = Color3.fromRGB(42, 45, 56),
+            Text = Color3.fromRGB(246, 247, 250),
+            TextDark = Color3.fromRGB(162, 166, 180),
             Accent = Color3.fromRGB(129, 140, 248),
             AccentDark = Color3.fromRGB(79, 70, 229),
+            Success = Color3.fromRGB(52, 211, 153),
+            Warning = Color3.fromRGB(245, 158, 11),
+            Error = Color3.fromRGB(239, 68, 68),
         },
         Light = {
-            Main = Color3.fromRGB(245, 246, 250),
+            Main = Color3.fromRGB(246, 248, 252),
             Second = Color3.fromRGB(255, 255, 255),
-            Stroke = Color3.fromRGB(210, 214, 225),
-            Divider = Color3.fromRGB(210, 214, 225),
-            Text = Color3.fromRGB(30, 32, 40),
-            TextDark = Color3.fromRGB(95, 101, 116),
+            Stroke = Color3.fromRGB(211, 216, 228),
+            Divider = Color3.fromRGB(225, 229, 238),
+            Text = Color3.fromRGB(29, 33, 43),
+            TextDark = Color3.fromRGB(94, 101, 118),
             Accent = Color3.fromRGB(37, 99, 235),
             AccentDark = Color3.fromRGB(29, 78, 216),
+            Success = Color3.fromRGB(22, 163, 74),
+            Warning = Color3.fromRGB(217, 119, 6),
+            Error = Color3.fromRGB(220, 38, 38),
         },
         Ubuntu = {
-            Main = Color3.fromRGB(233, 84, 32),
-            Second = Color3.fromRGB(45, 45, 45),
-            Stroke = Color3.fromRGB(70, 70, 70),
-            Divider = Color3.fromRGB(70, 70, 70),
+            Main = Color3.fromRGB(35, 31, 32),
+            Second = Color3.fromRGB(47, 43, 45),
+            Stroke = Color3.fromRGB(86, 70, 66),
+            Divider = Color3.fromRGB(70, 58, 56),
             Text = Color3.fromRGB(255, 255, 255),
-            TextDark = Color3.fromRGB(180, 180, 180),
+            TextDark = Color3.fromRGB(196, 184, 181),
             Accent = Color3.fromRGB(233, 84, 32),
             AccentDark = Color3.fromRGB(190, 62, 22),
+            Success = Color3.fromRGB(78, 180, 110),
+            Warning = Color3.fromRGB(236, 167, 44),
+            Error = Color3.fromRGB(230, 90, 84),
         },
+        Midnight = {
+            Main = Color3.fromRGB(11, 18, 32),
+            Second = Color3.fromRGB(17, 27, 46),
+            Stroke = Color3.fromRGB(47, 65, 96),
+            Divider = Color3.fromRGB(32, 47, 75),
+            Text = Color3.fromRGB(239, 246, 255),
+            TextDark = Color3.fromRGB(148, 163, 184),
+            Accent = Color3.fromRGB(56, 189, 248),
+            AccentDark = Color3.fromRGB(2, 132, 199),
+            Success = Color3.fromRGB(45, 212, 191),
+            Warning = Color3.fromRGB(251, 191, 36),
+            Error = Color3.fromRGB(251, 113, 133),
+        },
+        Emerald = {
+            Main = Color3.fromRGB(13, 24, 22),
+            Second = Color3.fromRGB(20, 36, 32),
+            Stroke = Color3.fromRGB(51, 84, 73),
+            Divider = Color3.fromRGB(36, 62, 55),
+            Text = Color3.fromRGB(236, 253, 245),
+            TextDark = Color3.fromRGB(151, 181, 170),
+            Accent = Color3.fromRGB(52, 211, 153),
+            AccentDark = Color3.fromRGB(5, 150, 105),
+            Success = Color3.fromRGB(110, 231, 183),
+            Warning = Color3.fromRGB(251, 191, 36),
+            Error = Color3.fromRGB(248, 113, 113),
+        },
+        Rose = {
+            Main = Color3.fromRGB(31, 18, 27),
+            Second = Color3.fromRGB(44, 25, 38),
+            Stroke = Color3.fromRGB(93, 56, 78),
+            Divider = Color3.fromRGB(67, 38, 57),
+            Text = Color3.fromRGB(255, 241, 246),
+            TextDark = Color3.fromRGB(191, 151, 169),
+            Accent = Color3.fromRGB(244, 114, 182),
+            AccentDark = Color3.fromRGB(219, 39, 119),
+            Success = Color3.fromRGB(74, 222, 128),
+            Warning = Color3.fromRGB(251, 191, 36),
+            Error = Color3.fromRGB(251, 113, 133),
+        },
+    },
+    Style = {
+        Radius = 8,
+        CardRadius = 6,
+        WindowRadius = 12,
+        ElementHeight = 40,
+        ElementPadding = 12,
+        AnimationSpeed = 0.2,
+        Font = Enum.Font.Gotham,
+        FontMedium = Enum.Font.GothamSemibold,
+        FontBold = Enum.Font.GothamBold,
+        FontBlack = Enum.Font.GothamBlack,
     },
     Style = BundleStyle or { Radius = 8, CardRadius = 6, WindowRadius = 12, ElementHeight = 40, ElementPadding = 12, AnimationSpeed = 0.2 },
     NotifyVolume = 3,
@@ -188,8 +252,9 @@ local OrionLib = {
 }
 
 getgenv().OrionLib = OrionLib
-
 getgenv().Destroy = false
+getgenv().Toggle = OrionLib.Toggle
+getgenv().Label = OrionLib.Label
 
 local BundleFactoryModule = LoadBundleModule("scr/component/factory.lua")
 local BundleFactory = type(BundleFactoryModule) == "function"
@@ -992,6 +1057,13 @@ function OrionLib:ResolveAsset(asset, options)
     return ResolveExternalAssetSource(asset, options or {})
 end
 
+local function Default(value, default)
+    if value == nil then
+        return default
+    end
+    return value
+end
+
 local function Create(Name, Properties, Children)
     if BundleFactory and BundleFactory.Create then
         return BundleFactory.Create(Name, Properties, Children)
@@ -1700,6 +1772,7 @@ function OrionLib:Notify(config)
         Content = config.Content or config.Desc or config.Description or "",
         Image = ResolveIcon(config.Icon or config.Image),
         Time = config.Time or config.Duration or 5,
+        Persist = config.Persist or config.Freeze or false
     })
 end
 
@@ -2620,15 +2693,37 @@ parser = {
         end,
     },
     Dropdown = {
-        Save = function(data)
-            return { Type = "Dropdown", Value = data.Value }
-        end,
-        Load = function(flag, data)
-            if OrionLib.Flags[flag] then
-                OrionLib.Flags[flag]:SetValue(data.Value)
-            end
-        end,
-    },
+	    Save = function(data)
+	        local value = data.Value
+	        if type(value) == "table" then
+	            local result = {}
+	            for key, selected in pairs(value) do
+	                result[key] = selected
+	            end
+	            return {
+	                Type = "Dropdown",
+	                Value = result,
+	                Multi = true,
+	            }
+	        end
+	        return {
+	            Type = "Dropdown",
+	            Value = value,
+	            Multi = false,
+	        }
+	    end,
+	    Load = function(flag, data)
+	        local dropdown = OrionLib.Flags[flag]
+	        if not dropdown or not data then
+	            return
+	        end
+	        if data.Multi == true then
+	            dropdown:Set(data.Value or {})
+	        else
+	            dropdown:Set(data.Value)
+	        end
+	    end,
+	},
     Bind = {
         Save = function(data)
             return { Type = "Bind", Keybind = tostring(data.Value) }
@@ -2966,140 +3061,155 @@ function OrionLib:MakeNotification(NotificationConfig)
     if getgenv().Destroy then
         return
     end
-    task.spawn(function()
-        NotificationConfig.Name = NotificationConfig.Name or "Notification"
-        NotificationConfig.Content = NotificationConfig.Content or "Content"
-        NotificationConfig.Image = NotificationConfig.Image or "sparkles"
-        NotificationConfig.Time = NotificationConfig.Time or 5
-        NotificationConfig.Volume = NotificationConfig.Volume or OrionLib.NotifyVolume
-        NotificationConfig.Accept = NotificationConfig.Accept or nil
-        NotificationConfig.Close = NotificationConfig.Close or nil
-        NotificationConfig.AcceptText = NotificationConfig.AcceptText or "Accept"
-        NotificationConfig.CloseText = NotificationConfig.CloseText or "Close"
+    NotificationConfig.Name = NotificationConfig.Name or "Notification"
+    NotificationConfig.Content = NotificationConfig.Content or "Content"
+    NotificationConfig.Image = NotificationConfig.Image or "sparkles"
+    NotificationConfig.Time = NotificationConfig.Time or 5
+    NotificationConfig.Volume = NotificationConfig.Volume or OrionLib.NotifyVolume
+    NotificationConfig.Accept = NotificationConfig.Accept or nil
+    NotificationConfig.Close = NotificationConfig.Close or nil
+    NotificationConfig.Persist = NotificationConfig.Persist or false
+    NotificationConfig.AcceptText = NotificationConfig.AcceptText or "Accept"
+    NotificationConfig.CloseText = NotificationConfig.CloseText or "Close"
+    
+    local Notify = {
+    	Name = NotificationConfig.Name,
+        Content = NotificationConfig.Content,
+		Time = NotificationConfig.Time,
+		Volume = NotificationConfig.Volume,
+		Accept = NotificationConfig.Accept, AcceptText = NotificationConfig.AcceptText,
+		Close = NotificationConfig.Close, CloseText = NotificationConfig.CloseText,
+		Persist = NotificationConfig.Persist,
+	}
 
-        local function ParseText(Str)
-            if type(Str) ~= "string" then
-                return Str
-            end
-
-            Str = Str:gsub("%[Highlight:['\"](.-)['\"]%]", '<font color="#ffffff"><b>%1</b></font>')
-            Str = Str:gsub("%[underline:['\"](.-)['\"]%]", "<u>%1</u>")
-            Str = Str:gsub("%[Color_(.-):['\"](.-)['\"]%]", '<font color="%1">%2</font>')
-
+    local function ParseText(Str)
+        if type(Str) ~= "string" then
             return Str
         end
 
-        local Closed = false
-        local IconId = ResolveImageLikeAsset(NotificationConfig.Image)
+        Str = Str:gsub("%[Highlight:['\"](.-)['\"]%]", '<font color="#ffffff"><b>%1</b></font>')
+        Str = Str:gsub("%[underline:['\"](.-)['\"]%]", "<u>%1</u>")
+        Str = Str:gsub("%[Color_(.-):['\"](.-)['\"]%]", '<font color="%1">%2</font>')
 
-        local NotificationParent = SetProps(MakeElement("Frame"), {
-            Size = UDim2.new(1,0,0,0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Parent = NotificationHolder,
-            BackgroundTransparency = 1,
-            ClipsDescendants = false,
-        })
-
-        local Card = SetChildren(
-            SetProps(MakeElement("RoundFrame", Color3.fromRGB(25,25,25),0,8), {
-                Parent = NotificationParent,
-                Size = UDim2.new(1,-20,0,0),
-                Position = UDim2.new(1,30,0,0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-            }),
-            {
-                MakeElement("Stroke", Color3.fromRGB(60,60,60),1),
-                Create("UIPadding", {
-                    PaddingTop = UDim.new(0,10),
-                    PaddingBottom = UDim.new(0,10),
-                    PaddingLeft = UDim.new(0,12),
-                    PaddingRight = UDim.new(0,12),
-                })
-            }
-        )
-
-        Create("UIListLayout", {
-            Parent = Card,
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0,6),
-            HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        })
-
-        local Header = Create("Frame", {
-            Parent = Card,
-            Size = UDim2.new(1,0,0,20),
-            BackgroundTransparency = 1,
-            LayoutOrder = 1,
-        })
-
-        Create("UIListLayout", {
-            Parent = Header,
-            FillDirection = Enum.FillDirection.Horizontal,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
-            Padding = UDim.new(0,8),
-        })
-
-        local NotificationIcon = Create("ImageLabel", {
-            Parent = Header,
-            Size = UDim2.new(0,16,0,16),
-            Image = "",
-            BackgroundTransparency = 1,
-        })
-
-        ApplyIconToObject(NotificationIcon, IconId, 48)
-
-        Create("TextLabel", {
-            Parent = Header,
-            AutomaticSize = Enum.AutomaticSize.XY,
-            Text = ParseText(NotificationConfig.Name),
-            Font = Enum.Font.GothamBold,
-            TextSize = 13,
-            TextColor3 = Color3.fromRGB(255,255,255),
-            BackgroundTransparency = 1,
-            RichText = true,
-        })
-
-        local TimeLabel = Create("TextLabel", {
-            Parent = Header,
-            AutomaticSize = Enum.AutomaticSize.XY,
-            Text = string.format("00:%02d", NotificationConfig.Time),
-            Font = Enum.Font.GothamBold,
-            TextSize = 12,
-            TextColor3 = Color3.fromRGB(180,180,180),
-            BackgroundTransparency = 1,
-        })
-
-        Create("TextLabel", {
-            Parent = Card,
-            Size = UDim2.new(1,0,0,0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Text = ParseText(NotificationConfig.Content),
-            Font = Enum.Font.GothamSemibold,
-            TextSize = 12,
-            TextColor3 = Color3.fromRGB(200,200,200),
-            BackgroundTransparency = 1,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextWrapped = true,
-            RichText = true,
-            LayoutOrder = 2,
-        })
-
-        local ButtonHolder = Create("Frame", {
-            Parent = Card,
-            Size = UDim2.new(1,0,0,26),
-            BackgroundTransparency = 1,
-            LayoutOrder = 3,
-        })
-
-        Create("UIListLayout", {
-            Parent = ButtonHolder,
-            FillDirection = Enum.FillDirection.Horizontal,
-            HorizontalAlignment = Enum.HorizontalAlignment.Right,
-            Padding = UDim.new(0,6),
-        })
+        return Str
+    end
+	local TimeLabel, CloseButton, AcceptButton
+    local Closed = false
+    local IconId = ResolveImageLikeAsset(NotificationConfig.Image)
+    
+    task.spawn(function()
+	    local NotificationParent = SetProps(MakeElement("Frame"), {
+	        Size = UDim2.new(1,0,0,0),
+	        AutomaticSize = Enum.AutomaticSize.Y,
+	        Parent = NotificationHolder,
+	        BackgroundTransparency = 1,
+	        ClipsDescendants = false,
+	    })
+	
+	    local Card = SetChildren(
+	        SetProps(MakeElement("RoundFrame", Color3.fromRGB(25,25,25),0,8), {
+	            Parent = NotificationParent,
+	            Size = UDim2.new(1,-20,0,0),
+	            Position = UDim2.new(1,30,0,0),
+	            AutomaticSize = Enum.AutomaticSize.Y,
+	        }),
+	        {
+	            MakeElement("Stroke", Color3.fromRGB(60,60,60),1),
+	            Create("UIPadding", {
+	                PaddingTop = UDim.new(0,10),
+	                PaddingBottom = UDim.new(0,10),
+	                PaddingLeft = UDim.new(0,12),
+	                PaddingRight = UDim.new(0,12),
+	            })
+	        }
+	    )
+	
+	    Create("UIListLayout", {
+	        Parent = Card,
+	        SortOrder = Enum.SortOrder.LayoutOrder,
+	        Padding = UDim.new(0,6),
+	        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	    })
+	
+	    local Header = Create("Frame", {
+	        Parent = Card,
+	        Size = UDim2.new(1,0,0,20),
+	        BackgroundTransparency = 1,
+	        LayoutOrder = 1,
+	    })
+	
+	    Create("UIListLayout", {
+	        Parent = Header,
+	        FillDirection = Enum.FillDirection.Horizontal,
+	        VerticalAlignment = Enum.VerticalAlignment.Center,
+	        Padding = UDim.new(0,8),
+	    })
+	
+	    local NotificationIcon = Create("ImageLabel", {
+	        Parent = Header,
+	        Size = UDim2.new(0,16,0,16),
+	        Image = "",
+	        BackgroundTransparency = 1,
+	    })
+	
+	    ApplyIconToObject(NotificationIcon, IconId, 48)
+	
+	    Create("TextLabel", {
+	        Parent = Header,
+	        Name = "TextNotify",
+	        AutomaticSize = Enum.AutomaticSize.XY,
+	        Text = ParseText(NotificationConfig.Name),
+	        Font = Enum.Font.GothamBold,
+	        TextSize = 13,
+	        TextColor3 = Color3.fromRGB(255,255,255),
+	        BackgroundTransparency = 1,
+	        RichText = true,
+	    })
+		
+		if not NotificationConfig.Persist then
+		    TimeLabel = Create("TextLabel", {
+		        Parent = Header,
+		        AutomaticSize = Enum.AutomaticSize.XY,
+		        Text = string.format("00:%02d", NotificationConfig.Time),
+		        Font = Enum.Font.GothamBold,
+		        TextSize = 12,
+		        TextColor3 = Color3.fromRGB(180,180,180),
+		        BackgroundTransparency = 1,
+		    })
+		end
+	
+	    Create("TextLabel", {
+	        Parent = Card,
+	        Name = "ContentNotify",
+	        Size = UDim2.new(1,0,0,0),
+	        AutomaticSize = Enum.AutomaticSize.Y,
+	        Text = ParseText(NotificationConfig.Content),
+	        Font = Enum.Font.GothamSemibold,
+	        TextSize = 12,
+	        TextColor3 = Color3.fromRGB(200,200,200),
+	        BackgroundTransparency = 1,
+	        TextXAlignment = Enum.TextXAlignment.Left,
+	        TextWrapped = true,
+	        RichText = true,
+	        LayoutOrder = 2,
+	    })
+	
+	    local ButtonHolder = Create("Frame", {
+	        Parent = Card,
+	        Size = UDim2.new(1,0,0,26),
+	        BackgroundTransparency = 1,
+	        LayoutOrder = 3,
+	    })
+	
+	    Create("UIListLayout", {
+	        Parent = ButtonHolder,
+	        FillDirection = Enum.FillDirection.Horizontal,
+	        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	        Padding = UDim.new(0,6),
+	    })
 		
 		if typeof(NotificationConfig.Accept) == "function" then
-	        local AcceptButton = Create("TextButton", {
+	        AcceptButton = Create("TextButton", {
 	            Parent = ButtonHolder,
 	            Size = UDim2.new(0,70,1,0),
 	            Text = NotificationConfig.AcceptText,
@@ -3115,7 +3225,7 @@ function OrionLib:MakeNotification(NotificationConfig)
 	        })
 		end
 		if typeof(NotificationConfig.Close) == "function" then 
-	        local CloseButton = Create("TextButton", {
+	        CloseButton = Create("TextButton", {
 	            Parent = ButtonHolder,
 	            Size = UDim2.new(0,70,1,0),
 	            Text = NotificationConfig.CloseText,
@@ -3130,92 +3240,127 @@ function OrionLib:MakeNotification(NotificationConfig)
 	            CornerRadius = UDim.new(0,4)
 	        })
 		end
-
-        local BarWrapper = Create("Frame", {
-            Parent = Card,
-            Size = UDim2.new(1,4,0,2),
-            BackgroundColor3 = Color3.fromRGB(45,45,45),
-            BorderSizePixel = 0,
-            LayoutOrder = 4,
-        })
-
-        Create("UICorner", {
-            Parent = BarWrapper,
-            CornerRadius = UDim.new(1,0)
-        })
-
-        local Bar = Create("Frame", {
-            Parent = BarWrapper,
-            Size = UDim2.new(0,0,1,0),
-            BackgroundColor3 = Color3.fromRGB(0,170,255),
-            BorderSizePixel = 0,
-        })
-
-        Create("UICorner", {
-            Parent = Bar,
-            CornerRadius = UDim.new(1,0)
-        })
-
-        local function RemoveNotification()
-            if Closed then
-                return
-            end
-            Closed = true
-            local Out = TweenService:Create(
-                Card,
-                TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-                {Position = UDim2.new(1,90,0,0)}
-            )
-            Out:Play()
-            Out.Completed:Wait()
-            NotificationParent:Destroy()
-        end
+	
+	    local BarWrapper = Create("Frame", {
+	        Parent = Card,
+	        Size = UDim2.new(1,4,0,2),
+	        BackgroundColor3 = Color3.fromRGB(45,45,45),
+	        BorderSizePixel = 0,
+	        LayoutOrder = 4,
+	    })
+	
+	    Create("UICorner", {
+	        Parent = BarWrapper,
+	        CornerRadius = UDim.new(1,0)
+	    })
+	
+	    local Bar = Create("Frame", {
+	        Parent = BarWrapper,
+	        Size = UDim2.new(0,0,1,0),
+	        BackgroundColor3 = Color3.fromRGB(0,170,255),
+	        BorderSizePixel = 0,
+	    })
+	
+	    Create("UICorner", {
+	        Parent = Bar,
+	        CornerRadius = UDim.new(1,0)
+	    })
+	    
+	    function Notify:SetTitle(text)
+		    if Closed or getgenv().Destroy then return end
+	        if Header and Header:FindFirstChild("TextNotify") then
+		        Header.TextNotify.Text = text
+	        end
+	    end
+	
+		function Notify:SetDescription(text)
+		    if Closed or getgenv().Destroy then return end
+	        if Card and Card:FindFirstChild("ContentNotify") then
+		        Card.ContentNotify.Text = text
+	        end
+	    end
+	    
+	    function Notify:Destroy()
+	        if Closed then
+	            return
+	        end
+	        Closed = true
+	        if not NotificationConfig.Persist then
+	            if TimeLabel then
+					TweenService:Create(
+		                TimeLabel,
+		                TweenInfo.new(0.17, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		                {TextColor3 = Color3.new(255, 0, 0)}
+		            ):Play()
+		            local t1 = tonumber(Notify.Time)
+		            while t1 >= 0 do
+		                TimeLabel.Text = string.format("00:%02d", t1)
+		                Notify.Time = t1
+						task.wait()
+		                t1 -= 1
+		            end
+				end
+	        end
+	        local Out = TweenService:Create(
+	            Card,
+	            TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+	            {Position = UDim2.new(1,90,0,0)}
+	        )
+	        Out:Play()
+	        Out.Completed:Wait()
+	        NotificationParent:Destroy()
+	    end
 		if AcceptButton then
 	        AcceptButton.MouseButton1Click:Connect(function()
 	            pcall(NotificationConfig.Accept)
-	            RemoveNotification()
+	            Notify:Destroy()
 	        end)
 		end
 		if CloseButton then
 	        CloseButton.MouseButton1Click:Connect(function()
 	            pcall(NotificationConfig.Close)
-	            RemoveNotification()
+	            Notify:Destroy()
 	        end)
 		end
-
-        task.spawn(function()
-            local t = NotificationConfig.Time
-            while t >= 0 and not Closed do
-                TimeLabel.Text = string.format("00:%02d", t)
-                task.wait(1)
-                t -= 1
-            end
-        end)
-
-        TweenService:Create(
-            Card,
-            TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-            {Position = UDim2.new(1,-272,0,0)}
-        ):Play()
-
-        TweenService:Create(
-            Bar,
-            TweenInfo.new(NotificationConfig.Time, Enum.EasingStyle.Linear),
-            {Size = UDim2.new(1,0,1,0)}
-        ):Play()
-
-        task.delay(NotificationConfig.Time, function()
-            if not Closed then
-                RemoveNotification()
-            end
-        end)
-    end)
+		if not NotificationConfig.Persist then
+	        task.spawn(function()
+				if TimeLabel then
+		            local t = NotificationConfig.Time
+		            while t >= 0 and not Closed do
+		                TimeLabel.Text = string.format("00:%02d", t)
+		                Notify.Time = t
+		                task.wait(1)
+		                t -= 1
+		            end
+				end
+	        end)
+	
+	        TweenService:Create(
+	            Card,
+	            TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	            {Position = UDim2.new(1,-272,0,0)}
+	        ):Play()
+	
+	        TweenService:Create(
+	            Bar,
+	            TweenInfo.new(NotificationConfig.Time, Enum.EasingStyle.Linear),
+	            {Size = UDim2.new(1,0,1,0)}
+	        ):Play()
+	
+	        task.delay(NotificationConfig.Time + 1, function()
+	            if not Closed then
+	                Notify:Destroy()
+	            end
+	        end)
+		end
+	end)
+	return Notify
 end
 
 getgenv().TogglesSaveTable = {}
 getgenv().NameBindKey = {}
-function KeyBindAdd()
-    KeyBindFrame = OrionLib:AddThemeObject(
+local function KeyBindAdd()
+    local KeyBindFrame = OrionLib:AddThemeObject(
         SetChildren(
             SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, OrionLib.Style.CardRadius or 6), {
                 Size = UDim2.new(0, 252, 0, 174),
@@ -4251,8 +4396,7 @@ function OrionLib:MakeWindow(WindowConfig)
     local Functions = {}
     local TabName = {}
     local AllTabs = {}
-
-        function Functions:MakeTab(TabConfig)
+    function Functions:MakeTab(TabConfig)
         TabConfig = type(TabConfig) == "table" and TranslateConfig(TabConfig) or {}
         TabConfig.Name = tostring(TabConfig.Name or TabConfig.Title or "Tab")
         TabConfig.Icon = ResolveIcon(TabConfig.Icon or "")
@@ -4433,8 +4577,6 @@ function OrionLib:MakeWindow(WindowConfig)
         end
         Tabs.Button = TabFrame
 		Tabs.Container = Container
-		-- A grouped page owns two scrolling columns. The left column is the
-		-- default destination for controls added directly through the tab API.
 		local PrimaryContainer = Tabs.Mode == "Group" and Container:FindFirstChild("Left") or Container
 		if not PrimaryContainer then
 			error("OrionLib failed to create the primary tab container")
@@ -4648,7 +4790,9 @@ function OrionLib:MakeWindow(WindowConfig)
             function ElementFunction:AddDivider(DividerConfig)
                 DividerConfig = DividerConfig or {}
                 DividerConfig.Text = DividerConfig.Text or DividerConfig.Title or DividerConfig.Name
+                DividerConfig.Flag = DividerConfig.Flag or DividerConfig.FlagLabel or "Divider"
                 local HasText = type(DividerConfig.Text) == "string" and DividerConfig.Text ~= ""
+                local Divider = {Text = DividerConfig.Text}
 
                 local DividerFrame = SetProps(MakeElement("Frame"), {
                     Size = UDim2.new(1, 0, 0, 20),
@@ -4734,8 +4878,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     )
                 end
 
-                local DividerFunction = {}
-                function DividerFunction:Set(NewText)
+                function Divider:Set(NewText)
                     if getgenv().Destroy then
                         return
                     end
@@ -4744,7 +4887,11 @@ function OrionLib:MakeWindow(WindowConfig)
                         label.Text = tostring(NewText or "")
                     end
                 end
-                return DividerFunction
+                if DividerConfig.Flag then
+	                OrionLib.Flags[DividerConfig.Flag] = Divider
+					OrionLib.Label[DividerConfig.Flag] = Divider
+                end
+                return Divider
             end
             function ElementFunction:AddLog(Text)
                 local Label = MakeElement("Label", Text, 15)
@@ -4790,14 +4937,25 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
                 return LogFunction
             end
-            function ElementFunction:AddLabel(Text, Log)
-                Log = Log or {}
+            function ElementFunction:AddLabel(...)
+                local LabelConfig = select(1, ...)
+                if type(LabelConfig) == "table" then
+	                Text = LabelConfig.Text
+					Flag = LabelConfig.Flag or nil
+					Visible = LabelConfig.Visible or true
+				elseif type(LabelConfig) == "string" then
+					Text = LabelConfig
+					Flag = select(2, ...) or nil
+					Visible = select(3, ...) or true
+                end
+                local Label = {Name = Text, Flags = Flag, Visibles = Visible}
                 local DefaultBackground = OrionLib.Themes[OrionLib.SelectedTheme].Second
                 local LabelFrame = OrionLib:AddThemeObject(
                     SetChildren(
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 30),
                             Parent = ItemParent,
+                            Visible = Visible,
                             BackgroundColor3 = DefaultBackground,
                         }),
                         {
@@ -4863,8 +5021,7 @@ function OrionLib:MakeWindow(WindowConfig)
                     LabelFrame.BackgroundColor3 = DefaultBackground
                 end
 
-                local LabelFunction = {}
-                function LabelFunction:Set(ToChange, State)
+                function Label:Set(ToChange, State)
                     if getgenv().Destroy then
                         return
                     end
@@ -4893,18 +5050,34 @@ function OrionLib:MakeWindow(WindowConfig)
                         Log[State:sub(1, 1):upper() .. State:sub(2)] = true
                     end
                 end
-                return LabelFunction
+                if Flag then
+	                OrionLib.Flags[Flag] = Label
+					OrionLib.Label[Flag] = Label
+                end
+                return Label
             end
-            function ElementFunction:AddParagraph(Text, Content)
-                Text = Text or "Text"
-                Content = Content or "Content"
-
+            function ElementFunction:AddParagraph(...)
+                local ParagraphConfig = select(1, ...)
+                if type(LabelConfig) == "table" then
+	                Text = ParagraphConfig.Text or "Hello"
+					Content = ParagraphConfig.Content or "is content"
+					Flag = ParagraphConfig.Flag or false
+					Visible = ParagraphConfig.Visible or true
+				elseif type(LabelConfig) == "string" then
+					Text = LabelConfig
+					Content = select(2, ...) or "is content"
+					Flag = select(3, ...) or nil
+					Visible = select(4, ...) or true
+                end
+                
+                local Paragraph = {Text = Text, Content = Content, Flag = Flag, Visible = Visible}
                 local ParagraphFrame = OrionLib:AddThemeObject(
                     SetChildren(
                         SetProps(MakeElement("RoundFrame", Color3.fromRGB(255, 255, 255), 0, 5), {
                             Size = UDim2.new(1, 0, 0, 30),
                             BackgroundTransparency = 0.7,
                             Parent = ItemParent,
+                            Visible = Visible,
                         }),
                         {
                             OrionLib:AddThemeObject(
@@ -4917,7 +5090,7 @@ function OrionLib:MakeWindow(WindowConfig)
                                 "Text"
                             ),
                             OrionLib:AddThemeObject(
-                                SetProps(MakeElement("Label", "", 13), {
+                                SetProps(MakeElement("Label", Content, 13), {
                                     Size = UDim2.new(1, -24, 0, 0),
                                     Position = UDim2.new(0, 12, 0, 26),
                                     Font = Enum.Font.GothamSemibold,
@@ -4931,16 +5104,20 @@ function OrionLib:MakeWindow(WindowConfig)
                     ),
                     "Second"
                 )
-
-                AddConnection(ParagraphFrame.Content:GetPropertyChangedSignal("Text"), function()
-                    ParagraphFrame.Content.Size = UDim2.new(1, -24, 0, ParagraphFrame.Content.TextBounds.Y)
+                
+                function update()
+	                if not ParagraphFrame or not ParagraphFrame:FindFirstChild("Content") then return end
+					if getgenv().Destroy then return end
+	                ParagraphFrame.Content.Size = UDim2.new(1, -24, 0, ParagraphFrame.Content.TextBounds.Y)
                     ParagraphFrame.Size = UDim2.new(1, 0, 0, ParagraphFrame.Content.TextBounds.Y + 35)
+                end
+				
+				update()
+                AddConnection(ParagraphFrame.Content:GetPropertyChangedSignal("Text"), function()
+                    update()
                 end)
 
-                ParagraphFrame.Content.Text = Content
-
-                local ParagraphFunction = {}
-                function ParagraphFunction:Set(ToChange)
+                function Paragraph:SetContent(ToChange)
                     if getgenv().Destroy then
                         return
                     end
@@ -4948,7 +5125,29 @@ function OrionLib:MakeWindow(WindowConfig)
                         ParagraphFrame.Content.Text = ToChange
                     end
                 end
-                return ParagraphFunction
+                
+                function Paragraph:SetText(ToChange)
+                    if getgenv().Destroy then
+                        return
+                    end
+                    if ParagraphFrame and ParagraphFrame:FindFirstChild("Title") then
+                        ParagraphFrame.Title.Text = ToChange
+                    end
+                end
+                
+                function Paragraph:SetDescription(ToChange)
+	                Paragraph:SetContent(ToChange)
+                end
+                
+                function Paragraph:SetTitle(ToChange)
+	                Paragraph:SetText(ToChange)
+                end
+                
+                if Flag then
+	                OrionLib.Flags[Flag] = Label
+					OrionLib.Label[Flag] = Label
+                end
+                return Paragraph
             end
             function ElementFunction:AddWarningBox(WarningConfig)
                 WarningConfig = TranslateConfig(WarningConfig or {})
@@ -5035,6 +5234,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
                 if WarningConfig.Flag then
                     OrionLib.Flags[WarningConfig.Flag] = Warning
+                    OrionLib.Label[WarningConfig.Flag] = Warning
                 end
                 return Warning
             end
@@ -5045,7 +5245,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 TabBoxConfig.Description = TabBoxConfig.Description or TabBoxConfig.Desc or TabBoxConfig.Content or ""
                 TabBoxConfig.Icon = ResolveIcon(TabBoxConfig.Icon or "info")
                 TabBoxConfig.Color = TabBoxConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
-                TabBoxConfig.Visible = TabBoxConfig.Visible ~= false
+                TabBoxConfig.Visible = Default(TabBoxConfig.Visible, Default(TabBoxConfig.Enabled, true))
                 TabBoxConfig.RichText = TabBoxConfig.RichText ~= false
                 local TabBox = { Type = "TabBox", Visible = TabBoxConfig.Visible }
 
@@ -5965,7 +6165,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 DiscordConfig.Invite = DiscordConfig.Invite or DiscordConfig.Link or DiscordConfig.Url
                 DiscordConfig.Icon = ResolveImageLikeAsset(ResolveIcon(DiscordConfig.Icon or "message-circle"))
                 DiscordConfig.Thumbnail = ResolveExternalMediaAsset(DiscordConfig.Thumbnail or DiscordConfig.Banner or DiscordConfig.Image, "Discord")
-                DiscordConfig.Visible = DiscordConfig.Visible ~= false
+                DiscordConfig.Visible = Default(DiscordConfig.Visible, Default(DiscordConfig.Enabled, true))
 
                 local Discord = { Visible = DiscordConfig.Visible, Type = "DiscordServer" }
                 local height = DiscordConfig.Thumbnail and 172 or 118
@@ -6176,7 +6376,7 @@ function OrionLib:MakeWindow(WindowConfig)
 
             function ElementFunction:AddButton(ButtonConfig)
                 ButtonConfig = ButtonConfig or {}
-                ButtonConfig.Visible = ButtonConfig.Visible or true
+                ButtonConfig.Visible = Default(ButtonConfig.Visible, Default(ButtonConfig.Enabled, true))
                 ButtonConfig.Disabled = ButtonConfig.Disabled or false
                 ButtonConfig.Name = ButtonConfig.Name or "Button"
                 ButtonConfig.Callback = ButtonConfig.Callback or function() end
@@ -6478,7 +6678,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 ButtonConfig = TranslateConfig(ButtonConfig or {})
                 ButtonConfig.Name = ButtonConfig.Name or ButtonConfig.Title or "Highlight Button"
                 ButtonConfig.Callback = ButtonConfig.Callback or function() end
-                ButtonConfig.Visible = ButtonConfig.Visible ~= false
+                ButtonConfig.Visible = Default(ButtonConfig.Visible, Default(ButtonConfig.Enabled, true))
                 ButtonConfig.Disabled = ButtonConfig.Disabled == true
                 ButtonConfig.Color = ButtonConfig.Color or Color3.fromRGB(90, 140, 255)
                 ButtonConfig.Icon = ResolveIcon(ButtonConfig.Icon or "mouse-pointer-click")
@@ -6621,14 +6821,17 @@ function OrionLib:MakeWindow(WindowConfig)
                 ViewportConfig.Zoom = ViewportConfig.Zoom or false
                 ViewportConfig.Size = ViewportConfig.Size or 20
                 ViewportConfig.Flag = ViewportConfig.Flag or false
-                ViewportConfig.Visible = ViewportConfig.Visible or true
+                ViewportConfig.Interactive = ViewportConfig.Interactive or false
+                ViewportConfig.Visible = Default(ViewportConfig.Visible, Default(ViewportConfig.Enabled, true))
                 ViewportConfig.Padding = ViewportConfig.Padding or 8
+                ViewportConfig.Callback = ViewportConfig.Callback or function() end
 
                 local Viewport = {
                     Object = ViewportConfig.Object,
                     Camera = ViewportConfig.Camera,
                     Orbit = ViewportConfig.Orbit,
                     Zoom = ViewportConfig.Zoom,
+                    Interactive = ViewportConfig.Interactive,
                     Control = ViewportConfig.Control,
                     Size = ViewportConfig.Size,
                     Flag = ViewportConfig.Flag,
@@ -6650,6 +6853,15 @@ function OrionLib:MakeWindow(WindowConfig)
                             Parent = ItemParent,
                         }),
                         {
+                        	OrionLib:AddThemeObject(
+                                SetProps(MakeElement("Label", ButtonConfig.Name, 15), {
+                                    Size = UDim2.new(1, -52, 1, 0),
+                                    Position = UDim2.new(0, 20, 0, 0),
+                                    Font = Enum.Font.GothamBold,
+                                    Name = "Content",
+                                }),
+                                "Text"
+                            ),
                             Create("ViewportFrame", {
                                 Name = "ViewportFrame",
                                 AnchorPoint = Vector2.new(0.5, 0.5),
@@ -6908,7 +7120,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 ImageConfig.Icon = ImageConfig.Icon or "rbxassetid://0"
                 ImageConfig.Size = ImageConfig.Size or 20
                 ImageConfig.Flag = ImageConfig.Flag or false
-                ImageConfig.Visible = ImageConfig.Visible or true
+                ImageConfig.Visible = Default(ImageConfig.Visible, Default(ImageConfig.Enabled, true))
                 ImageConfig.Padding = ImageConfig.Padding or 8
 
                 local Image = { Default = ImageConfig.Icon, Size = ImageConfig.Size, Type = "Image" }
@@ -7037,7 +7249,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 VideoConfig.Size = VideoConfig.Size or 20
                 VideoConfig.Flag = VideoConfig.Flag or false
                 VideoConfig.Sound = VideoConfig.Sound or {}
-                VideoConfig.Visible = VideoConfig.Visible ~= false
+                VideoConfig.Visible = Default(VideoConfig.Visible, Default(VideoConfig.Enabled, true))
                 VideoConfig.Padding = VideoConfig.Padding or 8
                 local Video = { Default = VideoConfig.Icon, Size = VideoConfig.Size, Type = "Video" }
 
@@ -7215,7 +7427,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 ToggleConfig.Default = ToggleConfig.Default or ToggleConfig.Average or false
                 ToggleConfig.Callback = ToggleConfig.Callback or ToggleConfig.Function or function() end
                 ToggleConfig.Color = ToggleConfig.Color or GetThemeValue("Accent", Color3.fromRGB(96, 165, 250))
-                ToggleConfig.Visible = ToggleConfig.Visible or ToggleConfig.Enabled or true
+                ToggleConfig.Visible = Default(ToggleConfig.Visible, Default(ToggleConfig.Enabled, true))
                 ToggleConfig.Disabled = ToggleConfig.Disabled or ToggleConfig.Dead or false
                 ToggleConfig.Icon = ToggleConfig.Icon or "rbxassetid://3944680095"
                 ToggleConfig.Type = ToggleConfig.Type or ToggleConfig.Mode or "CheckBox"
@@ -8200,13 +8412,14 @@ function OrionLib:MakeWindow(WindowConfig)
 				
                 if ToggleConfig.Flag then
                     OrionLib.Flags[ToggleConfig.Flag] = Toggle
+                    OrionLib.Toggle[ToggleConfig.Flag] = Toggle
                 end
                 return Toggle
             end
             function ElementFunction:AddSlider(SliderConfig)
                 SliderConfig = SliderConfig or {}
                 SliderConfig.Name = SliderConfig.Name or "Slider"
-                SliderConfig.Visible = SliderConfig.Visible or true
+                SliderConfig.Visible = Default(SliderConfig.Visible, Default(SliderConfig.Enabled, true))
                 SliderConfig.Disabled = SliderConfig.Disabled or false
                 SliderConfig.Min = SliderConfig.Min or 0
                 SliderConfig.Max = SliderConfig.Max or 100
@@ -8960,7 +9173,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 DropdownConfig.Callback = DropdownConfig.Callback or function() end
                 DropdownConfig.Flag = DropdownConfig.Flag or nil
                 DropdownConfig.Save = DropdownConfig.Save or false
-                DropdownConfig.Visible = DropdownConfig.Visible or true
+                DropdownConfig.Visible = Default(DropdownConfig.Visible, Default(DropdownConfig.Enabled, true))
                 DropdownConfig.Disabled = DropdownConfig.Disabled or false
 
                 if DropdownConfig.MultiTrue then
@@ -9408,15 +9621,13 @@ function OrionLib:MakeWindow(WindowConfig)
                 BindConfig.Hold = BindConfig.Hold or false
                 BindConfig.Callback = BindConfig.Callback or function() end
                 BindConfig.Flag = BindConfig.Flag or nil
-                BindConfig.Save = BindConfig.Save or false
-                BindConfig.Visible = BindConfig.Visible ~= false
+                BindConfig.Visible = Default(BindConfig.Visible, Default(BindConfig.Enabled, true))
                 BindConfig.Disabled = BindConfig.Disabled or false
 
                 local Bind = {
                     Value,
                     Binding = false,
                     Type = "Bind",
-                    Save = BindConfig.Save,
                     Visible = BindConfig.Visible,
                     Disabled = BindConfig.Disabled,
                 }
@@ -9641,7 +9852,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 TextboxConfig.Default = TextboxConfig.Default or TextboxConfig.Value or ""
                 TextboxConfig.TextDisappear = TextboxConfig.TextDisappear or false
                 TextboxConfig.Callback = TextboxConfig.Callback or TextboxConfig.Function or function() end
-                TextboxConfig.Visible = TextboxConfig.Visible or TextboxConfig.Enabled or true
+                TextboxConfig.Visible = Default(TextboxConfig.Visible, Default(TextboxConfig.Enabled, true))
                 TextboxConfig.Disabled = TextboxConfig.Disabled or false
 
                 local Textbox = {
@@ -9839,7 +10050,7 @@ function OrionLib:MakeWindow(WindowConfig)
                 ColorpickerConfig.Callback = ColorpickerConfig.Callback or function() end
                 ColorpickerConfig.Flag = ColorpickerConfig.Flag or nil
                 ColorpickerConfig.Alpha = ColorpickerConfig.Alpha or false
-                ColorpickerConfig.Visible = ColorpickerConfig.Visible or ColorpickerConfig.Enabled or true
+                ColorpickerConfig.Visible = Default(ColorpickerConfig.Visible, Default(ColorpickerConfig.Enabled, true))
                 local pickerMode = tostring(ColorpickerConfig.Mode or ColorpickerConfig.PickerType or ColorpickerConfig.Style or "Gradient"):lower()
                 pickerMode = (pickerMode == "basic" or pickerMode == "normal" or pickerMode == "bth") and "Basic" or "Gradient"
 
