@@ -4592,13 +4592,21 @@ function OrionLib:MakeWindow(WindowConfig)
 	        for i, v in pairs(Container:GetChildren()) do
 				if v:IsA("ScrollingFrame") and v:FindFirstChild("UIListLayout") then
 					AddConnection(v.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-						v.CanvasSize = UDim2.new(0, 0, 0, v.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30))
+						TweenService:Create(
+                            v,
+                            TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                            { CanvasSize = UDim2.new(0, 0, 0, v.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30)) }
+                        ):Play()
 					end)
 				end
 			end
 		else
 			AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-				Container.CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30))
+				TweenService:Create(
+                    Container,
+                    TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                    { CanvasSize = UDim2.new(0, 0, 0, v.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30)) }
+                ):Play()
 			end)
         end
 
@@ -4940,13 +4948,13 @@ function OrionLib:MakeWindow(WindowConfig)
             function ElementFunction:AddLabel(...)
                 local LabelConfig = select(1, ...)
                 if type(LabelConfig) == "table" then
-	                Text = LabelConfig.Text
+	                Text = LabelConfig.Text or "is label"
 					Flag = LabelConfig.Flag or nil
-					Visible = LabelConfig.Visible or true
+					Visible = LabelConfig.Visible ~= false
 				elseif type(LabelConfig) == "string" then
-					Text = LabelConfig
+					Text = LabelConfig or "is label"
 					Flag = select(2, ...) or nil
-					Visible = select(3, ...) or true
+					Visible = select(3, ...) ~= false
                 end
                 local Label = {Name = Text, Flags = Flag, Visibles = Visible}
                 local DefaultBackground = OrionLib.Themes[OrionLib.SelectedTheme].Second
@@ -5058,16 +5066,16 @@ function OrionLib:MakeWindow(WindowConfig)
             end
             function ElementFunction:AddParagraph(...)
                 local ParagraphConfig = select(1, ...)
-                if type(LabelConfig) == "table" then
+                if type(ParagraphConfig) == "table" then
 	                Text = ParagraphConfig.Text or "Hello"
 					Content = ParagraphConfig.Content or "is content"
-					Flag = ParagraphConfig.Flag or false
-					Visible = ParagraphConfig.Visible or true
-				elseif type(LabelConfig) == "string" then
+					Flag = ParagraphConfig.Flag or nil
+					Visible = ParagraphConfig.Visible ~= false
+				elseif type(ParagraphConfig) == "string" then
 					Text = LabelConfig
 					Content = select(2, ...) or "is content"
 					Flag = select(3, ...) or nil
-					Visible = select(4, ...) or true
+					Visible = select(4, ...) ~= false
                 end
                 
                 local Paragraph = {Text = Text, Content = Content, Flag = Flag, Visible = Visible}
@@ -5144,8 +5152,8 @@ function OrionLib:MakeWindow(WindowConfig)
                 end
                 
                 if Flag then
-	                OrionLib.Flags[Flag] = Label
-					OrionLib.Label[Flag] = Label
+	                OrionLib.Flags[Flag] = Paragraph
+					OrionLib.Label[Flag] = Paragraph
                 end
                 return Paragraph
             end
