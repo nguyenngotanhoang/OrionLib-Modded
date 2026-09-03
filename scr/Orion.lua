@@ -4605,7 +4605,7 @@ function OrionLib:MakeWindow(WindowConfig)
 				TweenService:Create(
                     Container,
                     TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    { CanvasSize = UDim2.new(0, 0, 0, v.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30)) }
+                    { CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + ((WindowConfig.SearchBar and WindowConfig.SearchBar.Mains == true) and 25 or 30)) }
                 ):Play()
 			end)
         end
